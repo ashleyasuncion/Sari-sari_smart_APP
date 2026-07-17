@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Store roof (triangle) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,18L18,52H90L54,18Z" />
+    <!-- Store body (rectangle) -->
+    <path
+        android:fillColor="#DCFCE7"
+        android:pathData="M22,52H86V78H22V52Z" />
+    <!-- Door -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:pathData="M44,60V78H64V60H44Z" />
+    <!-- Coin icon -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M54,30m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+    <!-- Peso sign -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,27V33M52,30H56" />
+</vector>

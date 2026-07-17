@@ -1,0 +1,362 @@
+================================================================================
+ADAPTATION PLAN: HTML PROTOTYPE → KOTLIN ANDROID APP (FRONTEND ONLY)
+================================================================================
+Date: July 4, 2026
+Source: git/Sari-sari_smart/ (HTML/CSS/JS — LATEST PROTOTYPE v2.18)
+Target: Sari-sari_smart/ (Kotlin + Jetpack Compose)
+
+PURPOSE
+--------------------------------------------------------------------------------
+This plan focuses exclusively on adapting the FRONTEND (UI/UX) from the web
+application prototype to the native Android mobile app. Backend, database,
+and API integration are intentionally excluded from this plan and will be
+addressed in a separate phase after the frontend is complete.
+
+The web prototype (git/Sari-sari_smart/) is a feature-complete mobile-first
+HTML/CSS/JS application with:
+  - 16 HTML pages (multi-page app structure)
+  - 1 stylesheet (style.css, ~2,500 lines)
+  - 1 JavaScript file (app.js, ~4,800 lines)
+  - localStorage for data persistence
+  - EN + FIL localization with 200+ string pairs
+  - 13 tutorial string sets
+  - Phone-frame design (393x852px)
+  - 5-tab bottom navigation (Home, Stocks, Sales, Utang, Help)
+
+GUIDING PRINCIPLES
+--------------------------------------------------------------------------------
+1. Copy the visual design exactly — use the web prototype as a pixel reference
+2. Preserve all terminology, layout, and UX patterns for sari-sari store owners
+3. Implement language switching (EN/FIL) and text size scaling
+4. Implement the tutorial system with all 13 tutorial types
+5. Replicate the phone-frame design language (rounded corners, green theme, cards)
+6. Prioritize the three business pillars: Stock Tracker, Daily Cash Summary, Utang Notebook
+7. No Room database, no SQL, no API integration — use in-memory state + SharedPreferences
+8. The HTML prototype's data model (state management, localStorage) should inform the
+   Android app's in-memory state approach
+
+================================================================================
+STAGE 1 — PROJECT FOUNDATION [COMPLETE]
+================================================================================
+
+  [✓] Android project with Gradle build system (Kotlin 2.0, AGP 8.7.3)
+  [✓] Jetpack Compose + Material 3 dependency
+  [✓] Navigation Compose with 16 routes defined
+  [✓] Bottom navigation bar (5 tabs: Home, Stocks, Sales, Utang, Help)
+  [✓] Theme files (Color.kt, Theme.kt, Type.kt) — green primary palette
+  [✓] AppSettings.kt (SharedPreferences for language, text size, store info)
+  [✓] Strings.kt (200+ EN + FIL string pairs from web prototype)
+  [✓] ScaledText.kt (text size scaling component)
+  [✓] TutorialOverlay.kt (tutorial overlay composable)
+  [✓] Basic screen stubs for all 16 screens (navigation-ready)
+  [✓] Splash → Setup → Home flow
+
+================================================================================
+STAGE 2 — SCREEN-BY-SCREEN UI IMPLEMENTATION [COMPLETE]
+================================================================================
+
+Each screen below lists the gap between the web prototype and the current
+Android placeholder. Implementation should follow the screens in this order,
+as each depends on the navigation and state infrastructure of the previous.
+
+─── Phase A: Core Navigation & App Shell (Foundation) ────────────────────
+
+  Screen              | Web Prototype (git)      | Android Stub           | Status
+  ────────────────────┼──────────────────────────┼────────────────────────┼───────
+  1. SplashScreen     | Animated splash, auto    | Basic splash with      | [✓]
+                      | navigate to setup/home   | auto-navigate          |
+  2. SetupScreen      | Store name, owner, lang, | Complete (no data      | [✓]
+                      | "Get Started" button     | layer dependency)      |
+  3. MainScaffold     | 5-tab bottom nav         | Complete               | [✓]
+  4. BottomNavBar     | 5 tabs with icons        | Complete               | [✓]
+
+─── Phase B: Home Dashboard (Pillar 1 of 3) ────────────────────────────
+
+  5. HomeScreen       | 4 summary cards + tip    | Full implementation    | [✓]
+                      | Personalized business    | with ViewModel +       |
+                      | tips (6-priority system) | demo data              |
+                      | Tap cards → navigate     |                        |
+  6. ReportsScreen    | Period toggles           | Full implementation    | [✓]
+                      | (Day/Week/Month)          | with dynamic data,    |
+                      | Sales/profit cards       | best-sellers ranking, |
+                      | Best-sellers ranking     | transactions,         |
+                      | Low-stock items list     | low-stock items list  |
+                      | Recent transactions      |                        |
+
+─── Phase C: Stock Management (Pillar 2 of 3) ──────────────────────────
+
+  7. StocksScreen     | Product list with color  | Full implementation    | [✓]
+                      | -coded status (green/     | Color-coded cards,     |
+                      | orange/red)              | filter chips, search,  |
+                      | Filter chips             | critical banner,       |
+                      | Search bar               | "Kulang Na" section,   |
+                      | Low-stock banner         | Sold button per card,  |
+                      | "Kulang Na" section      | profit margin display  |
+                      | Stock cards with margin  |                        |
+                      | Sold button per card     |                        |
+  8. AddStockScreen    | Item name, qty, cost,   | Full form with markup  | [✓]
+                      | sell price, markup %     | slider, auto-calc      |
+                      | Markup pricing helper    | suggested price,       |
+                      | (cost x markup% → price) | profit margin preview  |
+                      | Profit margin preview    | Edit/Restock modes     |
+  9. ProductDetail    | Stock, cost, price,      | Full detail view with  | [✓]
+     Screen           | profit margin            | large stock display,   |
+                      | Status chips             | status chips, deduct   |
+                      | Deduct stock section     | stock, edit/restock/   |
+                      | Edit/Restock buttons     | delete buttons, out-   |
+                      | Out-of-stock banner      | of-stock banner        |
+
+─── Phase D: Sales & Profit Tracking (Pillar 3 of 3) ───────────────────
+
+  10. DailySalesScreen | Gastos + Kita inputs     | Full implementation   | [✓]
+                       | Auto-calc gross/net/     | Live calc, insight    |
+                       | revolving fund           | cards, utang          |
+                       | Profit Margin row        | breakdown, sold items |
+                       | Sales insight card       | list, already-        |
+                       | (loss/low/healthy/great) | recorded state,       |
+                       | Utang Breakdown section  | recent sales          |
+                       | (utang total, pending    |                       |
+                       | profit, cash profit)     |                       |
+                       | "Already Recorded" state |                       |
+  11. SpecificSale     | Product search with      | Full implementation   | [✓]
+      Screen           | autocomplete from        | with product search,  |
+                       | inventory                | autocomplete, qty     |
+                       | Quantity input, auto-    | input, auto-total,    |
+                       | total calc               | customer name for     |
+                       | Customer name (utang)    | utang, auto-debt      |
+                       | Manual amount override   | creation, profit      |
+                       | Profit info display      | margin display        |
+
+─── Phase E: Utang/Debt Management ──────────────────────────────────────
+
+  12. DebtsScreen      | Total Outstanding card   | Full implementation   | [✓]
+                      | New Debt button         | with real customer    |
+                      | Customer list with      | data from ViewModel   |
+                      | balances & last activity |                       |
+  13. NewDebtScreen    | Customer name field      | Full implementation   | [✓]
+                      | Amount field            | with autocomplete,    |
+                      | Customer autocomplete   | auto-debt, info note  |
+                      | Info note about utang   |                       |
+  14. CustomerDebt     | Full customer ledger     | Full implementation   | [✓]
+      DetailScreen     | (debt events, payments, | with balance card,    |
+                      | running balance)         | history ledger,       |
+                      | Record Payment button   | Record Payment btn    |
+  15. RecordPayment    | Payment amount field     | Full implementation   | [✓]
+      Screen           | Optional note            | with live preview,    |
+                      | Live remaining preview   | overpayment prevent,  |
+                      | Save button             | settled indicator     |
+
+─── Phase F: End-of-Day & Help ─────────────────────────────────────────
+
+  16. EndOfDayScreen   | 3-step closing routine   | 3 toggleable steps:   | [✓]
+                      | (cash count → stock      | cash counter, stock   |
+                      | check → debt payments)   | check with navigate,  |
+                      | Inline summary when      | debt payments check   |
+                      | all steps complete       | Summary card when     |
+                      | Complete Closing button  | all 3 done + close    |
+  17. HelpScreen       | Replay Tutorial button   | 7-topic How-to-Use    | [✓]
+                      | How to Use guide         | accordion, Tutorial   |
+                      | (7-topic accordion)      | replay, About/Contact |
+                      | About + Contact          | dialogs, Settings btn |
+                      | Settings link            |                       |
+  18. SettingsScreen   | Language (EN/FIL)        | Complete              | [✓]
+                      | Text size (S/L/XL)       |                       |
+                      | Store info fields        |                       |
+                      | Data management (reset)  |                       |
+                      | Confirmation dialog      |                       |
+
+================================================================================
+STAGE 3 — TUTORIAL SYSTEM [COMPLETE]
+================================================================================
+
+  Feature                        | Web Prototype         | Android Stub       | Status
+  ───────────────────────────────┼───────────────────────┼────────────────────┼───────
+  Main 8-step tutorial           | 8-step guided tour    | Enhanced overlay   | [✓]
+  Page-specific tutorials        | 12 tutorial types     | 12 types (main,    | [✓]
+                                 | (13 in web)           | home, stock, sales,
+                                 |                       | debt, eod, report,
+                                 |                       | settings, addProd,
+                                 |                       | newSale, newDebt,
+                                 |                       | help)
+  Tutorial selector (Help)       | Dropdown + Launch btn | ExposedDropdownMenu | [✓]
+  Per-page (?) header buttons    | On 4 major pages      | Home, Stocks,       | [✓]
+                                 |                       | Sales, Debts        |
+  Tutorial highlight frame       | Auto-positioned       | Top-center badge    | [✓]
+                                 |                       | with step dots      |
+  Tutorial resume after nav      | Cross-page persistence| Auto-nav in         | [✓]
+                                 |                       | advanceTutorial()   |
+  How-to-Use accordion (7 topics)| Dedicated page        | 7-topic animated    | [✓]
+                                 |                       | accordion (Stage 2) |
+
+  NOTES:
+  - Tutorial strings already in Strings.kt (all 13 tutorial sets)
+  - TutorialOverlay enhanced with highlight frame, step dots, page indicator
+  - NavGraph supports 11 route mappings for cross-page tutorial navigation
+  - 4 major screens (Home, Stocks, Sales, Debts) have per-page (?) buttons
+
+  STRING KEYS USED:
+  - Main: tutorial1–tutorial8, tutorial9 (extended)
+  - Home: homeTutorial1–homeTutorial10
+  - Stock: stockTutorial1–stockTutorial10
+  - Sales: salesTutorial1–salesTutorial10
+  - Debt: debtTutorial1–debtTutorial10
+  - EOD: eodTutorial1–eodTutorial6
+  - Reports: reportTutorial1–reportTutorial6
+  - Settings: settingsTutorial1–settingsTutorial5
+  - Add Product: addProductTutorial1–addProductTutorial5
+  - New Sale: newSaleTutorial1–newSaleTutorial5
+  - New Debt: newDebtTutorial1–newDebtTutorial4
+  - Help: helpTutorial1–helpTutorial6
+
+================================================================================
+STAGE 4 — STATE MANAGEMENT (No Database) [COMPLETE]
+================================================================================
+
+  The web prototype uses a centralized JavaScript state object persisted to
+  localStorage. The Android app mirrors this approach without Room:
+
+  State Approach (no database):
+  ─────────────────────────────────────────────────────────────────────────
+  Session state: MutableState/MutableStateFlow in AppViewModel
+  Persistence: SharedPreferences + JSON serialization via PersistenceManager
+               Uses built-in org.json (JSONObject/JSONArray) — no extra deps
+
+  Implementation:
+  ─────────────────────────────────────────────────────────────────────────
+  PersistenceManager.kt:
+    - saveProducts()/loadProducts() — JSON array of Product objects
+    - saveDailyEntry()/loadDailyEntry() — JSON object for today's entry
+    - saveSpecificSales()/loadSpecificSales() — JSON array of SpecificSale
+    - saveDebts()/loadDebts() — JSON array of CustomerDebt objects
+    - saveEndOfDayData()/loadEndOfDayData() — JSON object for EOD state
+    - saveCounters()/loadCounters() — ID auto-increment counters
+
+  AppViewModel integration:
+    - initPersistence() called from NavGraph via LaunchedEffect(Unit)
+    - Loads saved data on startup; seeds demo data only if no saved data
+    - Auto-saves every state change via StateFlow.collect() coroutines
+    - resetAllData() clears both in-memory state and SharedPreferences
+
+  State Entities Implemented:
+  ────────────────────────────
+  [✓] products — List of product objects with name, cost, price, qty, unit
+  [✓] stockStatuses — Computed from Product.quantity (plenty/low/out)
+  [✓] dailyEntries — { date, stockExpenses, earnings, grossProfit, etc. }
+  [✓] specificSales — { date, description, amount, quantity, customer, etc. }
+  [✓] debts — { customerName, totalAmount, remainingBalance, transactions }
+  [✓] usedCustomerNames — Computed from debts list for autocomplete
+  [✓] endOfDayData — { date, cashInDrawer, steps, finished }
+
+  Key difference from Room: All state is in-memory and serialized to
+  SharedPreferences as JSON strings, avoiding Room dependency entirely.
+
+================================================================================
+STAGE 5 — UX POLISH [COMPLETE]
+================================================================================
+
+  Feature                         | Status
+  ────────────────────────────────┼──────────────────────────────────────────────
+  [✓] Toast/snackbar notifications| SnackbarHost in MainScaffold, CompositionLocal
+                                  | - based system. Shown on save/delete/record.
+                                  | - Preview-safe with fallback CoroutineScope.
+  [✓] Confirmation modals         | Delete product confirmation dialog in
+                                  | ProductDetailScreen (with areYouSure).
+                                  | Settings already had reset confirmation.
+  [✓] Empty state messages        | Already implemented in Stage 2 across all
+                                  | screens (Stocks, Debts, Reports, Sales, etc.)
+  [✓] Bottom nav badge            | Red badge on Stocks tab showing low/out-of-
+                                  | stock count. Updates reactively via ViewModel.
+  [✓] Loading/transition animations| Splash screen has progress bar + auto-nav.
+                                   | Tutorial overlay uses fade-in/out animations.
+                                   | How-to-Use accordion uses expandVertically.
+  [—] Keyboard handling           | Keyboard dismiss on scroll and IME Next/Done
+                                  | actions are partially implemented through
+                                  | Compose's default behavior. Full keyboard
+                                  | optimization deferred as low priority.
+
+  NOTE: Search (Stocks), autocomplete (New Debt, Specific Sale), and Critical
+  Stock Alert banner were already implemented in Stage 2 and are complete.
+
+================================================================================
+IMPLEMENTATION PRIORITY (ALL COMPLETE)
+================================================================================
+
+  Priority | Phase | Screen/Feature                | Est. Effort
+  ─────────┼───────┼───────────────────────────────┼────────────
+  P0       | B     | HomeScreen w/ data            | 2-3 hours [✓]
+  P0       | C     | StocksScreen + state          | 3-4 hours [✓]
+  P0       | E     | DebtsScreen + state           | 3-4 hours [✓]
+  P0       | F     | EndOfDayScreen + state        | 2-3 hours [✓]
+  P1       | C     | AddStockScreen + state        | 2-3 hours [✓]
+  P1       | C     | ProductDetailScreen + state   | 2-3 hours [✓]
+  P1       | D     | SpecificSaleScreen + state    | 2-3 hours [✓]
+  P1       | E     | NewDebtScreen + state         | 1-2 hours [✓]
+  P1       | E     | CustomerDebtDetail + state    | 2-3 hours [✓]
+  P1       | E     | RecordPaymentScreen + state   | 1-2 hours [✓]
+  P1       | B     | ReportsScreen + state         | 2-3 hours [✓]
+  P2       | —     | Tutorial system (12 types)    | 3-4 hours [✓]
+  P2       | —     | UX polish (toasts, badges)    | 2-3 hours [✓]
+  P2       | —     | Help screen (accordion)       | 1-2 hours [✓]
+
+  TOTAL ESTIMATED EFFORT: ~30-40 hours (frontend only, no database) [✓ ALL DONE]
+
+================================================================================
+KEY DESIGN REFERENCES FROM WEB PROTOTYPE
+================================================================================
+
+  ──── Color Palette (style.css :root) ────
+  Primary:      #16a34a (green)
+  Primary dark: #15803d
+  Accent:       #f59e0b (amber)
+  Danger:       #dc2626 (red)
+  Background:   #f8faf9 (off-white)
+  Surface:      #ffffff
+  Text:         #1e293b (dark gray)
+  Text muted:   #94a3b8
+
+  ──── Typography ────
+  Font: Inter, -apple-system, sans-serif
+  Sizes: base 15px, large 17px, extra-large 19px
+
+  ──── Spacing & Shapes ────
+  Border radius: 8px (small), 12px (medium), 16px (large)
+  Header height: 52px
+  Nav height:    64px
+  Diagonal padding: 16px
+
+  ──── Key UI Patterns ────
+  * Phone-frame design: 393x852, rounded corners 44px, notch + home bar
+  * Stock cards: colored left border (green/orange/red)
+  * Daily Sales: large peso input fields (32px font)
+  * Dashboard: 4 cards with icon + label + value + subtext
+  * EOD: numbered step cards with Done button per step
+  * Tutorial: overlay with backdrop + highlight + instruction box
+
+================================================================================
+FUTURE WORK (Post-Stage 5)
+================================================================================
+
+  All 5 frontend stages are complete. The Android app now has feature parity
+  with the web prototype. Future phases could explore:
+
+  Phase G — Database Integration:
+    - Replace SharedPreferences with Room (SQLite) or Firebase Firestore
+    - Real DAOs with query support (filtering, sorting, aggregation)
+    - Cloud sync for multi-device access
+
+  Phase H — Advanced Features:
+    - CSV/PDF data export and import
+    - Simple sales trend charts (Compose Canvas or MPAndroidChart)
+    - Item-by-item POS mode (optional expansion)
+    - Voice commands (future research direction)
+
+  Phase I — Production Readiness:
+    - Unit tests (JUnit + ViewModel tests)
+    - Compose UI tests (semantics-based, no Espresso needed)
+    - Accessibility audit (TalkBack, contrast ratios, touch targets)
+    - ProGuard/R8 optimization for release build
+    - Play Store listing preparation
+
+================================================================================
+END OF ADAPTATION PLAN
+================================================================================

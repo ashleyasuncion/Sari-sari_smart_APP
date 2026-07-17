@@ -1,0 +1,79 @@
+package com.example.sari_sari_smart.ui.screens
+
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.sari_sari_smart.ui.localization.LocalLanguage
+import com.example.sari_sari_smart.ui.localization.t
+import com.example.sari_sari_smart.ui.theme.Green600
+import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
+import kotlinx.coroutines.delay
+
+@Composable
+fun SplashScreen(
+    onNavigateToSetup: () -> Unit,
+    onNavigateToHome: () -> Unit
+) {
+    var showContent by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        delay(800)
+        showContent = true
+        delay(700)
+        val prefs = context.getSharedPreferences("sss_prefs", 0)
+        val setupComplete = prefs.getBoolean("has_completed_setup", false)
+        if (setupComplete) onNavigateToHome() else onNavigateToSetup()
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Green600),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("🏪", fontSize = 64.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Sari-Sari Smart",
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.onPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            val langState = LocalLanguage.current
+            Text(
+                text = "splashSubtitle".t(langState.value),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            if (!showContent) {
+                LinearProgressIndicator(
+                    modifier = Modifier.width(120.dp).height(4.dp),
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Splash Screen")
+@Composable
+fun SplashScreenPreview() {
+    SariSariSmartTheme {
+        SplashScreen(
+            onNavigateToSetup = {},
+            onNavigateToHome = {}
+        )
+    }
+}

@@ -10,14 +10,14 @@ data class CustomerDebtEntity(
     val customerName: String,
     val amount: Double,
     val remainingBalance: Double,
-    val lastActivity: String = "Today"
+    val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toDomainModel(): CustomerDebt = CustomerDebt(
         id = id,
         customerName = customerName,
         amount = amount,
         remainingBalance = remainingBalance,
-        lastActivity = lastActivity
+        createdAt = createdAt
     )
 
     companion object {
@@ -26,7 +26,7 @@ data class CustomerDebtEntity(
             customerName = debt.customerName,
             amount = debt.amount,
             remainingBalance = debt.remainingBalance,
-            lastActivity = debt.lastActivity
+            createdAt = debt.createdAt
         )
     }
 }

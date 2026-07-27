@@ -31,6 +31,9 @@ class AppViewModel : ViewModel() {
     private val _debts = MutableStateFlow<List<CustomerDebt>>(emptyList())
     val debts: StateFlow<List<CustomerDebt>> = _debts.asStateFlow()
 
+    private val _payments = MutableStateFlow<List<DebtPayment>>(emptyList())
+    val payments: StateFlow<List<DebtPayment>> = _payments.asStateFlow()
+
     private val _endOfDayData = MutableStateFlow<EndOfDayData?>(null)
     val endOfDayData: StateFlow<EndOfDayData?> = _endOfDayData.asStateFlow()
 
@@ -46,6 +49,26 @@ class AppViewModel : ViewModel() {
 
     val activeDebtorCount: Int
         get() = _debts.value.count { it.remainingBalance > 0 }
+
+    /** Compute last activity string from createdAt timestamp and latest payment */
+    fun getLastActivity(debt: CustomerDebt): String {
+        val paymentsForDebt = _payments.value.filter { it.debtId == debt.id }
+        val latestPaymentTime = paymentsForDebt.maxOfOrNull { it.timestamp }
+        val latestTime = maxOf(latestPaymentTime ?: debt.createdAt, debt.createdAt)
+        val now = System.currentTimeMillis()
+        val diff = now - latestTime
+        return when {
+            diff < 60_000 -> "Just now"
+            diff < 3600_000 -> "${diff / 60_000}m ago"
+            diff < 86_400_000 -> "${diff / 3600_000}h ago"
+            diff < 172_800_000 -> "Yesterday"
+            diff < 604_800_000 -> "${diff / 86_400_000}d ago"
+            else -> {
+                val sdf = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
+                sdf.format(java.util.Date(latestTime))
+            }
+        }
+    }
 
     val lowStockCount: Int
         get() = _products.value.count { it.status == StockStatus.LOW }
@@ -93,6 +116,7 @@ class AppViewModel : ViewModel() {
     private var _productIdCounter = 10
     private var _saleIdCounter = 3
     private var _debtIdCounter = 4
+    private var _paymentIdCounter = 10
     private var _tipRotationIndex = 0
     private var _restockIdCounter = 0
 
@@ -266,6 +290,11 @@ class AppViewModel : ViewModel() {
             }
         }
         viewModelScope.launch {
+            _payments.collect { list ->
+                list.forEach { repo.savePayment(it) }
+            }
+        }
+        viewModelScope.launch {
             _endOfDayData.collect { v ->
                 v?.let { repo.saveEndOfDayData(it) }
             }
@@ -299,6 +328,12 @@ class AppViewModel : ViewModel() {
             val maxDebtId = debts.maxOfOrNull { it.id } ?: 4
             if (maxDebtId > _debtIdCounter) _debtIdCounter = maxDebtId
         }
+        val payments = repo.getAllPayments().first()
+        if (payments.isNotEmpty()) {
+            _payments.value = payments
+            val maxPaymentId = payments.maxOfOrNull { it.id } ?: 10
+            if (maxPaymentId > _paymentIdCounter) _paymentIdCounter = maxPaymentId
+        }
         val eod = repo.getLatestEndOfDayData().first()
         if (eod != null) _endOfDayData.value = eod
 
@@ -309,7 +344,7 @@ class AppViewModel : ViewModel() {
             _restockLog.value = listOf(restockLog) + _restockLog.value.filter { it.id != restockLog.id }
         }
 
-        return products.isNotEmpty() || debts.isNotEmpty() || sales.isNotEmpty() || entry != null || eod != null
+        return products.isNotEmpty() || debts.isNotEmpty() || payments.isNotEmpty() || sales.isNotEmpty() || entry != null || eod != null
     }
 
     private suspend fun persistAllToRepo(repo: AppRepository) {
@@ -317,6 +352,7 @@ class AppViewModel : ViewModel() {
         _dailyEntry.value?.let { repo.saveDailyEntry(it) }
         repo.saveSpecificSales(_specificSales.value)
         repo.saveDebts(_debts.value)
+        repo.savePayments(_payments.value)
         _endOfDayData.value?.let { repo.saveEndOfDayData(it) }
     }
 
@@ -397,6 +433,12 @@ class AppViewModel : ViewModel() {
         )
     }
 
+    fun getPaymentsForDebt(debtId: Int): List<DebtPayment> =
+        _payments.value.filter { it.debtId == debtId }.sortedBy { it.timestamp }
+
+    fun getPaymentsForDebtFlow(debtId: Int) =
+        repository?.getPaymentsByDebtId(debtId)
+
     fun addSpecificSale(sale: SpecificSale) {
         _saleIdCounter++
         val saleWithId = sale.copy(id = _saleIdCounter)
@@ -412,8 +454,7 @@ class AppViewModel : ViewModel() {
             val debt = updated[index]
             updated[index] = debt.copy(
                 amount = debt.amount + amount,
-                remainingBalance = debt.remainingBalance + amount,
-                lastActivity = "Today"
+                remainingBalance = debt.remainingBalance + amount
             )
             _debts.value = updated
         }
@@ -431,17 +472,26 @@ class AppViewModel : ViewModel() {
 
     fun getUsedCustomerNames(): List<String> = _debts.value.map { it.customerName }.distinct()
 
-    fun recordDebtPayment(debtId: Int, amount: Double) {
+    fun recordDebtPayment(debtId: Int, amount: Double, note: String? = null) {
         val updated = _debts.value.toMutableList()
         val index = updated.indexOfFirst { it.id == debtId }
         if (index >= 0) {
             val debt = updated[index]
             updated[index] = debt.copy(
-                remainingBalance = debt.remainingBalance - amount,
-                lastActivity = "Today"
+                remainingBalance = debt.remainingBalance - amount
             )
             _debts.value = updated
         }
+        // Create a payment record
+        _paymentIdCounter++
+        val payment = DebtPayment(
+            id = _paymentIdCounter,
+            debtId = debtId,
+            amount = amount,
+            timestamp = System.currentTimeMillis(),
+            note = note
+        )
+        _payments.value = _payments.value + payment
     }
 
     /**
@@ -523,10 +573,12 @@ class AppViewModel : ViewModel() {
         _dailyEntry.value = null
         _specificSales.value = emptyList()
         _debts.value = emptyList()
+        _payments.value = emptyList()
         _endOfDayData.value = null
         _productIdCounter = 10
         _saleIdCounter = 3
         _debtIdCounter = 4
+        _paymentIdCounter = 10
     }
 
     // ── Business Tip Logic (mirrors web prototype 6-priority system + enhancements) ──
@@ -642,12 +694,19 @@ class AppViewModel : ViewModel() {
             Product(9, "Shampoo Sachet (50pcs)", 30, 5.0, 7.0),
             Product(10, "Candy Jar (approx 50pcs)", 25, 20.0, 30.0)
         )
+        val now = System.currentTimeMillis()
+        val day = 86_400_000L
         _debts.value = listOf(
-            CustomerDebt(1, "Aling Maria", 150.0, 150.0, "Yesterday"),
-            CustomerDebt(2, "Mang Jose", 75.0, 40.0, "3 days ago"),
-            CustomerDebt(3, "Kathryn", 200.0, 200.0, "Today"),
-            CustomerDebt(4, "Bryan", 50.0, 0.0, "Last week")
+            CustomerDebt(1, "Aling Maria", 150.0, 150.0, now - day),
+            CustomerDebt(2, "Mang Jose", 75.0, 40.0, now - 3 * day),
+            CustomerDebt(3, "Kathryn", 200.0, 200.0, now),
+            CustomerDebt(4, "Bryan", 50.0, 0.0, now - 7 * day)
         )
+        // Record a payment for Bryan (who is settled)
+        _payments.value = listOf(
+            DebtPayment(1, 4, 50.0, now - 7 * day + 3600_000, "Fully paid")
+        )
+        _paymentIdCounter = 1
         // Record today's daily entry + specific sales for demo
         _dailyEntry.value = DailyEntry(today, 850.0, 1250.0)
         _specificSales.value = listOf(
@@ -674,12 +733,12 @@ class AppViewModel : ViewModel() {
                     put("date", de.date); put("stockExpenses", de.stockExpenses)
                     put("earnings", de.earnings)
                 }
-            } ?: JSONObject.NULL)
+            } ?: org.json.JSONObject.NULL)
             put("specificSales", org.json.JSONArray(_specificSales.value.map { s ->
                 JSONObject().apply {
                     put("id", s.id); put("date", s.date); put("description", s.description)
                     put("amount", s.amount); put("quantity", s.quantity)
-                    if (s.customerName != null) put("customerName", s.customerName) else put("customerName", JSONObject.NULL)
+                    if (s.customerName != null) put("customerName", s.customerName) else put("customerName", org.json.JSONObject.NULL)
                     put("profit", s.profit)
                 }
             }))
@@ -687,7 +746,13 @@ class AppViewModel : ViewModel() {
                 JSONObject().apply {
                     put("id", d.id); put("customerName", d.customerName)
                     put("amount", d.amount); put("remainingBalance", d.remainingBalance)
-                    put("lastActivity", d.lastActivity)
+                    put("createdAt", d.createdAt)
+                }
+            }))
+            put("payments", org.json.JSONArray(_payments.value.map { p ->
+                JSONObject().apply {
+                    put("id", p.id); put("debtId", p.debtId); put("amount", p.amount)
+                    put("timestamp", p.timestamp); put("note", p.note ?: org.json.JSONObject.NULL)
                 }
             }))
             put("lowStockCount", lowStockCount)
@@ -754,10 +819,26 @@ class AppViewModel : ViewModel() {
                     customerName = d.optString("customerName", ""),
                     amount = d.optDouble("amount", 0.0),
                     remainingBalance = d.optDouble("remainingBalance", 0.0),
-                    lastActivity = d.optString("lastActivity", "Today")
+                    createdAt = d.optLong("createdAt", System.currentTimeMillis())
                 ))
             }
             if (debts.isNotEmpty()) _debts.value = debts
+        }
+        // Payments
+        if (obj.has("payments")) {
+            val arr = obj.getJSONArray("payments")
+            val payments = mutableListOf<DebtPayment>()
+            for (i in 0 until arr.length()) {
+                val p = arr.getJSONObject(i)
+                payments.add(DebtPayment(
+                    id = p.optInt("id", _paymentIdCounter + i + 1),
+                    debtId = p.optInt("debtId", 0),
+                    amount = p.optDouble("amount", 0.0),
+                    timestamp = p.optLong("timestamp", System.currentTimeMillis()),
+                    note = p.optString("note", null)
+                ))
+            }
+            if (payments.isNotEmpty()) _payments.value = payments
         }
     }
 
@@ -807,22 +888,37 @@ class AppViewModel : ViewModel() {
         val rand = java.util.Random()
         val names = listOf("Aling Nena", "Mang Kanor", "Teresa", "Bong", "Liza", "Rolly", "Elena", "Pedro")
         val count = rand.nextInt(4) + 2 // 2-5 debts
+        val now = System.currentTimeMillis()
+        val day = 86_400_000L
 
         val newDebts = _debts.value.toMutableList()
+        val newPayments = _payments.value.toMutableList()
         for (i in 0 until count) {
             _debtIdCounter++
             val name = names[rand.nextInt(names.size)]
             val amount = (rand.nextInt(46) + 5) * 10.0 // 50-500 in steps of 10
             val isSettled = i == 0 && rand.nextBoolean()
+            val debtId = _debtIdCounter
             newDebts.add(CustomerDebt(
-                id = _debtIdCounter,
+                id = debtId,
                 customerName = name,
                 amount = amount,
                 remainingBalance = if (isSettled) 0.0 else amount,
-                lastActivity = if (isSettled) "Settled" else "Today"
+                createdAt = now - (i + 1) * day
             ))
+            if (isSettled) {
+                _paymentIdCounter++
+                newPayments.add(DebtPayment(
+                    id = _paymentIdCounter,
+                    debtId = debtId,
+                    amount = amount,
+                    timestamp = now - i * day + 3600_000,
+                    note = "Fully paid"
+                ))
+            }
         }
         _debts.value = newDebts
+        _payments.value = newPayments
         return count
     }
 
@@ -862,7 +958,10 @@ class AppViewModel : ViewModel() {
                     _dailyEntry.value = null
                     _specificSales.value = emptyList()
                 }
-                "debts" -> _debts.value = emptyList()
+                "debts" -> {
+                    _debts.value = emptyList()
+                    _payments.value = emptyList()
+                }
                 "eod" -> _endOfDayData.value = null
             }
         }
@@ -912,7 +1011,8 @@ class AppViewModel : ViewModel() {
         sb.appendLine("=== OUTSTANDING DEBTS ===")
         sb.appendLine("Customer,Total Amount,Remaining Balance,Last Activity")
         _debts.value.filter { it.remainingBalance > 0 }.forEach { d ->
-            sb.appendLine("${d.customerName},${d.amount},${d.remainingBalance},${d.lastActivity}")
+            val lastAct = getLastActivity(d)
+            sb.appendLine("${d.customerName},${d.amount},${d.remainingBalance},$lastAct")
         }
         sb.appendLine()
 

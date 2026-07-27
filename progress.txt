@@ -1358,3 +1358,261 @@ PHASE 14 — DARK MODE REMOVAL (July 16, 2026)
 ================================================================================
 END OF PROGRESS REPORT
 ================================================================================
+
+================================================================================
+PHASE 14 — DEBT MANAGEMENT OVERHAUL + COMPOSE PREVIEW AUDIT (July 23, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Timeline: ~3 hours
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Complete overhaul of debt management (fixing Issue #7: non-interactive
+  debtors, hardcoded "Today" dates, missing debt history, no paid debts
+  section) plus a full audit of @Preview composable coverage across all
+  UI files.
+
+  Debt Management Changes:
+  ─────────────────────────────────────────────────────────────────────────
+
+  1. Data Model Rework
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  data/Models.kt
+         • CustomerDebt: removed lastActivity: String (was always "Today"),
+           added createdAt: Long = System.currentTimeMillis() (real timestamp)
+         • Added DebtPayment data class: id, debtId, amount, timestamp, note
+
+  [MOD]  data/local/entity/CustomerDebtEntity.kt
+         • Removed lastActivity field, added createdAt: Long
+         • Updated toDomainModel()/fromDomainModel() mappings
+
+  [NEW]  data/local/entity/DebtPaymentEntity.kt
+         • Room entity with FK → customer_debts (CASCADE on delete)
+         • Index on debtId for efficient queries
+         • toDomainModel()/fromDomainModel() conversions
+
+  [NEW]  data/local/dao/DebtPaymentDao.kt
+         • getPaymentsByDebtId(debtId): Flow sorted by timestamp ASC
+         • getPaymentsByDebtIdList(debtId): suspend version
+         • getLatestPaymentTimestamp(debtId): nullable Long?
+         • getAllPayments(): Flow sorted by timestamp DESC
+         • insert/insertPayments/deletePaymentsByDebtId/deleteAll
+
+  [MOD]  data/local/AppDatabase.kt
+         • Added DebtPaymentEntity to entities list
+         • Added debtPaymentDao(): abstract fun
+         • Bumped version from 2 to 3 (fallbackToDestructiveMigration)
+
+  [MOD]  data/AppRepository.kt
+         • Added debtPaymentDao parameter to constructor
+         • Added getAllPayments(), getPaymentsByDebtId(),
+           getLatestPaymentTimestamp(), savePayment(), savePayments(),
+           deletePaymentsByDebtId(), deleteAllPayments()
+         • Updated deleteAll() to also call deleteAllPayments()
+
+  [MOD]  ui/navigation/NavGraph.kt
+         • Passes debtPaymentDao to AppRepository constructor
+
+  2. ViewModel Payment Logic
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/screens/AppViewModel.kt (major update)
+         • Added _payments: MutableStateFlow<List<DebtPayment>>
+         • Added payments: StateFlow (public accessor)
+         • Added _paymentIdCounter for auto-increment
+         • Added getLastActivity(debt): String — computes "1h ago"/
+           "Yesterday"/"Jul 15" from max(debt.createdAt, latestPayment.timestamp)
+         • Added getPaymentsForDebt(debtId): List<DebtPayment> — filters
+           and sorts by timestamp
+         • Updated recordDebtPayment(debtId, amount, note?) — now creates
+           a DebtPayment record in _payments StateFlow instead of just
+           updating remainingBalance and lastActivity
+         • Updated addToDebtBalance() — removed lastActivity = "Today"
+         • Updated addDebt() — no longer needs lastActivity parameter
+         • initRepository(): added auto-save for _payments StateFlow
+         • doInitialLoad(): loads payments from Room, restores _paymentIdCounter
+         • persistAllToRepo(): saves payments
+         • seedSampleData(): uses real timestamps (System.currentTimeMillis()
+           minus days*86400000L) instead of "Yesterday"/"Today" strings;
+           includes a DebtPayment for the settled debtor (Bryan)
+         • generateTestDebts(): creates payments for settled debts
+         • importData(): handles payments array + createdAt instead of lastActivity
+         • getRawStateJson(): exports createdAt + payments array
+         • exportCsv(): uses getLastActivity() for human-readable dates
+         • clearSelectedData("debts"): also clears _payments
+         • resetAllData(): clears _payments and resets _paymentIdCounter
+
+  3. DebtsScreen — Interactive + Paid Debts
+  ─────────────────────────────────────────────────────────────────────────
+  [REWRITTEN] ui/screens/DebtsScreen.kt
+         • Clickable debt cards: added .clickable(onClick = { onDebtClick(debt.id) })
+           on the Card modifier — navigates to CustomerDebtDetailScreen
+         • Pay button still functional (doesn't trigger card click)
+         • Added Paid Debts collapsible section:
+           → Shows only when settled debts exist (remainingBalance <= 0)
+           → Card header with ✅ + "paidDebts (N)" label + expand/collapse arrow
+           → AnimatedVisibility for smooth open/close
+           → Each paid debtor: avatar + name + "Was ₱X" + settlement date
+         • Last activity now shows real computed values via viewModel.getLastActivity()
+           instead of raw debt.lastActivity string
+         • Payment bottom sheet in DebtsScreen updated to call recordDebtPayment
+           with the new signature
+
+  4. CustomerDebtDetailScreen — Chronological History
+  ─────────────────────────────────────────────────────────────────────────
+  [REWRITTEN] ui/screens/CustomerDebtDetailScreen.kt
+         • Builds chronological Transaction list: initial debt entry (createdAt)
+           + each payment (timestamp), sorted by date ascending
+         • Computes running balance after each transaction
+         • Grid-style table: Date | Description | Amount | Balance
+         • Color coding: 🟢 added/red for debts, 🟠 deduct/green for payments,
+           amber for running balance
+         • Summary card at bottom: Total Debt (red) vs Total Paid (green)
+         • Uses viewModel.payments StateFlow (reactive — updates when payments
+           are recorded on other screens)
+
+  5. RecordPaymentScreen — Note Support
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/screens/RecordPaymentScreen.kt
+         • Now passes the user-entered note to recordDebtPayment() via
+           viewModel.recordDebtPayment(debt.id, amount, note.ifBlank { null })
+         • Payment notes are persisted through the DebtPaymentEntity
+
+  Additional Fixes (build errors found during compilation):
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/components/SaleBottomSheet.kt — Removed lastActivity="Today"
+         from CustomerDebt constructor in auto-debt-creation block
+  [MOD]  ui/screens/DayModeScreen.kt — Changed utang filter from
+         debts.filter { it.lastActivity == "Today" } to
+         specificSales.filter { it.date == today && it.customerName != null }
+  [MOD]  ui/screens/NewDebtScreen.kt — Removed lastActivity="Today"
+         from CustomerDebt constructor
+  [MOD]  ui/screens/AppViewModel.kt — Fixed JSONObject.NULL type
+         inference warnings (fully qualified org.json.JSONObject.NULL)
+
+  @Preview Compose Preview Audit:
+  ─────────────────────────────────────────────────────────────────────────
+  [AUDIT] Analyzed all 24 Kotlin UI composable files in the project:
+          • 21 already had @Preview composables
+          • 3 were missing @Preview — now added
+
+  [MOD]  ui/screens/ReportsScreen.kt — Added ReportsScreenPreview()
+         with viewModel = remember { AppViewModel() } wrapper
+  [MOD]  ui/components/AppHeader.kt — Added MomentAppHeaderPreview()
+         and SupportAppHeaderPreview() with sample callbacks
+  [MOD]  ui/components/ScaledText.kt — Added ScaledTextPreview()
+         with sample text in Surface
+
+  [DOC]  docs/architecture.md — Added "Development Conventions →
+         Compose Previews" section with 6 rules:
+         1. Every @Composable screen need a corresponding @Preview
+         2. Use showBackground = true + descriptive name
+         3. Wrap in SariSariSmartTheme { Surface(...) { ... } }
+         4. For ViewModels: use remember { AppViewModel() }
+         5. For simple components: us
+
+================================================================================
+PHASE 14 — SETTINGS PAGE OVERHAUL + ISSUES 8/9/10 (July 23, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Timeline: ~4 hours
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Fixed the non-functional Settings page (Issue #16), applied font size
+  increases to match web app defaults (Issue #10), fixed the sale sheet
+  close button label (Issue #8), and centered the morning header (Issue #9).
+
+  Issue #8 — Sale Sheet Close Button:
+  ─────────────────────────────────────────────────────────────────────────
+  [FIX]  ui/components/SaleBottomSheet.kt
+         • Changed close button label from "cancel".t(lang) to "close".t(lang)
+         • Reuses existing "close" i18n key from Three Moment Nav Labels
+           (no new string needed)
+
+  Action: "Cancel" / "Kanselahin" → "Close" / "Isara" on the OutlinedButton
+  that dismisses the sale bottom sheet.
+
+  Issue #9 — Morning Header Alignment:
+  ─────────────────────────────────────────────────────────────────────────
+  [FIX]  ui/screens/MorningCheckScreen.kt
+         • Added horizontalAlignment = Alignment.CenterHorizontally to the
+           outer Column (matching web app's .morning-header { text-align: center })
+         • Moved .padding(bottom = 12.dp) from the sun icon Box to a Spacer
+           below it, so the icon stays centered within the full-width Column
+
+  Issue #10 — Font Size Increase + Text Scaling:
+  ─────────────────────────────────────────────────────────────────────────
+  1. Base Typography increased to match web app defaults:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/theme/Type.kt
+         • headlineLarge: 33sp → 36sp (web's --text-3xl: 35px)
+         • headlineMedium: 28sp → 30sp (web's --text-2xl: 29px)
+         • titleLarge: 25sp → 26sp (web's --text-xl: 24px)
+         • titleMedium: 23sp → 25sp
+         • titleSmall: 20sp → 22sp (web's --text-lg: 21px)
+         • bodyLarge: 20sp → 22sp (web's --text-base: 19px)
+         • bodySmall: 15sp → 16sp (web's --text-xs: 14px)
+         • Line heights adjusted proportionally for all changed styles
+
+  2. Text scaling applied at theme level (replaces dead ScaledText):
+  ─────────────────────────────────────────────────────────────────────────
+  [NEW]  Type.kt — createScaledTypography(scale: Float):
+         • Scales all 11 text styles' fontSize and lineHeight by the factor
+         • Early return: if scale == 1.0f, returns base Typography directly
+         • Used by SariSariSmartTheme to apply user text-size preference
+
+  [MOD]  ui/theme/Theme.kt
+         • Reads LocalTextScale.current (user's text size preference)
+         • Computes scaledTypography = remember(scale) { createScaledTypography(scale) }
+         • Passes scaled typography to MaterialTheme — ALL Text composables
+           now automatically respect the text size setting
+
+  [DEL]  ui/components/ScaledText.kt
+         • Removed dead code: ScaledText composable had ZERO call sites
+         • rememberT() helper also had ZERO call sites
+         • Replaced by theme-level approach that applies to ALL text
+
+  Issue #16 — Settings Page Overhaul:
+  ─────────────────────────────────────────────────────────────────────────
+  [REWRITTEN]  ui/screens/SettingsScreen.kt
+
+  Root causes identified:
+  ─────────────────────────────────────────────────────────────────────────
+  a) No immediate-apply pattern — language, text size, store name, owner
+     name all required tapping "Save Settings" (web app applies on change)
+  b) No save feedback — no snackbar/toast shown after saving
+  c) Tutorial Launch button was a no-op — onClick body was an empty comment
+  d) No tutorial callback parameter — SettingsScreen couldn't trigger tutorials
+
+  Fixes applied:
+  ─────────────────────────────────────────────────────────────────────────
+  • Language filter chips: onClick immediately persists to SharedPreferences
+    (settings.language), updates langState.value, shows snackbar
+  • Text size filter chips: onClick immediately persists (settings.textSize),
+    updates scaleState.value, shows snackbar
+  • Store name / Owner name: onValueChange immediately persists to
+    settings.storeName / settings.ownerName (removed need for Save button)
+  • REMOVED "Save Settings" button — all settings now auto-save on change
+  • Added SnackbarHostState + rememberCoroutineScope to show "Settings saved"
+    snackbar feedback on every change (replaced old custom snackbar locals)
+  • Tutorial Launch button: onClick now calls onLaunchTutorial(it.id)
+  • Added onLaunchTutorial: (String) -> Unit parameter
+  • Removed dead defaultMarkup variable (only used by removed Save button)
+
+  [MOD]  ui/navigation/NavGraph.kt
+         • Added onLaunchTutorial = { tutId -> startPageTutorial(tutId) }
+           to the SettingsScreen composable call
+
+  Why Issue #10 now works:
+  ─────────────────────────────────────────────────────────────────────────
+  Before the Settings fix, the text size setting required implicitly tapping
+  "Save Settings" which had no feedback. Now:
+  1. User taps "Large" → immediately persisted + scaleState.value updated
+  2. Theme reads LocalTextScale.current reactively
+  3. remember(scale) creates scaled typography
+  4. ALL text updates instantly with snackbar confirmation
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] ./gradlew compileDebugKotlin — BUILD SUCCESSFUL (warnings only)
+  [✓] Code review — Passed, minor cleanup (removed dead variable)

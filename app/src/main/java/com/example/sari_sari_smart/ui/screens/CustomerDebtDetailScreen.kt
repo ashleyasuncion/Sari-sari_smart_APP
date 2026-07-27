@@ -11,11 +11,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.sari_sari_smart.data.CustomerDebt
+import com.example.sari_sari_smart.data.DebtPayment
+import com.example.sari_sari_smart.data.SpecificSale
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.theme.*
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,9 +34,12 @@ fun CustomerDebtDetailScreen(
     val langState = LocalLanguage.current
     val lang = langState.value
     val fmt = remember { NumberFormat.getCurrencyInstance(Locale("en", "PH")) }
+    val dateFmt = remember { SimpleDateFormat("MMM d, yyyy h:mm a", Locale.getDefault()) }
     val debts by viewModel.debts.collectAsState()
+    val allPayments by viewModel.payments.collectAsState()
 
     val debt = debts.find { it.id == debtId }
+    val payments = allPayments.filter { it.debtId == debtId }.sortedBy { it.timestamp }
     val isSettled = debt?.remainingBalance != null && debt.remainingBalance <= 0
 
     Scaffold(
@@ -61,6 +69,42 @@ fun CustomerDebtDetailScreen(
             }
             return@Scaffold
         }
+
+        // Build chronological transaction list
+        data class Transaction(
+            val date: Long,
+            val type: String, // "debt", "payment", "initial"
+            val description: String,
+            val amount: Double,
+            val isPositive: Boolean // true = added to balance, false = deducted
+        )
+
+        fun formatTimestamp(ts: Long): String = dateFmt.format(Date(ts))
+
+        val transactions = mutableListOf<Transaction>()
+
+        // 1. Initial debt entry
+        transactions.add(Transaction(
+            date = debt.createdAt,
+            type = "initial",
+            description = "initialDebt".t(lang),
+            amount = debt.amount,
+            isPositive = true
+        ))
+
+        // 2. Payments
+        payments.forEach { payment ->
+            transactions.add(Transaction(
+                date = payment.timestamp,
+                type = "payment",
+                description = payment.note ?: "payment".t(lang),
+                amount = payment.amount,
+                isPositive = false
+            ))
+        }
+
+        // Sort by date ascending
+        transactions.sortBy { it.date }
 
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())
@@ -92,8 +136,9 @@ fun CustomerDebtDetailScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text("fullySettled".t(lang), style = MaterialTheme.typography.bodySmall, color = Green600)
                     } else {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "lastActivity".t(lang) + " ${debt.lastActivity}",
+                            "lastActivity".t(lang) + " ${viewModel.getLastActivity(debt)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Gray500
                         )
@@ -103,7 +148,7 @@ fun CustomerDebtDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── Debt History ────────────────────────────────────────────
+            // ── Debt History with Running Balance ────────────────────────
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Surface),
@@ -118,35 +163,54 @@ fun CustomerDebtDetailScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Initial debt entry
-                    DebtHistoryRow(
-                        label = "initialDebt".t(lang),
-                        amount = debt.amount,
-                        isPositive = true,
-                        fmt = fmt
-                    )
-
-                    // Payments (simulated from ViewModel data)
-                    val paymentsMade = debt.amount - debt.remainingBalance
-                    if (paymentsMade > 0) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Gray100)
-                        DebtHistoryRow(
-                            label = "payment".t(lang),
-                            amount = paymentsMade,
-                            isPositive = false,
-                            fmt = fmt
-                        )
+                    // Header row
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Date", style = MaterialTheme.typography.labelSmall, color = Gray400, modifier = Modifier.weight(1.3f))
+                        Text("Description", style = MaterialTheme.typography.labelSmall, color = Gray400, modifier = Modifier.weight(1f))
+                        Text("Amount", style = MaterialTheme.typography.labelSmall, color = Gray400, modifier = Modifier.weight(0.7f))
+                        Text("Balance", style = MaterialTheme.typography.labelSmall, color = Gray400, modifier = Modifier.weight(0.7f))
                     }
 
-                    if (debt.remainingBalance > 0) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Gray100)
-                        DebtHistoryRow(
-                            label = "currentBalance".t(lang),
-                            amount = debt.remainingBalance,
-                            isPositive = true,
-                            fmt = fmt,
-                            isBold = true
+                    HorizontalDivider(color = Gray100)
+
+                    // Transaction rows with running balance
+                    var runningBalance = 0.0
+                    transactions.forEach { tx ->
+                        runningBalance += if (tx.isPositive) tx.amount else -tx.amount
+                        TransactionRow(
+                            date = formatTimestamp(tx.date),
+                            description = tx.description,
+                            amount = tx.amount,
+                            isPositive = tx.isPositive,
+                            runningBalance = runningBalance,
+                            fmt = fmt
                         )
+                        HorizontalDivider(color = Gray100)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Summary row ──────────────────────────────────────────────
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Surface),
+                shape = MaterialTheme.shapes.medium,
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        Text("Total Debt", style = MaterialTheme.typography.labelSmall, color = Gray400)
+                        Text(fmt.format(debt.amount), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Red600)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Total Paid", style = MaterialTheme.typography.labelSmall, color = Gray400)
+                        val totalPaid = payments.sumOf { it.amount }
+                        Text(fmt.format(totalPaid), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Green600)
                     }
                 }
             }
@@ -172,36 +236,57 @@ fun CustomerDebtDetailScreen(
 }
 
 @Composable
-private fun DebtHistoryRow(
-    label: String,
+private fun TransactionRow(
+    date: String,
+    description: String,
     amount: Double,
     isPositive: Boolean,
-    fmt: java.text.NumberFormat,
-    isBold: Boolean = false
+    runningBalance: Double,
+    fmt: java.text.NumberFormat
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Date
+        Text(
+            date,
+            style = MaterialTheme.typography.bodySmall,
+            color = Gray500,
+            modifier = Modifier.weight(1.3f)
+        )
+        // Description with icon
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
-                if (isPositive) "➕" else "➖",
-                style = MaterialTheme.typography.bodyMedium
+                if (isPositive) "\uD83D\uDFE2" else "\uD83D\uDFE0",
+                fontSize = 12.sp
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
-                label,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
-                color = if (isBold) Gray800 else Gray600
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = Gray700,
+                maxLines = 2
             )
         }
+        // Amount
         Text(
-            (if (isPositive) "" else "-") + fmt.format(amount),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Medium,
-            color = if (isPositive) if (isBold) Amber600 else Green600 else Red600
+            (if (isPositive) "+" else "-") + fmt.format(amount),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = if (isPositive) Red600 else Green600,
+            modifier = Modifier.weight(0.7f)
+        )
+        // Running balance
+        Text(
+            fmt.format(runningBalance),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = if (runningBalance > 0) Amber700 else Green600,
+            modifier = Modifier.weight(0.7f)
         )
     }
 }

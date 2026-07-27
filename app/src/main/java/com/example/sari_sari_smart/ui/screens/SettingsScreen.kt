@@ -16,8 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.sari_sari_smart.data.LocalSnackbarHost
-import com.example.sari_sari_smart.data.LocalSnackbarScope
 import com.example.sari_sari_smart.ui.localization.AppSettings
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.LocalTextScale
@@ -36,7 +34,8 @@ fun SettingsScreen(
     appSettings: AppSettings? = null,
     viewModel: AppViewModel? = null,
     onBack: () -> Unit,
-    onResetComplete: () -> Unit = {}
+    onResetComplete: () -> Unit = {},
+    onLaunchTutorial: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val langState = LocalLanguage.current
@@ -49,10 +48,11 @@ fun SettingsScreen(
     var ownerName by remember { mutableStateOf(settings.ownerName) }
     var language by remember { mutableStateOf(settings.language) }
     var selectedSize by remember { mutableStateOf(settings.textSize) }
-    var defaultMarkup by remember { mutableStateOf(settings.defaultMarkup.toString()) }
     var showResetConfirm by remember { mutableStateOf(false) }
-    val snackbarHost = LocalSnackbarHost.current
-    val snackbarScope = LocalSnackbarScope.current
+
+    // Snackbar for save feedback
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Export/Import launchers
     val exportLauncher = rememberLauncherForActivityResult(
@@ -64,9 +64,9 @@ fun SettingsScreen(
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     out.write(json.toByteArray(Charsets.UTF_8))
                 }
-                snackbarScope.launch { snackbarHost.showSnackbar("Data exported successfully!") }
+                scope.launch { snackbarHostState.showSnackbar("Data exported successfully!") }
             } catch (e: Exception) {
-                snackbarScope.launch { snackbarHost.showSnackbar("Export failed: ${e.message}") }
+                scope.launch { snackbarHostState.showSnackbar("Export failed: ${e.message}") }
             }
         }
     }
@@ -81,14 +81,15 @@ fun SettingsScreen(
                 } ?: return@rememberLauncherForActivityResult
                 val obj = JSONObject(json)
                 viewModel.importData(obj)
-                snackbarScope.launch { snackbarHost.showSnackbar("Data imported successfully!") }
+                scope.launch { snackbarHostState.showSnackbar("Data imported successfully!") }
             } catch (e: Exception) {
-                snackbarScope.launch { snackbarHost.showSnackbar("Import failed: ${e.message}") }
+                scope.launch { snackbarHostState.showSnackbar("Import failed: ${e.message}") }
             }
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("settings".t(settings.language), style = MaterialTheme.typography.titleLarge) },
@@ -112,31 +113,46 @@ fun SettingsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Language
+            // ── Language (applies immediately) ──
             SettingsSectionTitle("language".t(settings.language))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.tutorialHighlight("settingsLanguage", highlightState)) {
                 FilterChip(
                     selected = language == "en",
-                    onClick = { language = "en" },
+                    onClick = {
+                        language = "en"
+                        settings.language = "en"
+                        langState.value = "en"
+                        scope.launch { snackbarHostState.showSnackbar("settingsSaved".t(settings.language)) }
+                    },
                     label = { Text("English") }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 FilterChip(
                     selected = language == "fil",
-                    onClick = { language = "fil" },
+                    onClick = {
+                        language = "fil"
+                        settings.language = "fil"
+                        langState.value = "fil"
+                        scope.launch { snackbarHostState.showSnackbar("settingsSaved".t(settings.language)) }
+                    },
                     label = { Text("Filipino") }
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Text Size
+            // ── Text Size (applies immediately) ──
             SettingsSectionTitle("textSize".t(settings.language))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("standard" to "standard".t(settings.language), "large" to "large".t(settings.language), "extra-large" to "extraLarge".t(settings.language)).forEach { (value, label) ->
                     FilterChip(
                         selected = selectedSize == value,
-                        onClick = { selectedSize = value },
+                        onClick = {
+                            selectedSize = value
+                            settings.textSize = value
+                            scaleState.value = settings.getTextScaleFactor()
+                            scope.launch { snackbarHostState.showSnackbar("settingsSaved".t(settings.language)) }
+                        },
                         label = { Text(label, style = MaterialTheme.typography.bodySmall) }
                     )
                 }
@@ -144,11 +160,14 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Store Information
+            // ── Store Information (saves on change) ──
             SettingsSectionTitle("storeInformation".t(settings.language))
             OutlinedTextField(
                 value = storeName,
-                onValueChange = { storeName = it },
+                onValueChange = {
+                    storeName = it
+                    settings.storeName = it
+                },
                 label = { Text("storeName".t(settings.language)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -156,7 +175,10 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = ownerName,
-                onValueChange = { ownerName = it },
+                onValueChange = {
+                    ownerName = it
+                    settings.ownerName = it
+                },
                 label = { Text("ownerName".t(settings.language)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -164,24 +186,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Save Button
-            Button(
-                onClick = {
-                    settings.language = language
-                    settings.textSize = selectedSize
-                    settings.storeName = storeName
-                    settings.ownerName = ownerName
-                    settings.defaultMarkup = defaultMarkup.toIntOrNull() ?: 20
-                    langState.value = language
-                    scaleState.value = settings.getTextScaleFactor()
-                },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = MaterialTheme.shapes.medium
-            ) { Text("saveSettings".t(settings.language), style = MaterialTheme.typography.titleSmall) }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Tutorial Selector
+            // ── Tutorial Selector ──
             SettingsSectionTitle("tutorials".t(settings.language))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -236,7 +241,7 @@ fun SettingsScreen(
                         Button(
                             onClick = {
                                 selectedTutorial?.let {
-                                    // Launch the tutorial by navigating to its page
+                                    onLaunchTutorial(it.id)
                                 }
                             },
                             enabled = selectedTutorial != null,
@@ -251,7 +256,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Data Management
+            // ── Data Management ──
             SettingsSectionTitle("dataManagement".t(settings.language))
             OutlinedButton(
                 onClick = {

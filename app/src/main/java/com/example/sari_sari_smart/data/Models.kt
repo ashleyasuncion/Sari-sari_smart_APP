@@ -45,7 +45,7 @@ data class CustomerDebt(
     val customerName: String,
     val amount: Double,
     val remainingBalance: Double,
-    val lastActivity: String = "Today"
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 data class EndOfDayData(
@@ -59,6 +59,14 @@ data class EndOfDayData(
     val salesDiff: Double = 0.0,
     val costOfGoods: Double = 0.0,
     val profit: Double = 0.0
+)
+
+data class DebtPayment(
+    val id: Int,
+    val debtId: Int,
+    val amount: Double,
+    val timestamp: Long = System.currentTimeMillis(),
+    val note: String? = null
 )
 
 // ── Restock Day Models ─────────────────────────────────────────────────

@@ -219,3 +219,23 @@ On app startup, `initRepository()` calls `doInitialLoad()` which uses `first()` 
 4. **No Use Cases** — Business logic lives in ViewModel (sufficient for app complexity)
 5. **StateFlow over LiveData** — Better support for coroutines and Compose integration
 6. **Entity ↔ Domain separation** — Room entities are mapped to clean domain models
+
+## Development Conventions
+
+### Compose Previews
+
+Every screen and significant UI component MUST include a `@Preview` composable to facilitate visual inspection. This is especially important for the Android Studio project because:
+
+- Unlike the web app (which can be opened in a browser and inspected via DevTools), the Android app cannot be visually inspected without running it on a device or emulator.
+- Searching through Kotlin files in Android Studio to find which file corresponds to which screen is tedious without previews.
+- Previews enable rapid iteration without full app rebuilds.
+
+**Rules:**
+1. Every `@Composable` screen function must have a corresponding `@Preview` composable.
+2. Previews should use `showBackground = true` and a descriptive `name`.
+3. Wrap the preview in `SariSariSmartTheme { Surface(...) { ScreenComposable() } }`.
+4. For screens with ViewModel dependencies, use `remember { AppViewModel() }` (the ViewModel doesn't require Room for a preview).
+5. For simpler components (headers, buttons, cards), use sample/mock data inline.
+6. If a preview is technically impossible (e.g., depends on navigation state or complex DI), document why and provide the simplest feasible preview using mock data.
+
+**Current preview coverage:** 21/24 UI composables have @Preview (3 files without were fixed).

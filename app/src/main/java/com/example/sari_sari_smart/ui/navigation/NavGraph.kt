@@ -57,7 +57,8 @@ fun NavGraph(
             specificSaleDao = app.database.specificSaleDao(),
             customerDebtDao = app.database.customerDebtDao(),
             endOfDayDao = app.database.endOfDayDao(),
-            restockLogDao = app.database.restockLogDao()
+            restockLogDao = app.database.restockLogDao(),
+            debtPaymentDao = app.database.debtPaymentDao()
         )
     }
     LaunchedEffect(Unit) {
@@ -402,7 +403,8 @@ fun NavGraph(
                         navController.navigate(Routes.SPLASH) {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
+                    },
+                    onLaunchTutorial = { tutId -> startPageTutorial(tutId) }
                 )
             }
 

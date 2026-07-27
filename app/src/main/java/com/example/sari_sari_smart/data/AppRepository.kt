@@ -15,7 +15,8 @@ class AppRepository(
     private val specificSaleDao: SpecificSaleDao,
     private val customerDebtDao: CustomerDebtDao,
     private val endOfDayDao: EndOfDayDao,
-    private val restockLogDao: RestockLogDao
+    private val restockLogDao: RestockLogDao,
+    private val debtPaymentDao: DebtPaymentDao
 ) {
     // ── Products ────────────────────────────────────────────────────────
     fun getAllProducts(): Flow<List<Product>> =
@@ -85,6 +86,30 @@ class AppRepository(
     suspend fun getUsedCustomerNames(): List<String> =
         customerDebtDao.getUsedCustomerNames()
 
+    // ── Debt Payments ──────────────────────────────────────────────────
+    fun getAllPayments(): Flow<List<DebtPayment>> =
+        debtPaymentDao.getAllPayments().map { entities -> entities.map { it.toDomainModel() } }
+
+    fun getPaymentsByDebtId(debtId: Int): Flow<List<DebtPayment>> =
+        debtPaymentDao.getPaymentsByDebtId(debtId).map { entities -> entities.map { it.toDomainModel() } }
+
+    suspend fun getPaymentsByDebtIdList(debtId: Int): List<DebtPayment> =
+        debtPaymentDao.getPaymentsByDebtIdList(debtId).map { it.toDomainModel() }
+
+    suspend fun getLatestPaymentTimestamp(debtId: Int): Long? =
+        debtPaymentDao.getLatestPaymentTimestamp(debtId)
+
+    suspend fun savePayment(payment: DebtPayment) =
+        debtPaymentDao.insertPayment(DebtPaymentEntity.fromDomainModel(payment))
+
+    suspend fun savePayments(payments: List<DebtPayment>) =
+        debtPaymentDao.insertPayments(payments.map { DebtPaymentEntity.fromDomainModel(it) })
+
+    suspend fun deletePaymentsByDebtId(debtId: Int) =
+        debtPaymentDao.deletePaymentsByDebtId(debtId)
+
+    suspend fun deleteAllPayments() = debtPaymentDao.deleteAll()
+
     // ── End-of-Day Data ─────────────────────────────────────────────────
     fun getLatestEndOfDayData(): Flow<EndOfDayData?> =
         endOfDayDao.getLatest().map { it?.toDomainModel() }
@@ -115,6 +140,7 @@ class AppRepository(
         deleteAllProducts()
         deleteAllSpecificSales()
         deleteAllDebts()
+        deleteAllPayments()
         dailyEntryDao.deleteAll()
         endOfDayDao.deleteAll()
         deleteAllRestockLogs()

@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.sari_sari_smart.data.StockStatus
 import com.example.sari_sari_smart.data.formatTimeAgo
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
@@ -384,6 +385,19 @@ fun ReportsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Reports Screen")
+@Composable
+fun ReportsScreenPreview() {
+    com.example.sari_sari_smart.ui.theme.SariSariSmartTheme {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            ReportsScreen(
+                viewModel = remember { AppViewModel() },
+                onBack = {}
+            )
         }
     }
 }

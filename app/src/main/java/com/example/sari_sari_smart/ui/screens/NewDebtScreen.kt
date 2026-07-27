@@ -166,8 +166,7 @@ fun NewDebtScreen(
                                     id = 0,
                                     customerName = name,
                                     amount = debtAmount,
-                                    remainingBalance = debtAmount,
-                                    lastActivity = "Today"
+                                    remainingBalance = debtAmount
                                 )
                             )
                         }

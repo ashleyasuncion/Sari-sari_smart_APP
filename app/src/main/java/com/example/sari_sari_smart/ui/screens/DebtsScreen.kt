@@ -1,5 +1,7 @@
 package com.example.sari_sari_smart.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +27,7 @@ import java.util.*
 
 /**
  * DEBTS SCREEN — Customer debt management.
- * Matches debts.html from the web prototype exactly.
+ * Matches debts.html from the web prototype with clickable debtors and paid debts section.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +46,11 @@ fun DebtsScreen(
     val highlightState = LocalTutorialHighlightState.current
 
     val activeDebts = debts.filter { it.remainingBalance > 0 }
+    val paidDebts = debts.filter { it.remainingBalance <= 0 }
     val totalOutstanding = viewModel.totalOutstandingDebts
+
+    // Paid debts collapsible state
+    var showPaidDebts by remember { mutableStateOf(false) }
 
     // Payment bottom sheet state
     var showPaymentSheet by remember { mutableStateOf(false) }
@@ -112,12 +118,70 @@ fun DebtsScreen(
                 debt = debt,
                 fmt = fmt,
                 lang = lang,
+                lastActivity = viewModel.getLastActivity(debt),
+                onClick = { onDebtClick(debt.id) },
                 onPay = {
                     selectedDebtId = debt.id
                     paymentAmount = ""
                     showPaymentSheet = true
                 }
             )
+        }
+
+        // ── Paid Debts Section (collapsible) ──
+        if (paidDebts.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Surface),
+                    shape = MaterialTheme.shapes.medium,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column {
+                        // Collapsible header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showPaidDebts = !showPaidDebts }
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("\u2705", fontSize = 18.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "paidDebts (${paidDebts.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Green600
+                                )
+                            }
+                            Icon(
+                                if (showPaidDebts) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = Gray400,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        AnimatedVisibility(visible = showPaidDebts) {
+                            Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 8.dp)) {
+                                paidDebts.forEach { debt ->
+                                    PaidDebtRow(
+                                        debt = debt,
+                                        fmt = fmt,
+                                        lang = lang,
+                                        lastActivity = viewModel.getLastActivity(debt),
+                                        onClick = { onDebtClick(debt.id) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -241,10 +305,12 @@ private fun DebtCard(
     debt: CustomerDebt,
     fmt: java.text.NumberFormat,
     lang: String,
+    lastActivity: String,
+    onClick: () -> Unit,
     onPay: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = Surface),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -271,7 +337,7 @@ private fun DebtCard(
                     color = Gray800
                 )
                 Text(
-                    "lastActivity".t(lang) + " ${debt.lastActivity}",
+                    "lastActivity".t(lang) + " $lastActivity",
                     style = MaterialTheme.typography.bodySmall,
                     color = Gray400
                 )
@@ -294,6 +360,52 @@ private fun DebtCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PaidDebtRow(
+    debt: CustomerDebt,
+    fmt: java.text.NumberFormat,
+    lang: String,
+    lastActivity: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = MaterialTheme.shapes.small,
+            color = Green50
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Text("\u2705", fontSize = 16.sp)
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                debt.customerName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = Gray700
+            )
+            Text(
+                "Was ${fmt.format(debt.amount)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Gray400
+            )
+        }
+        Text(
+            lastActivity,
+            style = MaterialTheme.typography.labelSmall,
+            color = Gray400
+        )
     }
 }
 

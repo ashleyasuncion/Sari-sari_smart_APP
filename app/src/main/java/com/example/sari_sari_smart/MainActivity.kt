@@ -25,11 +25,11 @@ class MainActivity : ComponentActivity() {
             val langState = remember { mutableStateOf(appSettings.language) }
             val scaleState = remember { mutableStateOf(appSettings.getTextScaleFactor()) }
 
-            SariSariSmartTheme {
-                CompositionLocalProvider(
-                    LocalLanguage provides langState,
-                    LocalTextScale provides scaleState
-                ) {
+            CompositionLocalProvider(
+                LocalLanguage provides langState,
+                LocalTextScale provides scaleState
+            ) {
+                SariSariSmartTheme {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background

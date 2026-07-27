@@ -5,9 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.example.sari_sari_smart.ui.localization.LocalTextScale
 
 private val LightColorScheme = lightColorScheme(
     primary = Green600,
@@ -49,9 +52,13 @@ fun SariSariSmartTheme(
         }
     }
 
+    // Read user text-size preference (provided by MainActivity) and apply globally
+    val scale by LocalTextScale.current
+    val scaledTypography = remember(scale) { createScaledTypography(scale) }
+
     MaterialTheme(
         colorScheme = LightColorScheme,
-        typography = Typography,
+        typography = scaledTypography,
         content = content
     )
 }

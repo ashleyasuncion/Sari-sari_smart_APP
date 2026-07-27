@@ -57,7 +57,7 @@ fun DayModeScreen(
     val today = viewModel.today
     val todaySales = specificSales.filter { it.date == today }
     val todayEarnings = dailyEntry?.earnings ?: viewModel.todayRecordedSales
-    val todayUtangTotal = debts.filter { it.lastActivity == "Today" }.sumOf { it.remainingBalance }
+    val todayUtangTotal = viewModel.specificSales.value.filter { it.date == today && it.customerName != null }.sumOf { it.amount }
 
     val dateFormat = remember { SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()) }
     val todayFormatted = remember { dateFormat.format(Date()) }

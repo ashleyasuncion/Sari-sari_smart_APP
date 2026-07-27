@@ -15,9 +15,10 @@ import com.example.sari_sari_smart.data.local.entity.*
         SpecificSaleEntity::class,
         CustomerDebtEntity::class,
         EndOfDayEntity::class,
-        RestockLogEntity::class
+        RestockLogEntity::class,
+        DebtPaymentEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,6 +29,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun customerDebtDao(): CustomerDebtDao
     abstract fun endOfDayDao(): EndOfDayDao
     abstract fun restockLogDao(): RestockLogDao
+    abstract fun debtPaymentDao(): DebtPaymentDao
 
     companion object {
         @Volatile

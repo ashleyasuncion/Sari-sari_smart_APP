@@ -68,19 +68,19 @@ fun MorningCheckScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // ── Morning greeting (matching webapp: morning-icon, morning-greeting, morning-subtitle) ──
         Spacer(modifier = Modifier.height(16.dp))
         // SVG-style sun icon (matching morning.html morning-icon)
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .padding(bottom = 12.dp),
+            modifier = Modifier.size(48.dp),
             contentAlignment = Alignment.Center
         ) {
             Text("\u2600\uFE0F", fontSize = 48.sp)
         }
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "morningGreeting".t(lang),
             style = MaterialTheme.typography.headlineMedium,

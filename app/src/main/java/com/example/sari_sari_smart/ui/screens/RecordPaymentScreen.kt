@@ -172,7 +172,7 @@ fun RecordPaymentScreen(
             Button(
                 onClick = {
                     if (canSave) {
-                        viewModel.recordDebtPayment(debt.id, amount)
+                        viewModel.recordDebtPayment(debt.id, amount, note.ifBlank { null })
                         snackbarScope.launch {
                             snackbarHost.showSnackbar("paymentSaved".t(lang))
                         }

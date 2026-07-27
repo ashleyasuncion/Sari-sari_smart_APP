@@ -299,7 +299,7 @@ fun SaleBottomSheet(
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("cancel".t(lang))
+                    Text("close".t(lang))
                 }
                 Button(
                     onClick = {
@@ -330,8 +330,7 @@ fun SaleBottomSheet(
                                             id = 0,
                                             customerName = customerName,
                                             amount = totalAmount,
-                                            remainingBalance = totalAmount,
-                                            lastActivity = "Today"
+                                            remainingBalance = totalAmount
                                         )
                                     )
                                 }

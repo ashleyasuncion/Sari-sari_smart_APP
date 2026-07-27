@@ -8,8 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sari_sari_smart.ui.theme.Green600
+import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
 
 /**
  * App Header composable — provides the green TopAppBar with greeting/title and action buttons.
@@ -66,6 +69,18 @@ fun MomentAppHeader(
         ),
         modifier = modifier
     )
+}
+
+@Preview(showBackground = true, name = "Moment App Header")
+@Composable
+fun MomentAppHeaderPreview() {
+    SariSariSmartTheme {
+        MomentAppHeader(
+            greeting = "Good day! Aling Maria 👋",
+            onTutorialClick = {},
+            onInventoryClick = {}
+        )
+    }
 }
 
 // ── Support Header (for Inventory, Debts screens) ────────────────────────
@@ -128,4 +143,17 @@ fun SupportAppHeader(
         ),
         modifier = modifier
     )
+}
+
+@Preview(showBackground = true, name = "Support App Header")
+@Composable
+fun SupportAppHeaderPreview() {
+    SariSariSmartTheme {
+        SupportAppHeader(
+            title = "Inventory",
+            onBackClick = {},
+            onTutorialClick = {},
+            onSettingsClick = {}
+        )
+    }
 }

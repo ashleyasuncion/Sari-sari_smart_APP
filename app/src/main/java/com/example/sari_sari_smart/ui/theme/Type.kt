@@ -69,6 +69,12 @@ val Typography = Typography(
         fontSize = 18.sp,
         lineHeight = 25.sp
     ),
+    labelMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 18.sp,
+        lineHeight = 25.sp
+    ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
@@ -130,6 +136,10 @@ fun createScaledTypography(scale: Float): Typography {
         labelSmall = Typography.labelSmall.copy(
             fontSize = Typography.labelSmall.fontSize * scale,
             lineHeight = Typography.labelSmall.lineHeight * scale
+        ),
+        labelMedium = Typography.labelMedium.copy(
+            fontSize = Typography.labelMedium.fontSize * scale,
+            lineHeight = Typography.labelMedium.lineHeight * scale
         )
     )
 }

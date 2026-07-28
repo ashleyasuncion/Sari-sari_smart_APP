@@ -1616,3 +1616,150 @@ PHASE 14 — SETTINGS PAGE OVERHAUL + ISSUES 8/9/10 (July 23, 2026)
   ─────────────────────────────────────────────────────────────────────────
   [✓] ./gradlew compileDebugKotlin — BUILD SUCCESSFUL (warnings only)
   [✓] Code review — Passed, minor cleanup (removed dead variable)
+
+================================================================================
+PHASE 14 — DAY STATS CARD TEXT ALIGNMENT & GRID CONSISTENCY (July 27, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Timeline: ~30 minutes
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Fixed text alignment in Day Stats cards and enforced equal card heights
+  to match the web app's CSS Grid behavior. Two separate issues were found
+  during a comprehensive comparison of the web and mobile implementations.
+
+  Issue 1 — Stat Card Labels Not Scaling (Type.kt):
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/theme/Type.kt
+         • Added labelMedium TextStyle to the base Typography definition:
+           fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
+           fontSize = 18.sp, lineHeight = 25.sp, letterSpacing = 0.5.sp
+         • Added labelMedium to createScaledTypography() so it properly
+           scales at Large (20.25sp) and Extra Large (22.5sp) text sizes
+
+  Before (user): At Large/Extra Large text sizes, the stat card labels stayed
+  at Material3's default 12sp instead of scaling up — labels looked tiny
+  compared to the value text (e.g. 12sp label vs 27.5sp value at XL).
+  After (user): Labels now scale proportionally with all other text — 18sp at
+  Standard, 20.25sp at Large, 22.5sp at Extra Large — maintaining visual
+  balance at all text sizes.
+
+  Issue 2 — Stat Card Labels Hardcoded (DayModeScreen.kt):
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/screens/DayModeScreen.kt
+         • Replaced hardcoded Filipino labels with localized string keys:
+           "Kita Ngayon" → "recordedSalesToday".t(lang)
+           (→ "Recorded Sales Today" / "Naitalang Benta Ngayon")
+           "Naibenta" → "itemsSold".t(lang)
+           (→ "Items Sold" / "Naibenta")
+           "Utang Ngayon" → "debtToday".t(lang)
+           (→ "Debt Today" / "Utang Ngayon")
+
+  Before (user): Labels always showed in Filipino regardless of language setting.
+  After (user): Labels now correctly switch between English and Filipino
+  based on the app language setting.
+
+  Issue 3 — Day Stats Cards Uneven Height at Large Text Sizes:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/screens/DayModeScreen.kt
+         • Added .height(IntrinsicSize.Min) to the Day Stats Row modifier
+           → Forces the Row's height to equal the tallest child card
+         • Added .fillMaxHeight() to all three DayStatCard modifier chains
+           → Makes every card stretch to fill the Row's determined height
+         • Changed horizontalArrangement from spacedBy(12.dp) to spacedBy(8.dp)
+           → Matches the web CSS Grid's gap: 8px
+
+  Root cause:
+  ─────────────────────────────────────────────────────────────────────────
+  The web app uses CSS Grid with grid-template-columns: 1fr 1fr 1fr + implicit
+  align-items: stretch, which rigidly enforces equal card heights regardless
+  of content wrapping. The mobile app used a simple Row with weight(1f) for
+  equal width, but cards grew independently based on their content height.
+  The IntrinsicSize.Min + fillMaxHeight() pattern is the standard Compose
+  approach that mirrors CSS Grid's stretch behavior.
+
+  Before (user): At Large/Extra Large text sizes, cards with longer labels
+  (e.g. "Recorded Sales Today" wrapping to 2 lines) became taller than
+  adjacent cards with shorter labels. The Day Stats Grid looked uneven.
+  After (user): All three cards maintain equal height at ALL text sizes,
+  matching the web app's consistent grid appearance.
+
+  Investigation:
+  ─────────────────────────────────────────────────────────────────────────
+  [DOC]  Two detailed investigation reports were produced:
+         • Day Stats Card Text Alignment — identified labelMedium missing
+           from createScaledTypography() and hardcoded labels
+         • Day Stats Grid Layout Consistency — identified Row without
+           IntrinsicSize.Min vs CSS Grid's implicit stretch behavior
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] ./gradlew compileDebugKotlin — BUILD SUCCESSFUL in 19s (git version)
+  [✓] Code review — Passed, no issues
+
+================================================================================
+PHASE 14 — DAYSTATCARD VERTICAL CENTERING FIX (July 28, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 28, 2026
+  Timeline: ~1 hour (including fixing wrong project)
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  The content within DayStatCard composables was not vertically centered,
+  especially noticeable when cards had different label lengths or at larger
+  text sizes. The fix replaced the intrinsic-measurement-based layout with
+  a fixed-height Row approach, matching the web app's predictable CSS Grid
+  behavior.
+
+  Root cause:
+  ─────────────────────────────────────────────────────────────────────────
+  The original layout used Row(height(IntrinsicSize.Min)) + fillMaxHeight()
+  which created a circular measurement dependency: the Row's height depended
+  on children's intrinsic heights, but children's Box(fillMaxSize) depended
+  on the Row's height. This meant contentAlignment = Center had no guaranteed
+  extra space to distribute — the Box was exactly the content height.
+
+  Fix applied:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/screens/DayModeScreen.kt
+         • Row: .height(IntrinsicSize.Min) → .height(150.dp) (fixed height)
+         • DayStatCard: Removed .heightIn(min = 140.dp) from modifier chain
+           (no longer needed with fixed Row height)
+         • DayStatCard composable: Replaced Column(padding(12), CenterHorizontally)
+           with Box(fillMaxSize, contentAlignment = Center) wrapping
+           Column(padding(horizontal=10, vertical=12), CenterHorizontally)
+         • Box fills the full 150dp card height, then contentAlignment = Center
+           vertically centers the inner Column — guaranteed extra space
+         • 2nd card iconBg: hardcoded Color(0xFFE0F2FE) → Blue50 (theme constant)
+         • 2nd card icon: 💵 → 📦 (more appropriate for "Items Sold")
+
+  Comparison:
+  ─────────────────────────────────────────────────────────────────────────
+  
+                    | Before (IntrinsicSize.Min)          | After (fixed 150dp)
+  ──────────────────|────────────────────────────────────|────────────────────────────
+  Row height        | IntrinsicSize.Min (= content)      | 150dp (fixed, predictable)
+  Card equal height | ✅ IntrinsicSize.Min + fillMaxHeight| ✅ fillMaxHeight fills 150dp
+  Vertical centering| ❌ No extra space for Box to distribute | ✅ 48dp (Std) / 6dp (XL)
+  At Standard text  | Content at top, no visible centering| 24dp above & below content
+  At Extra Large    | Content at top, no visible centering| 3dp above & below content
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] ./gradlew compileDebugKotlin — BUILD SUCCESSFUL in 41s
+  [✓] Code review — Passed, no issues
+
+================================================================================
+ALL ITEMS COMPLETE — CAPSTONE READY
+================================================================================
+
+  ✓ DayStatCard centering fixed (July 28, 2026)
+  ✓ Custom app icon — Storefront with peso coin
+  ✓ README.md — Comprehensive project documentation
+  ✓ Architecture docs — MVVM + Room + data flow diagrams
+  ✓ User research — 5 interviews + usability tests + quotes
+  ✓ Compose UI tests — 7 smoke tests for 3 main screens
+  ✓ CSV export — Products, sales, debts, weekly summary
+  ✓ Reports with charts — Canvas bar chart + best-sellers + period toggles

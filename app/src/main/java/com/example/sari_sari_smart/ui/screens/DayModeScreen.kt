@@ -95,31 +95,35 @@ fun DayModeScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // ── Stats grid ──
+        // Fixed-height Row (150dp) gives every card equal height.
+        // Box(contentAlignment = Center) inside each card reliably
+        // centers content vertically — no more IntrinsicSize.Min issues.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(150.dp)
                 .tutorialHighlight("dayStatsGrid", highlightState),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             DayStatCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = "\uD83D\uDCB5",
                 iconBg = Green100,
-                label = "Kita Ngayon",
+                label = "recordedSalesToday".t(lang),
                 value = "\u20B1${String.format("%,.2f", todayEarnings)}"
             )
             DayStatCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = "\uD83D\uDCE6",
-                iconBg = Color(0xFFE0F2FE),
-                label = "Naibenta",
+                iconBg = Blue50,
+                label = "itemsSold".t(lang),
                 value = "${todaySales.sumOf { it.quantity }}"
             )
             DayStatCard(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 icon = "\uD83D\uDCB0",
                 iconBg = Amber100,
-                label = "Utang Ngayon",
+                label = "debtToday".t(lang),
                 value = "\u20B1${String.format("%,.2f", todayUtangTotal)}"
             )
         }
@@ -272,33 +276,40 @@ private fun DayStatCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Box fills the entire Card height (150dp from Row),
+        // then contentAlignment = Center vertically centers the Column.
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            Surface(
-                modifier = Modifier.size(36.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = iconBg
+            Column(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Text(icon, fontSize = 18.sp)
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = iconBg
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(icon, fontSize = 18.sp)
+                    }
                 }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Gray500,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    value,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Gray800,
+                    textAlign = TextAlign.Center
+                )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelMedium,
-                color = Gray500,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                value,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = Gray800,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }

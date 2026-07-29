@@ -79,6 +79,12 @@ fun SaleBottomSheet(
         it.contains(customerName, ignoreCase = true)
     }.take(5)
 
+    // Build a debt balance lookup: customer name -> total remaining balance
+    val customerBalances = remember(debts) {
+        debts.groupBy { it.customerName }
+            .mapValues { (_, entries) -> entries.sumOf { it.remainingBalance } }
+    }
+
     fun finishEditing() {
         val parsed = qtyText.toIntOrNull()
         val maxQty = selectedProduct?.quantity ?: Int.MAX_VALUE
@@ -340,14 +346,35 @@ fun SaleBottomSheet(
                 ) {
                     Column {
                         filteredCustomers.forEach { name ->
-                            Text(
-                                name,
+                            val balance = customerBalances[name] ?: 0.0
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { customerName = name }
                                     .padding(12.dp),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (balance > 0) {
+                                    Text(
+                                        "\u20B1${String.format("%,.2f", balance)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Red500
+                                    )
+                                } else {
+                                    Text(
+                                        "\u2714\uFE0F \u20B10.00",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Green600
+                                    )
+                                }
+                            }
                             HorizontalDivider()
                         }
                     }

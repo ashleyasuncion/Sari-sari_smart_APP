@@ -2220,3 +2220,37 @@ PHASE 23 — SALE SHEET: QUANTITY INPUT USABILITY + STOCK CLAMP (July 29, 2026)
   ─────────────────────────────────────────────────────────────────────────
   [MOD]  ui/components/SaleBottomSheet.kt — All 3 issues + compiler-cleanup
          (removed unused maxQty val, added qtyText reset in resetForm())
+
+================================================================================
+PHASE 24 — CUSTOMER SUGGESTION DEBT VISIBILITY (July 29, 2026)
+================================================================================
+
+Customer Suggestion Debt Visibility Investigation identified that customer
+suggestion dropdowns across Sale Bottom Sheet and New Debt screen displayed
+only the customer name without showing outstanding debt balance.
+
+[✓] Fixed: SaleBottomSheet.kt — Customer suggestions now show debt balance
+     - Added customerBalances map built from full debts list:
+       groupBy customerName → mapValues sumOf remainingBalance
+     - Changed suggestion rendering from single Text(name) to Row layout:
+       → Customer name (weight=1f, left-aligned)
+       → Balance: red "₱XXX.XX" if outstanding > 0
+       → Balance: green "✓ ₱0.00" if fully settled
+     - Uses Arrangement.SpaceBetween for proper alignment
+
+[✓] Fixed: NewDebtScreen.kt — Customer suggestions now show debt balance
+     - Added val debts by viewModel.debts.collectAsState() to access full
+       CustomerDebt objects (previously only had List<String> from
+       getUsedCustomerNames() which discarded balance data)
+     - Added customerBalances map (same groupBy/mapValues pattern as
+       SaleBottomSheet)
+     - Changed suggestion rendering from single Text(name) to Row with
+       name + balance (same layout as SaleBottomSheet)
+     - Removed unused data class — uses inline lookup from customerBalances
+       map for consistency with SaleBottomSheet pattern
+
+[✓] Affected files:
+     [MOD] ui/components/SaleBottomSheet.kt — Added customerBalances map,
+           updated suggestion Row rendering with balance display
+     [MOD] ui/screens/NewDebtScreen.kt — Added debts StateFlow collection,
+           customerBalances map, updated suggestion Row rendering

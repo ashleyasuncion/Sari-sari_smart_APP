@@ -39,7 +39,13 @@ fun NewDebtScreen(
     var amount by remember { mutableStateOf("") }
     var showSuggestions by remember { mutableStateOf(false) }
 
+    val debts by viewModel.debts.collectAsState()
     val usedNames = remember { viewModel.getUsedCustomerNames() }
+    // Build a balance lookup: customer name -> total remaining balance
+    val customerBalances = remember(debts) {
+        debts.groupBy { it.customerName }
+            .mapValues { (_, entries) -> entries.sumOf { it.remainingBalance } }
+    }
     val suggestions = remember(customerName, usedNames) {
         if (customerName.length >= 1) {
             usedNames.filter { it.contains(customerName, ignoreCase = true) }.take(5)
@@ -100,13 +106,33 @@ fun NewDebtScreen(
                 ) {
                     Column {
                         suggestions.forEach { name ->
+                            val balance = customerBalances[name] ?: 0.0
                             Row(
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     customerName = name; showSuggestions = false
                                 }.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(name, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (balance > 0) {
+                                    Text(
+                                        "\u20B1${String.format("%,.2f", balance)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Red500
+                                    )
+                                } else {
+                                    Text(
+                                        "\u2714\uFE0F \u20B10.00",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Green600
+                                    )
+                                }
                             }
                         }
                     }

@@ -58,7 +58,7 @@ fun DebtsScreen(
     var paymentAmount by remember { mutableStateOf("") }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(start = 16.dp, end = 16.dp, top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // ── Total Outstanding card ──

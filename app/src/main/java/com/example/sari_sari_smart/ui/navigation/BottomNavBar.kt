@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +23,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.sari_sari_smart.data.StockStatus
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
 import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
@@ -62,6 +65,7 @@ fun BottomNavBar(
     val currentRoute = navBackStackEntry?.destination?.route ?: ""
     val langState = LocalLanguage.current
     val lang = langState.value
+    val context = LocalContext.current
 
     val isMomentScreen = currentRoute in momentRoutes
     val isSupportScreen = currentRoute in supportRoutes
@@ -81,6 +85,11 @@ fun BottomNavBar(
     var lastMorningTapTime by remember { mutableLongStateOf(0L) }
 
     fun handleMomentTap(item: MomentNavItem) {
+        // Guard: Don't navigate to DAY or CLOSING if day is not open
+        if ((item == MomentNavItem.DAY || item == MomentNavItem.CLOSING) && appViewModel?.dayOpen != true) {
+            Toast.makeText(context, "Please start the day first.", Toast.LENGTH_SHORT).show()
+            return
+        }
         if (item == MomentNavItem.MORNING) {
             val now = System.currentTimeMillis()
             if (lastMorningTapTime > 0 && now - lastMorningTapTime < DOUBLE_TAP_MS) {
@@ -117,7 +126,10 @@ fun BottomNavBar(
         // THREE-MOMENT NAV (Morning / Sell-FAB / Close)
         // ═══════════════════════════════════════════════════════
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 76.dp)
+                .navigationBarsPadding(),
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp
         ) {
@@ -188,47 +200,64 @@ fun BottomNavBar(
     } else if (isSupportScreen) {
         // ═══════════════════════════════════════════════════════
         // SUPPORT NAV (Morning / Inventory / Debts)
+        // Uses same Surface+Row layout as 3-moment nav for consistent height.
         // ═══════════════════════════════════════════════════════
-        NavigationBar(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 76.dp)
+                .navigationBarsPadding(),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 8.dp
         ) {
-            // Morning tab
-            NavigationBarItem(
-                icon = {
-                    BadgedBox(badge = {
-                        if (showBadge) {
-                            Badge(containerColor = Red500, contentColor = Color.White) {
-                                Text(
-                                    if (lowStockCount > 99) "99+" else "$lowStockCount",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // ── Morning tab ──
+                NavBarTab(
+                    label = "morning".t(lang),
+                    icon = {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (showBadge) {
+                                BadgedBox(badge = {
+                                    Badge(containerColor = Red500, contentColor = Color.White) {
+                                        Text(
+                                            if (lowStockCount > 99) "99+" else "$lowStockCount",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                }) {
+                                    MorningIcon()
+                                }
+                            } else {
+                                MorningIcon()
                             }
                         }
-                    }) {
-                        MorningIcon()
-                    }
-                },
-                label = { Text("morning".t(lang), style = MaterialTheme.typography.labelSmall) },
-                selected = false,
-                onClick = { navController.navigate(Routes.MORNING) { popUpTo(Routes.MORNING) { inclusive = true } } }
-            )
+                    },
+                    isSelected = false,
+                    onClick = { navController.navigate(Routes.MORNING) { popUpTo(Routes.MORNING) { inclusive = true } } }
+                )
 
-            // Inventory tab
-            NavigationBarItem(
-                icon = { InventoryIcon() },
-                label = { Text("inventory".t(lang), style = MaterialTheme.typography.labelSmall) },
-                selected = currentRoute == Routes.INVENTORY,
-                onClick = { handleSupportTap(SupportNavItem.INVENTORY) }
-            )
+                // ── Inventory tab ──
+                NavBarTab(
+                    label = "inventory".t(lang),
+                    icon = { InventoryIcon() },
+                    isSelected = currentRoute == Routes.INVENTORY,
+                    onClick = { handleSupportTap(SupportNavItem.INVENTORY) }
+                )
 
-            // Debts tab
-            NavigationBarItem(
-                icon = { DebtsIcon() },
-                label = { Text("debts".t(lang), style = MaterialTheme.typography.labelSmall) },
-                selected = currentRoute == Routes.DEBTS,
-                onClick = { handleSupportTap(SupportNavItem.DEBTS) }
-            )
+                // ── Debts tab ──
+                NavBarTab(
+                    label = "debts".t(lang),
+                    icon = { DebtsIcon() },
+                    isSelected = currentRoute == Routes.DEBTS,
+                    onClick = { handleSupportTap(SupportNavItem.DEBTS) }
+                )
+            }
         }
     }
 }

@@ -51,6 +51,18 @@ class AppSettings(context: Context) {
         else -> 1.25f
     }
 
+    var dayOpen: Boolean
+        get() = prefs.getBoolean("day_open", false)
+        set(value) = prefs.edit().putBoolean("day_open", value).apply()
+
+    var dayDate: String
+        get() = prefs.getString("day_date", "") ?: ""
+        set(value) = prefs.edit().putString("day_date", value).apply()
+
+    var dayArchived: Boolean
+        get() = prefs.getBoolean("day_archived", false)
+        set(value) = prefs.edit().putBoolean("day_archived", value).apply()
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }

@@ -1763,3 +1763,460 @@ ALL ITEMS COMPLETE — CAPSTONE READY
   ✓ Compose UI tests — 7 smoke tests for 3 main screens
   ✓ CSV export — Products, sales, debts, weekly summary
   ✓ Reports with charts — Canvas bar chart + best-sellers + period toggles
+
+================================================================================
+PHASE 15 — DEVELOPER PANEL + DAY ACCESS CONTROL FIXES (July 28, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 28, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Two-part update: (1) Developer Panel enhancements based on audit findings,
+  and (2) day start navigation access control guards and day state persistence.
+
+  Part 1 — Developer Panel:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/components/DeveloperPanel.kt
+         • Added Day State section with 4 actions (Toggle Day, Start New Day,
+           Archive Today's Sales, Reset Tutorial State)
+         • Reset Tutorial State button now properly resets appSettings.launchCount
+           and appSettings.hasCompletedTutorial (was previously a fake snackbar)
+         • Added appSettings: AppSettings? = null parameter
+  [MOD]  ui/navigation/NavGraph.kt
+         • Passes appSettings to DeveloperPanel
+
+  Part 2 — Day Access Control:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/localization/AppSettings.kt
+         • Added dayOpen, dayDate, dayArchived properties backed by SharedPreferences
+         • Day state now survives app restart (was previously in-memory only)
+
+  [MOD]  ui/screens/AppViewModel.kt
+         • Added initAppSettings(settings) — loads persisted day state on startup
+         • Added persistDayState() — saves day state on every mutation
+         • persistDayState() called in: openDay(), completeEndOfDay(),
+           reopenClosing(), archiveDaySales(), resetAllData()
+
+  [MOD]  ui/navigation/NavGraph.kt
+         • LaunchedEffect(appSettings) calls initAppSettings() after ViewModel init
+         • DAY route guard: checks appViewModel.dayOpen, silently blocks with empty Box
+         • CLOSING route guard: checks appViewModel.dayOpen, silently blocks with empty Box
+
+  [MOD]  ui/navigation/BottomNavBar.kt
+         • Added dayOpen guard in handleMomentTap() for DAY and CLOSING items
+         • When day is not open: shows Toast "Please start the day first."
+           and returns early — no navigation, no white flash
+         • Added imports for Toast and LocalContext
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] Code review — Passed, no critical issues
+
+================================================================================
+
+================================================================================
+PHASE 16 — DEV PANEL FEEDBACK FIX (Snackbar → Toast) (July 28, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 28, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Developer Panel snackbar messages were not displaying because the
+  DeveloperPanel composable is rendered outside MainScaffold/SupportScaffold
+  (at the NavGraph top level), where LocalSnackbarScope falls back to a dead
+  scope that silently swallows all showSnackbar() calls.
+
+  Root cause:
+  ─────────────────────────────────────────────────────────────────────────
+  In NavGraph.kt, DeveloperPanel is rendered at the top level:
+    Box { NavHost { ... } }
+    DeveloperPanel(...)  ← outside MainScaffold
+  
+  LocalSnackbarScope is provided by MainScaffold and SupportScaffold, but
+  DeveloperPanel sits outside both — LocalSnackbarScope.current falls back
+  to SnackbarManager.kt's fallbackScope (a dead CoroutineScope with no
+  SnackbarHost), causing all snackbar messages to be silently dropped.
+
+  Fix applied:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/components/DeveloperPanel.kt
+         • Replaced 20 snackbarScope.launch { snackbarHost.showSnackbar(...) }
+           calls with Toast.makeText(context, ..., Toast.LENGTH_SHORT).show()
+         • Removed LocalSnackbarHost and LocalSnackbarScope imports
+         • Removed snackbarHost/snackbarScope variable declarations
+         • Added android.widget.Toast import
+
+  Affected actions (all now show Toast feedback):
+     - View Raw State (dialog only)
+     - Export Data, Import Data, Export CSV (+ error cases)
+     - Generate Test Sale, Generate Test Debts
+     - Bulk Add Items, Seed Sample Data
+     - Clear Restock Data, Set Restock Date, View Restock Log
+     - Toggle Day Open/Close, Start New Day, Archive Sales, Reset Tutorial
+     - Reset Today's Sales, Clear Inventory, Clear Selected, Reset All
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] Code review — Passed, no issues
+
+================================================================================
+
+================================================================================
+PHASE 17 — KEYBOARD DISMISSAL FIX ATTEMPTS ROLLED BACK (July 28, 2026)
+================================================================================
+  Status: [100%] ✓ Reverted
+  Date: July 28, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Multiple attempts were made to implement tap-to-dismiss-keyboard on the
+  SaleBottomSheet. All attempts were rolled back because none successfully
+  dismissed the keyboard.
+
+  Attempt 1 — pointerInput + focusManager.clearFocus():
+  ─────────────────────────────────────────────────────────────────────────
+  [✗] Added LocalFocusManager + detectTapGestures to Column's modifier
+      chain. ImeTracker log showed onRequestHide → onFailed at
+      PHASE_CLIENT_VIEW_SERVED. Also discovered modifier conflict between
+      pointerInput and verticalScroll on the same Column.
+
+  Attempt 2 — Box wrapper + keyboardController.hide():
+  ─────────────────────────────────────────────────────────────────────────
+  [✗] Wrapped Column in a Box to separate pointerInput from verticalScroll.
+      Added LocalSoftwareKeyboardController.hide() as additional layer.
+      Still failed — ImeTracker showed same PHASE_CLIENT_VIEW_SERVED error.
+
+  Attempt 3 — InputMethodManager.hideSoftInputFromWindow():
+  ─────────────────────────────────────────────────────────────────────────
+  [✗] Added platform-level fallback using InputMethodManager. Logcat showed
+      TWO onRequestHide calls both failing (keyboardController + IMM both
+      rejected at PHASE_CLIENT_VIEW_SERVED).
+
+  Root cause identified:
+  ─────────────────────────────────────────────────────────────────────────
+  ModalBottomSheet creates a popup window with ADJUST_NOTHING soft input
+  mode. The OutlinedTextField's IME connection inside this popup rejects
+  all hide requests regardless of whether they come from Compose or the
+  platform API. ImeTracker consistently shows:
+    onRequestHide → onFailed at PHASE_CLIENT_VIEW_SERVED
+
+  Resolution:
+  ─────────────────────────────────────────────────────────────────────────
+  All changes reverted. SaleBottomSheet.kt restored to original state with
+  no keyboard dismissal modifications. Issue postponed for further
+  investigation (possible fix: activity window token or WindowInsetsController).
+
+  Files affected:
+  ─────────────────────────────────────────────────────────────────────────
+  - SaleBottomSheet.kt: Reverted to original (removed LocalFocusManager,
+    LocalSoftwareKeyboardController, pointerInput, detectTapGestures,
+    LocalView, InputMethodManager, Context imports; removed Box wrapper)
+  - progress.txt: This entry
+
+================================================================================
+PHASE 18 — DEBT TODAY SYNCHRONIZATION FIX (July 28, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 28, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Manually-added debts from the Debts page were not showing in the Debt
+  Today metric on the Day page. Investigation revealed the root cause: both
+  web and Android apps calculate Debt Today from SpecificSale records with
+  customerName != null, but manual debt creation only created a CustomerDebt
+  record without a corresponding SpecificSale.
+
+  Root cause:
+  ─────────────────────────────────────────────────────────────────────────
+  DayModeScreen.kt (line 60):
+    todayUtangTotal = specificSales.filter{ it.date == today && it.customerName != null }
+  NewDebtScreen.kt:
+    Manual debt only called addDebt() / addToDebtBalance() — no SpecificSale
+
+  Fix — same approach on both platforms:
+  ─────────────────────────────────────────────────────────────────────────
+  When a manual debt is created, also create a SpecificSale/SpecificSale
+  with customerName set so the existing Debt Today calculation picks it up.
+
+  [Android] NewDebtScreen.kt:
+    - Added import for SpecificSale
+    - After creating CustomerDebt, added viewModel.addSpecificSale() with
+      customerName, description "Manual debt: <name>", profit 0.0
+
+  [Web] app.js saveNewDebt():
+    - After pushing to state.debts, added state.sales.unshift() with
+      customerName, productName "Manual debt: <name>", profit 0
+
+  Files affected:
+  ─────────────────────────────────────────────────────────────────────────
+  - git/Sari-sari_smart/app.js: saveNewDebt() — added sale creation
+  - git/app/.../NewDebtScreen.kt: — added SpecificSale creation after debt
+  - progress.txt: This entry
+
+================================================================================
+PHASE 19 — BOTTOM NAV HEIGHT CONSISTENCY (WIP / UNFINISHED) (July 28, 2026)
+================================================================================
+  Status: [50%] ◐ In progress — code change applied, pending emulator verification
+  Date: July 28, 2026
+
+  Problem:
+  ─────────────────────────────────────────────────────────────────────────
+  The two bottom nav variants had different heights:
+    - Nav 1 (3-moment: Morning/Sell-FAB/Close): Custom Surface+Row, ~76dp
+    - Nav 2 (support: Morning/Inventory/Debts): Material3 NavigationBar, ~80dp
+  This caused a visible gap on the Inventory page.
+
+  Root cause:
+  ─────────────────────────────────────────────────────────────────────────
+  Two different composable types (Surface+Row vs NavigationBar) with different
+  internal padding and no consistent system inset handling. The FAB's offset()
+  created a mismatch between measured and visual height.
+
+  Previous attempt (July 28):
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] Converted support nav (Nav 2) from NavigationBar to Surface+Row layout
+      identical to the 3-moment nav for consistent component structure
+  [✓] Added navigationBarsPadding() to Row in both variants
+  [✗] Gap persisted — heightIn + navigationBarsPadding on Row still produced
+      different measured heights due to Compose modifier ordering
+
+  Current fix attempt — moved constraints to Surface:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] Moved heightIn(min = 76.dp) and navigationBarsPadding() from each
+      Row's modifier chain up to the enclosing Surface's modifier chain
+  [✓] This ensures Surface enforces min content height BEFORE adding system
+      insets, so both variants report identical totals to Scaffold
+  [◐] PENDING: Build & run on emulator to verify the gap is eliminated
+
+  Files affected:
+  ─────────────────────────────────────────────────────────────────────────
+  - git/app/.../navigation/BottomNavBar.kt: moved modifiers to Surface (x2)
+
+================================================================================
+PHASE 20 — BOTTOM NAV 2 GAP RESOLUTION (July 29, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 29, 2026
+  Timeline: ~30 minutes (investigation + fix)
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  A visible gap existed between the content area and Bottom Nav 2 (support
+  variant) on the Inventory and Debts pages. Investigation revealed this was
+  not a height mismatch — both nav variants have the same Surface height
+  (76dp min). The root cause was the FAB on Nav 1 (3-moment) with
+  `.offset(y = (-16).dp)` extending 12dp above the Surface, visually covering
+  the LazyColumn's bottom padding. Nav 2 has no FAB, so that same 12dp zone
+  appeared as empty space.
+
+  Root cause:
+  ─────────────────────────────────────────────────────────────────────────
+  The LazyColumn in both StocksScreen and DebtsScreen used
+  `.fillMaxSize().padding(16.dp)` which created 16dp of bottom padding. On
+  Nav 1, ~12dp of this was hidden behind the floating FAB (offset 16dp upward
+  from center). On Nav 2, all 16dp was fully visible, creating the appearance
+  of a gap between content and the bottom nav.
+
+  Fix applied:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/screens/StocksScreen.kt
+         • Changed LazyColumn modifier from
+           `.fillMaxSize().padding(16.dp)` to
+           `.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp)`
+         • Removed bottom padding component (was 16dp → gap source)
+         • Existing `Spacer(height = 8.dp)` at end of LazyColumn preserved
+           as 8dp of breathing room before nav
+
+  [MOD]  ui/screens/DebtsScreen.kt
+         • Same change: LazyColumn modifier bottom padding removed
+         • Existing `Spacer(height = 8.dp)` preserved for breathing room
+
+  [MOD]  ui/SupportScaffold.kt
+         • Removed debug `containerColor = Color.Red` used during investigation
+         • Removed unused imports (`background`, `Color`)
+         • Cleaned up debug comment
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] ./gradlew compileDebugKotlin — BUILD SUCCESSFUL in 15s
+  [✓] Code review — Passed, no issues
+
+================================================================================
+PHASE 21 — DEV PANEL DAY STATE SYNCHRONIZATION (July 29, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 29, 2026
+  Timeline: ~1 hour (investigation + fix)
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Fixed three Dev Panel day state synchronization issues across both web and
+  mobile apps. The bugs caused the morning page UI to show incorrect button
+  state after Dev Panel actions, and required manual navigation to refresh.
+
+  Issues:
+  ─────────────────────────────────────────────────────────────────────────
+  Issue 1 (Web): "Start New Day" left morning showing "Close Store" instead
+    of "Start the Day" — incorrectly set dayOpen = true.
+
+  Issue 2 (Mobile): Dev Panel commands (Toggle, Start New Day) did not
+    update the UI immediately — dayOpen/dayDate/dayArchived were plain vars
+    that Compose could not observe for recomposition.
+
+  Issue 3 (Mobile): "Start New Day" did not fully synchronize — called
+    openDay() which set dayOpen = true, leaving the day in an open state.
+
+  Root causes:
+  ─────────────────────────────────────────────────────────────────────────
+  Web app (app.js):
+    - startNewDay action set state.dayOpen = true instead of false
+    - No UI refresh after Dev Panel day state changes
+
+  Mobile app (AppViewModel.kt):
+    - dayOpen, dayDate, dayArchived were plain Boolean/String vars
+      → Compose could not detect changes, so UI never recomposed
+    - DeveloperPanel called openDay() which always sets dayOpen = true
+
+  Fixes applied:
+  ─────────────────────────────────────────────────────────────────────────
+  Web (MOD)  app.js:
+    - startNewDay: Changed dayOpen from true → false (pre-opening state),
+      dayDate reset to '' instead of todayStr()
+    - toggleDayOpen: Added toggleDevPanel() + renderMorningCheck() call
+      to close panel and refresh the morning page UI
+    - startNewDay: Added toggleDevPanel() + renderMorningCheck() to
+      close panel and immediately reflect new pre-opening state
+    - Updated toast message to clarify: "Tap 'Start the Day' to open"
+
+  Mobile (MOD)  AppViewModel.kt:
+    - Added imports: getValue, mutableStateOf, setValue from compose.runtime
+    - Changed dayOpen from `var dayOpen: Boolean = false` to
+      `var dayOpen: Boolean by mutableStateOf(false)`
+    - Changed dayDate and dayArchived similarly to mutableStateOf
+      → Any composable reading these properties now recomposes on change
+    - Made persistDayState() public (removed private) so DeveloperPanel
+      can persist state after Day State actions
+
+  Mobile (MOD)  DeveloperPanel.kt:
+    - Toggle Day: Added viewModel.persistDayState() after toggle so state
+      survives app restart
+    - Start New Day: Replaced viewModel.openDay() call with direct
+      property reset: dayOpen=false, dayDate="", dayArchived=false,
+      then persistDayState(). Day stays in pre-opening state.
+    - Updated description and toast to reflect new behavior
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] ./gradlew compileDebugKotlin — BUILD SUCCESSFUL in 9s
+  [✓] Code review — Passed, no issues
+
+================================================================================
+PHASE 22 — DAY STATE SYNCHRONIZATION REFINEMENT (July 29, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 29, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  The initial Phase 21 fix was reviewed and refined based on a detailed
+  issue report comparing expected vs actual behavior. Two remaining bugs
+  were identified and fixed in both the git and standalone app versions.
+
+  Refinement 1 — "Start New Day" now sets correct pre-opening state:
+  ─────────────────────────────────────────────────────────────────────────
+  Previous fix (Phase 21) set dayDate="" and dayArchived=false after
+  archiving sales. This caused the Morning page to show "Edit Today's
+  Closing" instead of "Start the Day" because:
+  • !dayOpen && dayDate === today && !dayArchived → true ("Edit Closing")
+
+  Refined fix: startNewDay() now sets:
+  • dayDate = today (not empty) — morning detects a fresh day for today
+  • dayArchived = true (not false) — breaks "Edit Closing" condition
+  • dayOpen = false — day stays closed for the user to start manually
+
+  Refinement 2 — Persistence parity with git version:
+  ─────────────────────────────────────────────────────────────────────────
+  The standalone Sari-sari_smart/app version was missing:
+  • initAppSettings() — needed to restore day state on app restart
+  • persistDayState() — needed to save day state across mutations
+  • mutableStateOf delegation — needed for Compose to observe changes
+  • startNewDay() — dedicated method for atomic archive+reset+init
+
+  All four additions were ported from the git version to the standalone.
+
+  Before vs After — Complete user trace:
+  ─────────────────────────────────────────────────────────────────────────
+  BEFORE:
+  1. Store is Open → Morning shows "Close Store"
+  2. Toggle Day Open/Close → Morning shows "Edit Today's Closing"
+  3. Start New Day → Morning shows "Close Store" ❌ (wrong!)
+  4. Navigate to Inventory → back → Morning shows "Close Store" still wrong
+
+  AFTER:
+  1. Store is Open → Morning shows "Close Store" ✅
+  2. Toggle Day Open/Close → Morning shows "Edit Today's Closing" ✅
+  3. Start New Day → Morning shows "Start the Day" ✅✅✅
+  4. Tap "Start the Day" → Morning shows "Close Store" ✅ (day opens)
+
+  Build status:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] Standalone version: AppViewModel.kt + DeveloperPanel.kt updated
+  [✓] Git version: startNewDay() refined (dayDate=today, dayArchived=true)
+  [✓] Code review — Passed, no issues
+
+================================================================================
+PHASE 23 — SALE SHEET: QUANTITY INPUT USABILITY + STOCK CLAMP (July 29, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 29, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Fixed 3 usability issues in the Sale Sheet (Record Sale) for the mobile app.
+  Changes applied to both git and standalone versions.
+
+  Issue 1 — Product suggestions now show stock quantity:
+  ─────────────────────────────────────────────────────────────────────────
+  Root cause: Suggestion Row only displayed product name + price.
+
+  [FIX]  SaleBottomSheet.kt — Replaced single Row with Column:
+         • Left column: product name + stock status label
+         • Right: unit price
+         • Stock labels: ✅ "20 left" (plenty), ⚠️ "3 left" (low ≤5), ⛔ "Out of stock"
+         • Color-coded: Green600, Amber700, Red500
+
+  Issue 2 — Quantity now supports direct typing:
+  ─────────────────────────────────────────────────────────────────────────
+  Root cause: Quantity text was read-only Text; only +/- buttons were usable.
+
+  [FIX]  SaleBottomSheet.kt — Added editable quantity mode:
+         • Added isEditingQty + qtyText state variables
+         • Tapping the quantity number switches to OutlinedTextField
+         • Number keyboard pops up automatically (FocusRequester + LaunchedEffect)
+         • Pressing Done or tapping away clamps and switches back to display
+         • +/- buttons still work alongside direct typing
+
+  Bug fix during development — onFocusChanged fired immediately on composition:
+  ─────────────────────────────────────────────────────────────────────────
+  Root cause: .onFocusChanged { if (!it.isFocused) finishEditing() } fires
+  when OutlinedTextField first enters the tree with isFocused=false, instantly
+  calling finishEditing() which sets isEditingQty=false.
+
+  [FIX]  Added hasBeenFocused guard: finishEditing() only runs after the
+         field has actually been focused (!isFocused && hasBeenFocused).
+
+  Issue 3 — Quantity clamped to available stock immediately:
+  ─────────────────────────────────────────────────────────────────────────
+  [FIX]  SaleBottomSheet.kt — 3-layer clamping:
+         • + button: enabled only when quantity < selectedProduct.quantity
+         • Direct typing: finishEditing() clamps via parsed.coerceIn(1, maxQty)
+         • Save button: enabled only when quantity <= selectedProduct.quantity
+         • Stock hint reflects max state "Available: X (max)"
+
+  Files modified:
+  ─────────────────────────────────────────────────────────────────────────
+  [MOD]  ui/components/SaleBottomSheet.kt — All 3 issues + compiler-cleanup
+         (removed unused maxQty val, added qtyText reset in resetForm())

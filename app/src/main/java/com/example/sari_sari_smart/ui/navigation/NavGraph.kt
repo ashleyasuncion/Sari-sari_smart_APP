@@ -65,6 +65,11 @@ fun NavGraph(
         appViewModel.initRepository(repository)
     }
 
+    // Restore persisted day state after the ViewModel is ready
+    LaunchedEffect(appSettings) {
+        appViewModel.initAppSettings(appSettings)
+    }
+
     // Dev Panel state
     var devPanelVisible by remember { mutableStateOf(false) }
     val showDevPanel: () -> Unit = { devPanelVisible = true }
@@ -239,6 +244,12 @@ fun NavGraph(
             }
 
             composable(Routes.DAY) {
+                // DAY guard: silently block if day is not open
+                // (BottomNavBar now prevents navigation, this is a safety net)
+                if (!appViewModel.dayOpen) {
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
                 val lang = LocalLanguage.current.value
                 val ownerName = appSettings.ownerName
                 val greetingText = "greeting".t(lang) + " " + ownerName + " \uD83D\uDC4B"
@@ -263,6 +274,12 @@ fun NavGraph(
             }
 
             composable(Routes.CLOSING) {
+                // CLOSING guard: silently block if day is not open
+                // (BottomNavBar now prevents navigation, this is a safety net)
+                if (!appViewModel.dayOpen) {
+                    Box(modifier = Modifier.fillMaxSize())
+                    return@composable
+                }
                 val lang = LocalLanguage.current.value
                 val ownerName = appSettings.ownerName
                 val greetingText = "greeting".t(lang) + " " + ownerName + " \uD83D\uDC4B"
@@ -453,7 +470,7 @@ fun NavGraph(
         }
 
     // Developer Panel
-    DeveloperPanel(visible = devPanelVisible, onDismiss = { devPanelVisible = false }, viewModel = appViewModel)
+    DeveloperPanel(visible = devPanelVisible, onDismiss = { devPanelVisible = false }, viewModel = appViewModel, appSettings = appSettings)
 
     // Sale sheet (shown on Day mode)
     if (saleSheetVisible) {

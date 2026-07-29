@@ -3,6 +3,7 @@ package com.example.sari_sari_smart.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -23,15 +24,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sari_sari_smart.data.LocalSnackbarHost
-import com.example.sari_sari_smart.data.LocalSnackbarScope
+import com.example.sari_sari_smart.ui.localization.AppSettings
 import com.example.sari_sari_smart.ui.screens.AppViewModel
 import com.example.sari_sari_smart.ui.theme.Red500
 import com.example.sari_sari_smart.ui.theme.Blue500
 import com.example.sari_sari_smart.ui.theme.Green500
 import com.example.sari_sari_smart.ui.theme.Amber500
 import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
@@ -43,11 +42,10 @@ import org.json.JSONObject
 fun DeveloperPanel(
     visible: Boolean,
     onDismiss: () -> Unit,
-    viewModel: AppViewModel
+    viewModel: AppViewModel,
+    appSettings: AppSettings? = null
 ) {
     val context = LocalContext.current
-    val snackbarHost = LocalSnackbarHost.current
-    val snackbarScope = LocalSnackbarScope.current
 
     // State for sub-dialogs
     var showRawStateDialog by remember { mutableStateOf(false) }
@@ -64,9 +62,9 @@ fun DeveloperPanel(
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     out.write(csv.toByteArray(Charsets.UTF_8))
                 }
-                snackbarScope.launch { snackbarHost.showSnackbar("CSV exported successfully!") }
+                Toast.makeText(context, "CSV exported successfully!", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                snackbarScope.launch { snackbarHost.showSnackbar("CSV export failed: ${e.message}") }
+                Toast.makeText(context, "CSV export failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -81,9 +79,9 @@ fun DeveloperPanel(
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     out.write(json.toByteArray(Charsets.UTF_8))
                 }
-                snackbarScope.launch { snackbarHost.showSnackbar("Data exported successfully!") }
+                Toast.makeText(context, "Data exported successfully!", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                snackbarScope.launch { snackbarHost.showSnackbar("Export failed: ${e.message}") }
+                Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -98,9 +96,9 @@ fun DeveloperPanel(
                 } ?: return@rememberLauncherForActivityResult
                 val obj = JSONObject(json)
                 viewModel.importData(obj)
-                snackbarScope.launch { snackbarHost.showSnackbar("Data imported successfully!") }
+                Toast.makeText(context, "Data imported successfully!", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                snackbarScope.launch { snackbarHost.showSnackbar("Import failed: ${e.message}") }
+                Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -119,7 +117,7 @@ fun DeveloperPanel(
             onClear = { types ->
                 viewModel.clearSelectedData(types)
                 showClearSelectedDialog = false
-                snackbarScope.launch { snackbarHost.showSnackbar("Selected data cleared.") }
+                Toast.makeText(context, "Selected data cleared.", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -135,7 +133,7 @@ fun DeveloperPanel(
                         viewModel.resetAllData()
                         showResetAllConfirm = false
                         onDismiss()
-                        snackbarScope.launch { snackbarHost.showSnackbar("All data has been reset.") }
+                        Toast.makeText(context, "All data has been reset.", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = Red500)
                 ) { Text("Reset All") }
@@ -204,7 +202,7 @@ fun DeveloperPanel(
                     desc = "Create a random sale from inventory",
                     onClick = {
                         viewModel.generateTestSale()
-                        snackbarScope.launch { snackbarHost.showSnackbar("Test sale generated!") }
+                        Toast.makeText(context, "Test sale generated!", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(
@@ -213,7 +211,7 @@ fun DeveloperPanel(
                     desc = "Create 2-5 random customer debts",
                     onClick = {
                         val count = viewModel.generateTestDebts()
-                        snackbarScope.launch { snackbarHost.showSnackbar("$count test debts created!") }
+                        Toast.makeText(context, "$count test debts created!", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(
@@ -222,7 +220,7 @@ fun DeveloperPanel(
                     desc = "Add 15 random products to inventory",
                     onClick = {
                         val count = viewModel.bulkAddItems()
-                        snackbarScope.launch { snackbarHost.showSnackbar("$count items added!") }
+                        Toast.makeText(context, "$count items added!", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(
@@ -231,7 +229,7 @@ fun DeveloperPanel(
                     desc = "Load default sample products & debts",
                     onClick = {
                         viewModel.seedSampleData()
-                        snackbarScope.launch { snackbarHost.showSnackbar("Sample data loaded.") }
+                        Toast.makeText(context, "Sample data loaded.", Toast.LENGTH_SHORT).show()
                     }
                 )
 
@@ -245,7 +243,7 @@ fun DeveloperPanel(
                     desc = "Reset restock date & history",
                     onClick = {
                         viewModel.clearRestockData()
-                        snackbarScope.launch { snackbarHost.showSnackbar("Restock data cleared.") }
+                        Toast.makeText(context, "Restock data cleared.", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(
@@ -254,7 +252,7 @@ fun DeveloperPanel(
                     desc = "For testing the morning reminder",
                     onClick = {
                         viewModel.setRestockDateToday()
-                        snackbarScope.launch { snackbarHost.showSnackbar("Restock date set to today.") }
+                        Toast.makeText(context, "Restock date set to today.", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(
@@ -262,7 +260,52 @@ fun DeveloperPanel(
                     label = "View Restock Log",
                     desc = viewModel.viewRestockLogCount(),
                     onClick = {
-                        snackbarScope.launch { snackbarHost.showSnackbar(viewModel.viewRestockLogCount()) }
+                        Toast.makeText(context, viewModel.viewRestockLogCount(), Toast.LENGTH_SHORT).show()
+                    }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                // ── Section: Day State ──
+                SectionHeader("Day State")
+                DevActionItem(
+                    icon = Icons.Default.PlayArrow,
+                    label = "Toggle Day Open/Close",
+                    desc = if (viewModel.dayOpen) "Day is currently OPEN. Close it." else "Day is currently CLOSED. Open it.",
+                    onClick = {
+                        viewModel.dayOpen = !viewModel.dayOpen
+                        viewModel.persistDayState()
+                        Toast.makeText(context, "Day ${if (viewModel.dayOpen) "opened" else "closed"} manually.", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.DateRange,
+                    label = "Start New Day",
+                    desc = "Archive current day and prepare a fresh business day",
+                    onClick = {
+                        viewModel.startNewDay()
+                        Toast.makeText(context, "New day started! Tap 'Start the Day' to open.", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.Archive,
+                    label = "Archive Today's Sales",
+                    desc = "Move today's sales into historical record",
+                    onClick = {
+                        viewModel.archiveDaySales()
+                        Toast.makeText(context, "Sales archived.", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.Refresh,
+                    label = "Reset Tutorial State",
+                    desc = "Tutorial will show on next launch",
+                    onClick = {
+                        if (appSettings != null) {
+                            appSettings.launchCount = 0
+                            appSettings.hasCompletedTutorial = false
+                        }
+                        Toast.makeText(context, "Tutorial state reset. Will show on next launch.", Toast.LENGTH_SHORT).show()
                     }
                 )
 
@@ -276,7 +319,7 @@ fun DeveloperPanel(
                     desc = "Clear today's daily entry & specific sales",
                     onClick = {
                         viewModel.resetTodaySales()
-                        snackbarScope.launch { snackbarHost.showSnackbar("Today's sales reset.") }
+                        Toast.makeText(context, "Today's sales reset.", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(
@@ -285,7 +328,7 @@ fun DeveloperPanel(
                     desc = "Remove all products from inventory",
                     onClick = {
                         viewModel.clearAllInventory()
-                        snackbarScope.launch { snackbarHost.showSnackbar("Inventory cleared.") }
+                        Toast.makeText(context, "Inventory cleared.", Toast.LENGTH_SHORT).show()
                     }
                 )
                 DevActionItem(

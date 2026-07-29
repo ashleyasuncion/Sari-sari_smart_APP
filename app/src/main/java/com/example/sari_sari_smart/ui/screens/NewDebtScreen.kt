@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.example.sari_sari_smart.data.CustomerDebt
 import com.example.sari_sari_smart.data.LocalSnackbarHost
 import com.example.sari_sari_smart.data.LocalSnackbarScope
+import com.example.sari_sari_smart.data.SpecificSale
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.theme.*
@@ -170,6 +171,18 @@ fun NewDebtScreen(
                                 )
                             )
                         }
+                        // Also record a SpecificSale so Debt Today on the Day page picks it up
+                        viewModel.addSpecificSale(
+                            SpecificSale(
+                                id = 0,
+                                date = viewModel.today,
+                                description = "Manual debt: $name",
+                                amount = debtAmount,
+                                quantity = 1,
+                                customerName = name,
+                                profit = 0.0
+                            )
+                        )
                         snackbarScope.launch {
                             snackbarHost.showSnackbar("debtSaved".t(lang))
                         }

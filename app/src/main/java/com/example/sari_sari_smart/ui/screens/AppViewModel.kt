@@ -1,8 +1,12 @@
 package com.example.sari_sari_smart.ui.screens
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sari_sari_smart.data.*
+import com.example.sari_sari_smart.ui.localization.AppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,20 +98,45 @@ class AppViewModel : ViewModel() {
     fun getClosingProfit(actualSales: Double, costOfGoods: Double): Double = actualSales - costOfGoods
 
     // ── EOD Editability State ──────────────────────────────────────────
+    // ── AppSettings persistence for day state ───────────────────────────
+    private var appSettings: AppSettings? = null
+
+    /**
+     * Initialize day state from persisted AppSettings.
+     * Call this after ViewModel creation so dayOpen/dayDate/dayArchived
+     * survive app restart.
+     */
+    fun initAppSettings(settings: AppSettings) {
+        appSettings = settings
+        dayOpen = settings.dayOpen
+        dayDate = settings.dayDate
+        dayArchived = settings.dayArchived
+    }
+
+    /** Save current day state to AppSettings so it survives app restart */
+    fun persistDayState() {
+        appSettings?.let {
+            it.dayOpen = dayOpen
+            it.dayDate = dayDate
+            it.dayArchived = dayArchived
+        }
+    }
+
     /** Whether the business day is currently open */
-    var dayOpen: Boolean = false
+    var dayOpen: Boolean by mutableStateOf(false)
 
     /** The calendar date (yyyy-MM-dd) this business day started on */
-    var dayDate: String = ""
+    var dayDate: String by mutableStateOf("")
 
     /** Whether today's sales data has been archived to history */
-    var dayArchived: Boolean = false
+    var dayArchived: Boolean by mutableStateOf(false)
 
     /** Start the business day — sets dayOpen, dayDate, clears archive flag */
     fun openDay() {
         dayOpen = true
         dayDate = today
         dayArchived = false
+        persistDayState()
     }
 
     val isEodComplete: Boolean
@@ -519,6 +548,7 @@ class AppViewModel : ViewModel() {
         dayOpen = false
         dayArchived = false // Keep data available for editing
         dayDate = today
+        persistDayState()
     }
 
     /**
@@ -534,6 +564,7 @@ class AppViewModel : ViewModel() {
             dayDate = today
             dayOpen = true
             dayArchived = false
+            persistDayState()
         }
     }
 
@@ -560,12 +591,27 @@ class AppViewModel : ViewModel() {
             _specificSales.value = _specificSales.value.filter { it.date != dayDate }
         }
         dayArchived = true
+        persistDayState()
     }
 
     fun resetTodaySales() {
         _dailyEntry.value = null
         _specificSales.value = _specificSales.value.filter { it.date != today }
         _endOfDayData.value = null
+    }
+
+    /**
+     * Start a fresh business day from the Dev Panel.
+     * Archives current day's sales to history, resets today's in-memory data,
+     * and initializes a pre-opening state so the Morning page shows "Start the Day".
+     */
+    fun startNewDay() {
+        archiveDaySales()       // Copy today's sales to history
+        resetTodaySales()        // Clear daily entry, specific sales, and EOD data
+        dayOpen = false
+        dayDate = today          // Set to today so morning page can detect a fresh day
+        dayArchived = true       // Sales were archived → "Edit Closing" condition won't match
+        persistDayState()
     }
 
     fun resetAllData() {
@@ -579,6 +625,10 @@ class AppViewModel : ViewModel() {
         _saleIdCounter = 3
         _debtIdCounter = 4
         _paymentIdCounter = 10
+        dayOpen = false
+        dayDate = ""
+        dayArchived = false
+        persistDayState()
     }
 
     // ── Business Tip Logic (mirrors web prototype 6-priority system + enhancements) ──

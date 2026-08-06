@@ -58,7 +58,11 @@ fun DebtsScreen(
     var paymentAmount by remember { mutableStateOf("") }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(innerPadding).padding(start = 16.dp, end = 16.dp, top = 16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            .tutorialHighlight("debtList", highlightState),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // ── Total Outstanding card ──
@@ -91,7 +95,10 @@ fun DebtsScreen(
         item {
             Button(
                 onClick = onNewDebt,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .tutorialHighlight("newDebtBtn", highlightState),
                 shape = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))

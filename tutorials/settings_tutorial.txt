@@ -2,33 +2,58 @@ SARI-SARI SMART (ANDROID) — SETTINGS TUTORIAL (5 STEPS)
 =======================================================
 Config: TutorialOverlay.kt -> pageTutorials ("settings", prefix "settingsTutorial")
 Page: settings (all steps)
-Launch: Settings page -> Tutorial selector -> Settings Tutorial (startPageTutorial("settings"))
+Launch: Settings page header (?) button -> in-place launch (startPageTutorial("settings"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates here if needed)
 
-NOTE: Android page tutorials generate steps with NO highlight targets, so
-the box stays at bottom center and no highlight frame is drawn.
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
 
 STEP 1 — Settings intro
   Key      : settingsTutorial1
   Text EN : "The Settings page lets you customize your app experience."
   Text FIL: "Ang Settings page ay nagbibigay-daan sa iyo na i-customize ang iyong app experience."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 2 — Language
   Key      : settingsTutorial2
   Text EN : "Choose between English and Filipino for the app language."
   Text FIL: "Pumili sa pagitan ng English at Filipino para sa app language."
-  Interaction : look at the language selector, tap Next
+  Target element : settingsLanguage (SettingsScreen)
+  Highlight      : the language row (top of page)
+  Box position   : expected bottom
+  Interaction    : look at the language selector, tap Next
 STEP 3 — Text size
   Key      : settingsTutorial3
   Text EN : "Adjust the text size to Standard, Large, or Extra Large for better readability."
   Text FIL: "Ayusin ang text size sa Standard, Large, o Extra Large para sa mas magandang readability."
-  Interaction : look at the text-size selector, tap Next
+  Target element : settingsTextSize (SettingsScreen)
+  Highlight      : the text-size row
+  Box position   : per runtime rule
+  Interaction    : look at the text-size selector, tap Next
 STEP 4 — Store & owner name
   Key      : settingsTutorial4
   Text EN : "Enter your store name and owner name for a personalized experience."
   Text FIL: "Ilagay ang pangalan ng iyong tindahan at may-ari para sa personalized na experience."
-  Interaction : look at the name fields, tap Next
+  Target element : settingsStoreName (SettingsScreen)
+  Highlight      : the store-name field (the tutorial step covers both fields)
+  Box position   : per runtime rule
+  Interaction    : look at the name fields, tap Next
 STEP 5 — Stock alert threshold
   Key      : settingsTutorial5
   Text EN : "Set the stock alert threshold — the minimum quantity before an item is marked as \"Running Low\"."
   Text FIL: "Itakda ang stock alert threshold — ang minimum na quantity bago ang isang item ay ma-markahan bilang \"Kulang Na\"."
-  Interaction : read text, tap Finish (page tutorial finishes in place)
+  Target element : settingsOwnerName (SettingsScreen)
+  Highlight      : the owner-name field row (note: the highlight sits on this row while
+                   the step text describes the stock alert threshold — pre-existing
+                   text/target mismatch, mirrored faithfully from code)
+  Box position   : per runtime rule
+  Interaction    : read text, tap Get Started (page tutorial finishes in place)

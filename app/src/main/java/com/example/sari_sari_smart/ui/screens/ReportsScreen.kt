@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +21,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sari_sari_smart.data.StockStatus
 import com.example.sari_sari_smart.data.formatTimeAgo
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.theme.*
@@ -33,11 +38,13 @@ import java.util.*
 @Composable
 fun ReportsScreen(
     viewModel: AppViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onTutorialClick: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
     val scrollState = rememberScrollState()
+    val highlightState = LocalTutorialHighlightState.current
 
     val specificSales by viewModel.specificSales.collectAsState()
     val products by viewModel.products.collectAsState()
@@ -89,11 +96,14 @@ fun ReportsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ulat / Reports", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("reportsTitle".t(lang), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text("← Back", color = Color.White)
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
@@ -111,7 +121,9 @@ fun ReportsScreen(
         ) {
             // Period toggles
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tutorialHighlight("reportPeriodToggle", highlightState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf("day" to "day".t(lang), "week" to "week".t(lang), "month" to "month".t(lang)).forEach { (value, label) ->
@@ -131,7 +143,9 @@ fun ReportsScreen(
 
             // Summary cards
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tutorialHighlight("reportSummaryCards", highlightState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 SummaryCard(
@@ -221,7 +235,9 @@ fun ReportsScreen(
 
             // Best-selling products
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tutorialHighlight("reportBestSellers", highlightState),
                 shape = RoundedCornerShape(12.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
@@ -274,7 +290,9 @@ fun ReportsScreen(
             // Recent transactions (collapsible)
             var showTransactions by remember { mutableStateOf(true) }
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tutorialHighlight("reportRecentTx", highlightState),
                 shape = RoundedCornerShape(12.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
@@ -339,7 +357,9 @@ fun ReportsScreen(
             // Low stock items
             var showLowStock by remember { mutableStateOf(true) }
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tutorialHighlight("reportLowStock", highlightState),
                 shape = RoundedCornerShape(12.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {

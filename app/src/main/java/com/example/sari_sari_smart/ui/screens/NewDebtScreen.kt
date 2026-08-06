@@ -17,6 +17,9 @@ import com.example.sari_sari_smart.data.CustomerDebt
 import com.example.sari_sari_smart.data.LocalSnackbarHost
 import com.example.sari_sari_smart.data.LocalSnackbarScope
 import com.example.sari_sari_smart.data.SpecificSale
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.theme.*
@@ -27,10 +30,12 @@ import kotlinx.coroutines.launch
 fun NewDebtScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit,
-    onSaved: () -> Unit = {}
+    onSaved: () -> Unit = {},
+    onTutorialClick: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
+    val highlightState = LocalTutorialHighlightState.current
 
     val snackbarHost = LocalSnackbarHost.current
     val snackbarScope = LocalSnackbarScope.current
@@ -64,6 +69,9 @@ fun NewDebtScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -86,7 +94,7 @@ fun NewDebtScreen(
                 },
                 placeholder = { Text("enterCustomerNameDebt".t(lang)) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("newDebtNameField", highlightState),
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 trailingIcon = if (customerName.isNotEmpty()) {
                     { IconButton(onClick = { customerName = ""; showSuggestions = false }) {
@@ -151,7 +159,7 @@ fun NewDebtScreen(
                 placeholder = { Text("0.00") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("newDebtAmountField", highlightState),
                 prefix = { Text("₱") },
                 shape = MaterialTheme.shapes.medium
             )
@@ -187,8 +195,10 @@ fun NewDebtScreen(
                         }
                         if (existingDebt != null) {
                             viewModel.addToDebtBalance(existingDebt.id, debtAmount)
+                            // Ledger entry (web saveNewDebt parity: description = "Manual")
+                            viewModel.addDebtTransaction(existingDebt.id, "debt", "Manual", debtAmount)
                         } else {
-                            viewModel.addDebt(
+                            val newDebt = viewModel.addDebt(
                                 CustomerDebt(
                                     id = 0,
                                     customerName = name,
@@ -196,6 +206,7 @@ fun NewDebtScreen(
                                     remainingBalance = debtAmount
                                 )
                             )
+                            viewModel.addDebtTransaction(newDebt.id, "debt", "Manual", debtAmount)
                         }
                         // Also record a SpecificSale so Debt Today on the Day page picks it up
                         viewModel.addSpecificSale(
@@ -216,7 +227,10 @@ fun NewDebtScreen(
                         onBack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .tutorialHighlight("newDebtSaveBtn", highlightState),
                 enabled = canSave,
                 shape = MaterialTheme.shapes.medium
             ) {

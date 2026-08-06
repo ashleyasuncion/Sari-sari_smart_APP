@@ -44,23 +44,44 @@ data class PageTutorial(
     val labelKey: String,
     val stepsKeyPrefix: String,
     val stepCount: Int,
-    val page: String
+    val page: String,
+    // Per-step highlight target ids (null = no highlight). Must match ids
+    // registered via Modifier.tutorialHighlight(id, state) in the screens.
+    val highlights: List<String?> = emptyList()
 )
 
 val pageTutorials = listOf(
     PageTutorial("main", "tutMain", "tutorial", 14, "morning"),
-    PageTutorial("home", "tutHome", "homeTutorial", 10, "morning"),
-    PageTutorial("stock", "tutStock", "stockTutorial", 10, "inventory"),
-    PageTutorial("sales", "tutSales", "salesTutorial", 10, "day"),
-    PageTutorial("debt", "tutDebt", "debtTutorial", 10, "debts"),
-    PageTutorial("eod", "tutEOD", "eodTutorial", 6, "closing"),
-    PageTutorial("report", "tutReport", "reportTutorial", 6, "morning"),
-    PageTutorial("settings", "tutSettings", "settingsTutorial", 5, "settings"),
-    PageTutorial("addProduct", "tutAddProduct", "addProductTutorial", 5, "add_stock"),
-    PageTutorial("newSale", "tutNewSale", "newSaleTutorial", 5, "day"),
-    PageTutorial("newDebt", "tutNewDebt", "newDebtTutorial", 4, "new_debt"),
-    PageTutorial("help", "tutHelp", "helpTutorial", 6, "help"),
-    PageTutorial("restock", "tutRestock", "restockTutorial", 8, "restock")
+    PageTutorial("home", "tutHome", "homeTutorial", 10, "morning",
+        highlights = listOf(null, null, "morningStockCard", "morningDebtCard", null, null, null, null, null, null)),
+    PageTutorial("stock", "tutStock", "stockTutorial", 10, "inventory",
+        highlights = listOf(null, "stockSearchBar", "addStockBtn", null, "inventoryList", null, null, null, null, null)),
+    PageTutorial("sales", "tutSales", "salesTutorial", 10, "day",
+        highlights = listOf(null, null, null, "dayStatsGrid", null, "dayStatsGrid", "sellFab", "dayTxFeed", null, null)),
+    PageTutorial("debt", "tutDebt", "debtTutorial", 10, "debts",
+        highlights = listOf(null, "totalDebtCard", "newDebtBtn", "debtList", "debtList", null, null, null, null, null)),
+    PageTutorial("eod", "tutEOD", "eodTutorial", 6, "closing",
+        highlights = listOf(null, "closingEarnings", "closingUtang", null, null, "completeDayBtn")),
+    PageTutorial("report", "tutReport", "reportTutorial", 6, "reports",
+        highlights = listOf(null, "reportPeriodToggle", "reportSummaryCards", "reportRecentTx", "reportBestSellers", "reportLowStock")),
+    PageTutorial("settings", "tutSettings", "settingsTutorial", 5, "settings",
+        highlights = listOf(null, "settingsLanguage", "settingsTextSize", "settingsStoreName", "settingsOwnerName")),
+    PageTutorial("addProduct", "tutAddProduct", "addProductTutorial", 5, "add_stock",
+        highlights = listOf(null, "addStockNameField", "addStockMarkup", "addStockQtyField", "addStockSaveBtn")),
+    PageTutorial("newSale", "tutNewSale", "newSaleTutorial", 5, "day",
+        highlights = listOf("sellFab", null, null, null, null)),
+    PageTutorial("newDebt", "tutNewDebt", "newDebtTutorial", 4, "new_debt",
+        highlights = listOf(null, "newDebtNameField", "newDebtAmountField", "newDebtSaveBtn")),
+    PageTutorial("help", "tutHelp", "helpTutorial", 6, "help",
+        highlights = listOf(null, "helpTutSelector", "helpHowTo", "helpContact", "helpAbout", null)),
+    PageTutorial("restock", "tutRestock", "restockTutorial", 8, "restock",
+        highlights = listOf(null, "restockStep1Section", "restockSearchField", "restockProductList", "restockContinueBtn", "restockStep2Section", "restockPurchaseList", "restockDoneBtn")),
+    PageTutorial("productDetail", "tutProductDetail", "productDetailTutorial", 4, "product_detail",
+        highlights = listOf(null, "pdStockAlert", "pdActions", "pdDeleteBtn")),
+    PageTutorial("customerDebtDetail", "tutCustomerDebtDetail", "customerDebtDetailTutorial", 5, "customer_debt_detail",
+        highlights = listOf(null, "cddBalanceCard", "cddLedger", "cddRecordPaymentBtn", null)),
+    PageTutorial("recordPayment", "tutRecordPayment", "recordPaymentTutorial", 4, "record_payment",
+        highlights = listOf("rpAmountField", "rpRemainingPreview", "rpNoteField", "rpPayBtn"))
 )
 
 /**

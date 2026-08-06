@@ -12,6 +12,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.theme.*
@@ -27,10 +30,12 @@ fun RecordPaymentScreen(
     viewModel: AppViewModel,
     debtId: Int = 0,
     onBack: () -> Unit,
-    onPaymentSaved: () -> Unit = {}
+    onPaymentSaved: () -> Unit = {},
+    onTutorialClick: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
+    val highlightState = LocalTutorialHighlightState.current
     val fmt = remember { NumberFormat.getCurrencyInstance(Locale("en", "PH")) }
     val debts by viewModel.debts.collectAsState()
 
@@ -54,6 +59,9 @@ fun RecordPaymentScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
@@ -112,7 +120,7 @@ fun RecordPaymentScreen(
                 placeholder = { Text("0.00") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("rpAmountField", highlightState),
                 prefix = { Text("₱") },
                 shape = MaterialTheme.shapes.medium
             )
@@ -121,7 +129,7 @@ fun RecordPaymentScreen(
             if (amount > 0) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().tutorialHighlight("rpRemainingPreview", highlightState),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isOverpayment) Red50 else Green50
                     ),
@@ -161,7 +169,7 @@ fun RecordPaymentScreen(
                 label = { Text("note".t(lang)) },
                 placeholder = { Text("paymentNotePlaceholder".t(lang)) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("rpNoteField", highlightState),
                 leadingIcon = { Icon(Icons.Default.Notes, contentDescription = null) },
                 shape = MaterialTheme.shapes.medium
             )
@@ -180,7 +188,10 @@ fun RecordPaymentScreen(
                         onBack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .tutorialHighlight("rpPayBtn", highlightState),
                 enabled = canSave,
                 shape = MaterialTheme.shapes.medium
             ) {

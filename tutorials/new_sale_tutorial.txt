@@ -2,33 +2,56 @@ SARI-SARI SMART (ANDROID) — NEW SALE TUTORIAL (5 STEPS)
 =======================================================
 Config: TutorialOverlay.kt -> pageTutorials ("newSale", prefix "newSaleTutorial")
 Page: day (all steps — the New Sale sheet opens from Day Mode)
-Launch: New Sale page -> Tutorial selector / Help selector (startPageTutorial("newSale"))
+Launch: Day header (?) button -> in-place launch (startPageTutorial("newSale"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates here if needed)
 
-NOTE: Android page tutorials generate steps with NO highlight targets, so
-the box stays at bottom center and no highlight frame is drawn.
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
 
 STEP 1 — New Sale intro
   Key      : newSaleTutorial1
   Text EN : "This page lets you record a specific sale for notable items or credit/utang transactions."
   Text FIL: "Ang page na ito ay para magtala ng specific sale para sa mga notable items o credit/utang transactions."
-  Interaction : read text, tap Next
+  Target element : sellFab (bottom nav)
+  Highlight      : the Sell FAB in the bottom nav (the entry point for the New Sale sheet)
+  Box position   : expected top
+  Interaction    : see the FAB, tap Next
 STEP 2 — Product name & quantity
   Key      : newSaleTutorial2
   Text EN : "Enter the item or product name and the quantity sold."
   Text FIL: "Ilagay ang pangalan ng item at ang quantity na naibenta."
-  Interaction : look at the fields, tap Next
+  Target element : none
+  Highlight      : none (text describes the sheet fields, which aren't open during the tutorial)
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 3 — Automatic total
   Key      : newSaleTutorial3
   Text EN : "The total amount is calculated automatically based on the product's selling price."
   Text FIL: "Ang total amount ay awtomatikong kinakwenta batay sa selling price ng produkto."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 4 — Customer name (utang)
   Key      : newSaleTutorial4
   Text EN : "If the customer is buying on credit (utang), enter their name here. This will automatically create a debt record."
   Text FIL: "Kung ang kostumer ay bumibili on credit (utang), ilagay ang kanilang pangalan dito. Awtomatikong lilikha ito ng debt record."
-  Interaction : look at the customer field, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 5 — Save Sale
   Key      : newSaleTutorial5
   Text EN : "Tap \"Save Sale\" to record the transaction. If a customer name was entered, it will also appear in the Utang page."
   Text FIL: "I-tap \"Save Sale\" para itala ang transaction. Kung may customer name, lalabas din ito sa Utang page."
-  Interaction : read text, tap Finish (page tutorial finishes in place)
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Get Started (page tutorial finishes in place)

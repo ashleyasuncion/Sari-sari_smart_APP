@@ -2,33 +2,56 @@ SARI-SARI SMART (ANDROID) — ADD PRODUCT TUTORIAL (5 STEPS)
 ==========================================================
 Config: TutorialOverlay.kt -> pageTutorials ("addProduct", prefix "addProductTutorial")
 Page: add_stock (all steps)
-Launch: Add Stock page -> Tutorial selector / Help selector (startPageTutorial("addProduct"))
+Launch: Add Stock page header (?) button -> in-place launch (startPageTutorial("addProduct"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates here if needed)
 
-NOTE: Android page tutorials generate steps with NO highlight targets, so
-the box stays at bottom center and no highlight frame is drawn.
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
 
 STEP 1 — Add Stock page intro
   Key      : addProductTutorial1
   Text EN : "This page lets you add a new product or restock an existing one."
   Text FIL: "Ang page na ito ay para magdagdag ng bagong produkto o mag-restock ng existing."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 2 — Item name
   Key      : addProductTutorial2
   Text EN : "Enter the item name — suggestions will appear if the product already exists in your inventory."
   Text FIL: "Ilagay ang pangalan ng item — may lalabas na suggestions kung ang produkto ay nasa inventory na."
-  Interaction : look at the name field, tap Next
+  Target element : addStockNameField (AddStockScreen)
+  Highlight      : the item-name input (top of page)
+  Box position   : expected bottom
+  Interaction    : look at the name field, tap Next
 STEP 3 — Pricing
   Key      : addProductTutorial3
   Text EN : "Set the cost per unit, markup percentage, and selling price. The markup helper automatically suggests the right selling price."
   Text FIL: "Itakda ang cost per unit, markup percentage, at selling price. Ang markup helper ay awtomatikong nagmumungkahi ng tamang selling price."
-  Interaction : look at the pricing fields, tap Next
+  Target element : addStockMarkup (AddStockScreen)
+  Highlight      : the cost/markup helper row
+  Box position   : per runtime rule
+  Interaction    : look at the pricing fields, tap Next
 STEP 4 — Quantity
   Key      : addProductTutorial4
   Text EN : "Enter the quantity being added. This will be added to your existing stock."
   Text FIL: "Ilagay ang quantity na idadagdag. Ito ay idadagdag sa iyong existing stock."
-  Interaction : look at the quantity field, tap Next
+  Target element : addStockQtyField (AddStockScreen)
+  Highlight      : the quantity input
+  Box position   : per runtime rule
+  Interaction    : look at the quantity field, tap Next
 STEP 5 — Save
   Key      : addProductTutorial5
   Text EN : "Tap \"Save\" to add the product to your inventory. You can edit it later from the Stocks page."
-  Text FIL: "I-tap \"Save\" para idagdag ang produkto sa iyong inventory. Maaari mo itong i-edit mamaya mula sa Stocks page."
-  Interaction : read text, tap Finish (page tutorial finishes in place)
+  Text FIL: "I-tap ang \"Save\" para idagdag ang produkto sa iyong inventory. Maaari mo itong i-edit mamaya mula sa Stocks page."
+  Target element : addStockSaveBtn (AddStockScreen)
+  Highlight      : the Save button (bottom of page)
+  Box position   : expected top
+  Interaction    : see the button, tap Get Started (page tutorial finishes in place)

@@ -2,38 +2,64 @@ SARI-SARI SMART (ANDROID) — HELP TUTORIAL (6 STEPS)
 ===================================================
 Config: TutorialOverlay.kt -> pageTutorials ("help", prefix "helpTutorial")
 Page: help (all steps)
-Launch: Help page -> Tutorial selector -> Help Tutorial (startPageTutorial("help"))
+Launch: Help page header (?) button -> in-place launch (startPageTutorial("help"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates here if needed)
 
-NOTE: Android page tutorials generate steps with NO highlight targets, so
-the box stays at bottom center and no highlight frame is drawn.
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
 
 STEP 1 — Help page intro
   Key      : helpTutorial1
   Text EN : "This is the Help page — your guide to using Sari-Sari Smart effectively."
   Text FIL: "Ito ang Help page — ang iyong gabay sa paggamit ng Sari-Sari Smart nang epektibo."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 2 — Tutorial selector
   Key      : helpTutorial2
   Text EN : "The Tutorial Selector lets you choose from different tutorials. Select a tutorial from the dropdown and tap \"Launch\" to start a guided tour of any page."
   Text FIL: "Ang Tutorial Selector ay nagbibigay-daan sa iyo na pumili ng iba't ibang tutorial. Pumili ng tutorial mula sa dropdown at i-tap ang \"Launch\" para magsimula ng guided tour."
-  Interaction : look at the selector, tap Next
+  Target element : helpTutSelector (HelpScreen)
+  Highlight      : the tutorial selector dropdown + Launch button (top of page)
+  Box position   : expected bottom
+  Interaction    : look at the selector, tap Next
 STEP 3 — How to Use
   Key      : helpTutorial3
   Text EN : "The \"How to Use\" button opens a detailed guide with step-by-step instructions for recording sales, adding stock, tracking debts, viewing reports, and customizing settings."
   Text FIL: "Ang \"How to Use\" button ay nagbubukas ng detalyadong gabay na may step-by-step na tagubilin para sa pag-record ng benta, pagdagdag ng stock, pagsubaybay ng utang, at iba pa."
-  Interaction : read text, tap Next
+  Target element : helpHowTo (HelpScreen)
+  Highlight      : the How to Use button
+  Box position   : expected bottom
+  Interaction    : look at the button, tap Next
 STEP 4 — Contact
   Key      : helpTutorial4
   Text EN : "The Contact section shows how to reach support for questions or feedback about the app."
   Text FIL: "Ang Contact section ay nagpapakita kung paano makipag-ugnayan sa support para sa mga tanong o feedback."
-  Interaction : read text, tap Next
+  Target element : helpContact (HelpScreen)
+  Highlight      : the Contact section
+  Box position   : per runtime rule
+  Interaction    : look at the section, tap Next
 STEP 5 — About
   Key      : helpTutorial5
   Text EN : "The About section tells you about the app version and its purpose."
   Text FIL: "Ang About section ay nagsasabi tungkol sa bersyon ng app at layunin nito."
-  Interaction : read text, tap Next
+  Target element : helpAbout (HelpScreen)
+  Highlight      : the About section
+  Box position   : per runtime rule
+  Interaction    : look at the section, tap Next
 STEP 6 — Page-specific tutorials
   Key      : helpTutorial6
   Text EN : "You can also access page-specific tutorials from any page by tapping the (?) Help button in the top-right corner of the header."
   Text FIL: "Maaari ka ring mag-access ng page-specific tutorial mula sa kahit anong page sa pamamagitan ng pag-tap sa (?) Help button sa kanang bahagi ng header."
-  Interaction : read text, tap Finish (page tutorial finishes in place)
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Get Started (page tutorial finishes in place)

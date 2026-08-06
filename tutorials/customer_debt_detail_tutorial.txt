@@ -1,0 +1,59 @@
+SARI-SARI SMART (ANDROID) — CUSTOMER DEBT DETAIL TUTORIAL (5 STEPS)
+===================================================================
+Config: TutorialOverlay.kt -> pageTutorials ("customerDebtDetail", prefix "customerDebtDetailTutorial")
+Page: customer_debt_detail (all steps)
+Launch: Customer Debt Detail page header (?) button -> in-place launch
+        (startPageTutorial("customerDebtDetail")); Settings -> Tutorial selector /
+        Help -> Tutorial selector (navigates to the Debts page, then the tutorial
+        plays over the customer detail screen)
+
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
+
+STEP 1 — Customer debt detail intro
+  Key      : customerDebtDetailTutorial1
+  Text EN : "This page shows a customer's utang: current balance, total debt, and total collected."
+  Text FIL: "Ang page na ito ay nagpapakita ng utang ng customer: current balance, kabuuang utang, at kabuuang nakolekta."
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
+STEP 2 — Balance card
+  Key      : customerDebtDetailTutorial2
+  Text EN : "The ledger below lists every debt addition and payment with its date and running balance."
+  Text FIL: "Ang ledger sa ibaba ay nagpapakita ng bawat idinagdag na utang at bayad kasama ang petsa at running balance."
+  Target element : cddBalanceCard
+  Highlight      : the balance card at the top (current balance, total debt, total collected)
+  Box position   : expected bottom
+  Interaction    : look at the balance card, tap Next
+STEP 3 — Ledger
+  Key      : customerDebtDetailTutorial3
+  Text EN : "Green rows are debt added to the customer; orange rows are payments received."
+  Text FIL: "Ang berdeng row ay dagdag na utang; ang orange na row ay mga bayad na natanggap."
+  Target element : cddLedger
+  Highlight      : the transaction ledger list
+  Box position   : per runtime rule
+  Interaction    : look at the ledger rows, tap Next
+STEP 4 — Record Payment button
+  Key      : customerDebtDetailTutorial4
+  Text EN : "Tap Record Payment to accept a payment against this debt."
+  Text FIL: "I-tap ang Record Payment para tumanggap ng bayad sa utang na ito."
+  Target element : cddRecordPaymentBtn
+  Highlight      : the Record Payment button
+  Box position   : per runtime rule
+  Interaction    : see the button, tap Next
+STEP 5 — Fully settled
+  Key      : customerDebtDetailTutorial5
+  Text EN : "When the balance reaches zero, the debt is marked fully settled."
+  Text FIL: "Kapag zero na ang balance, mamarkahan ang utang bilang fully settled."
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Get Started (finishes in place)

@@ -2,6 +2,11 @@ package com.example.sari_sari_smart.ui.screens
 
 import com.example.sari_sari_smart.data.CustomerDebt
 import com.example.sari_sari_smart.data.SpecificSale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -15,11 +20,21 @@ class AppViewModelTest {
 
     private lateinit var viewModel: AppViewModel
 
+    // AppViewModel's init launches a midnight ticker on Dispatchers.Main, which
+    // does not exist in JVM unit tests — provide a test Main dispatcher.
+    private val testDispatcher = StandardTestDispatcher()
+
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         viewModel = AppViewModel()
         // Clear any seed data
         viewModel.resetAllData()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -172,5 +187,43 @@ class AppViewModelTest {
         val eod = viewModel.endOfDayData.value
         assertNotNull(eod)
         assertEquals(80.0, eod!!.recordedSales, 0.001)
+    }
+
+    // ── Debt transaction ledger (web transactions[] parity) ──────────────
+
+    @Test
+    fun addDebt_returnsDebtWithAssignedId() {
+        val debt = viewModel.addDebt(
+            CustomerDebt(id = 0, customerName = "Aling Nena", amount = 100.0, remainingBalance = 100.0)
+        )
+        assertTrue(debt.id > 0)
+        assertEquals(100.0, viewModel.getDebtById(debt.id)?.remainingBalance ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun addDebtTransaction_recordsLedgerEntry() {
+        val debt = viewModel.addDebt(
+            CustomerDebt(id = 0, customerName = "Mang Kanor", amount = 50.0, remainingBalance = 50.0)
+        )
+        viewModel.addDebtTransaction(debt.id, "debt", "Mantika", 50.0)
+        val txs = viewModel.getDebtTransactionsForDebt(debt.id)
+        assertEquals(1, txs.size)
+        assertEquals("Mantika", txs[0].description)
+        assertEquals("debt", txs[0].type)
+        assertEquals(50.0, txs[0].amount, 0.001)
+    }
+
+    @Test
+    fun getDebtTransactionsForDebt_filtersByDebt() {
+        val d1 = viewModel.addDebt(
+            CustomerDebt(id = 0, customerName = "A", amount = 10.0, remainingBalance = 10.0)
+        )
+        val d2 = viewModel.addDebt(
+            CustomerDebt(id = 0, customerName = "B", amount = 20.0, remainingBalance = 20.0)
+        )
+        viewModel.addDebtTransaction(d1.id, "debt", "Manual", 10.0)
+        viewModel.addDebtTransaction(d2.id, "debt", "Manual", 20.0)
+        assertEquals(1, viewModel.getDebtTransactionsForDebt(d1.id).size)
+        assertEquals(1, viewModel.getDebtTransactionsForDebt(d2.id).size)
     }
 }

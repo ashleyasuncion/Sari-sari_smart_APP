@@ -16,7 +16,8 @@ class AppRepository(
     private val customerDebtDao: CustomerDebtDao,
     private val endOfDayDao: EndOfDayDao,
     private val restockLogDao: RestockLogDao,
-    private val debtPaymentDao: DebtPaymentDao
+    private val debtPaymentDao: DebtPaymentDao,
+    private val debtTransactionDao: DebtTransactionDao
 ) {
     // ── Products ────────────────────────────────────────────────────────
     fun getAllProducts(): Flow<List<Product>> =
@@ -110,6 +111,18 @@ class AppRepository(
 
     suspend fun deleteAllPayments() = debtPaymentDao.deleteAll()
 
+    // ── Debt Transactions (ledger) ─────────────────────────────────────
+    fun getAllDebtTransactions(): Flow<List<DebtTransaction>> =
+        debtTransactionDao.getAllTransactions().map { entities -> entities.map { it.toDomainModel() } }
+
+    suspend fun saveDebtTransaction(tx: DebtTransaction) =
+        debtTransactionDao.insertTransaction(DebtTransactionEntity.fromDomainModel(tx))
+
+    suspend fun saveDebtTransactions(txs: List<DebtTransaction>) =
+        debtTransactionDao.insertTransactions(txs.map { DebtTransactionEntity.fromDomainModel(it) })
+
+    suspend fun deleteAllDebtTransactions() = debtTransactionDao.deleteAll()
+
     // ── End-of-Day Data ─────────────────────────────────────────────────
     fun getLatestEndOfDayData(): Flow<EndOfDayData?> =
         endOfDayDao.getLatest().map { it?.toDomainModel() }
@@ -141,6 +154,7 @@ class AppRepository(
         deleteAllSpecificSales()
         deleteAllDebts()
         deleteAllPayments()
+        deleteAllDebtTransactions()
         dailyEntryDao.deleteAll()
         endOfDayDao.deleteAll()
         deleteAllRestockLogs()

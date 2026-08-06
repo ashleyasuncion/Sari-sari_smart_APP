@@ -2,28 +2,48 @@ SARI-SARI SMART (ANDROID) — NEW DEBT TUTORIAL (4 STEPS)
 =======================================================
 Config: TutorialOverlay.kt -> pageTutorials ("newDebt", prefix "newDebtTutorial")
 Page: new_debt (all steps)
-Launch: New Debt page -> Tutorial selector / Help selector (startPageTutorial("newDebt"))
+Launch: New Debt page header (?) button -> in-place launch (startPageTutorial("newDebt"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates here if needed)
 
-NOTE: Android page tutorials generate steps with NO highlight targets, so
-the box stays at bottom center and no highlight frame is drawn.
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
 
 STEP 1 — New Debt intro
   Key      : newDebtTutorial1
   Text EN : "This page lets you manually record a new debt for a customer."
   Text FIL: "Ang page na ito ay para manu-manong magtala ng bagong utang para sa isang kostumer."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 2 — Customer name
   Key      : newDebtTutorial2
   Text EN : "Enter the customer's name. If they're a new customer, they'll be added automatically."
   Text FIL: "Ilagay ang pangalan ng kostumer. Kung sila ay bagong kostumer, awtomatiko silang idadagdag."
-  Interaction : look at the name field, tap Next
+  Target element : newDebtNameField (NewDebtScreen)
+  Highlight      : the customer-name input (top of page)
+  Box position   : expected bottom
+  Interaction    : look at the name field, tap Next
 STEP 3 — Debt amount
   Key      : newDebtTutorial3
   Text EN : "Enter the debt amount. This will be added to the customer's existing balance."
   Text FIL: "Ilagay ang halaga ng utang. Ito ay idadagdag sa existing balance ng kostumer."
-  Interaction : look at the amount field, tap Next
+  Target element : newDebtAmountField (NewDebtScreen)
+  Highlight      : the debt-amount input
+  Box position   : per runtime rule
+  Interaction    : look at the amount field, tap Next
 STEP 4 — Save Debt
   Key      : newDebtTutorial4
   Text EN : "Tap \"Save Debt\" to record it. You can view all debts on the Utang page."
   Text FIL: "I-tap \"Save Debt\" para itala ito. Maaari mong tingnan ang lahat ng utang sa Utang page."
-  Interaction : read text, tap Finish (page tutorial finishes in place)
+  Target element : newDebtSaveBtn (NewDebtScreen)
+  Highlight      : the Save Debt button (bottom of page)
+  Box position   : expected top
+  Interaction    : see the button, tap Get Started (page tutorial finishes in place)

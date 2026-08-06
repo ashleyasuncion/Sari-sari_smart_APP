@@ -1,0 +1,50 @@
+SARI-SARI SMART (ANDROID) — RECORD PAYMENT TUTORIAL (4 STEPS)
+=============================================================
+Config: TutorialOverlay.kt -> pageTutorials ("recordPayment", prefix "recordPaymentTutorial")
+Page: record_payment (all steps)
+Launch: Record Payment page header (?) button -> in-place launch (startPageTutorial("recordPayment"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates to the Debts
+        page, then the tutorial plays over the payment screen)
+
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
+
+STEP 1 — Amount field
+  Key      : recordPaymentTutorial1
+  Text EN : "Enter how much the customer is paying against their current balance."
+  Text FIL: "Ilagay kung magkano ang ibabayad ng customer sa kanyang current balance."
+  Target element : rpAmountField
+  Highlight      : the payment amount input (top of page)
+  Box position   : expected bottom
+  Interaction    : look at the amount field, tap Next
+STEP 2 — Remaining balance preview
+  Key      : recordPaymentTutorial2
+  Text EN : "The remaining balance preview updates instantly as you type."
+  Text FIL: "Agad na nag-a-update ang preview ng natitirang balance habang nagta-type ka."
+  Target element : rpRemainingPreview
+  Highlight      : the live remaining-balance preview
+  Box position   : per runtime rule
+  Interaction    : look at the preview, tap Next
+STEP 3 — Note field
+  Key      : recordPaymentTutorial3
+  Text EN : "Add an optional note, like \"paid in cash\" or \"partial payment\"."
+  Text FIL: "Magdagdag ng opsyonal na note, tulad ng \"cash na binayad\" o \"partial payment\"."
+  Target element : rpNoteField
+  Highlight      : the optional note input
+  Box position   : per runtime rule
+  Interaction    : look at the note field, tap Next
+STEP 4 — Pay button
+  Key      : recordPaymentTutorial4
+  Text EN : "Tap Pay to save the payment. The balance and history update automatically."
+  Text FIL: "I-tap ang Pay para i-save ang bayad. Awtomatikong mag-a-update ang balance at history."
+  Target element : rpPayBtn
+  Highlight      : the Pay button (bottom of page)
+  Box position   : expected top
+  Interaction    : see the button, tap Get Started (finishes in place)

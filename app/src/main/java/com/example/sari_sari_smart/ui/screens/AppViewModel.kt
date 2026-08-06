@@ -39,6 +39,9 @@ class AppViewModel : ViewModel() {
     private val _payments = MutableStateFlow<List<DebtPayment>>(emptyList())
     val payments: StateFlow<List<DebtPayment>> = _payments.asStateFlow()
 
+    private val _debtTransactions = MutableStateFlow<List<DebtTransaction>>(emptyList())
+    val debtTransactions: StateFlow<List<DebtTransaction>> = _debtTransactions.asStateFlow()
+
     private val _endOfDayData = MutableStateFlow<EndOfDayData?>(null)
     val endOfDayData: StateFlow<EndOfDayData?> = _endOfDayData.asStateFlow()
 
@@ -314,6 +317,7 @@ class AppViewModel : ViewModel() {
     private var _saleIdCounter = 3
     private var _debtIdCounter = 4
     private var _paymentIdCounter = 10
+    private var _debtTxIdCounter = 100
     private var _tipRotationIndex = 0
     private var _restockIdCounter = 0
 
@@ -494,6 +498,11 @@ class AppViewModel : ViewModel() {
             }
         }
         viewModelScope.launch {
+            _debtTransactions.collect { list ->
+                list.forEach { repo.saveDebtTransaction(it) }
+            }
+        }
+        viewModelScope.launch {
             _endOfDayData.collect { v ->
                 v?.let { repo.saveEndOfDayData(it) }
             }
@@ -533,6 +542,35 @@ class AppViewModel : ViewModel() {
             val maxPaymentId = payments.maxOfOrNull { it.id } ?: 10
             if (maxPaymentId > _paymentIdCounter) _paymentIdCounter = maxPaymentId
         }
+        val debtTxs = repo.getAllDebtTransactions().first()
+        if (debtTxs.isNotEmpty()) {
+            _debtTransactions.value = debtTxs
+            val maxTxId = debtTxs.maxOfOrNull { it.id } ?: 100
+            if (maxTxId > _debtTxIdCounter) _debtTxIdCounter = maxTxId
+        }
+        // Web loadState parity: backfill a permanent initial ledger row for any
+        // loaded debt that has none (pre-ledger data). Without this, a legacy
+        // debt that later receives ONE new ledger entry would lose its initial
+        // row and its running balance would silently stop reconciling.
+        if (debts.isNotEmpty()) {
+            val existingIds = _debtTransactions.value.map { it.debtId }.toSet()
+            val missing = debts.filter { it.id !in existingIds }
+            if (missing.isNotEmpty()) {
+                val newTxs = _debtTransactions.value.toMutableList()
+                missing.forEach { debt ->
+                    _debtTxIdCounter++
+                    newTxs.add(DebtTransaction(
+                        id = _debtTxIdCounter,
+                        debtId = debt.id,
+                        type = "debt",
+                        description = null, // rendered as the localized initial-debt label
+                        amount = debt.amount,
+                        timestamp = debt.createdAt
+                    ))
+                }
+                _debtTransactions.value = newTxs
+            }
+        }
         val eod = repo.getLatestEndOfDayData().first()
         if (eod != null) _endOfDayData.value = eod
 
@@ -552,6 +590,7 @@ class AppViewModel : ViewModel() {
         repo.saveSpecificSales(_specificSales.value)
         repo.saveDebts(_debts.value)
         repo.savePayments(_payments.value)
+        repo.saveDebtTransactions(_debtTransactions.value)
         _endOfDayData.value?.let { repo.saveEndOfDayData(it) }
     }
 
@@ -567,15 +606,6 @@ class AppViewModel : ViewModel() {
         if (index >= 0) {
             val p = updated[index]
             updated[index] = p.copy(quantity = (p.quantity - qty).coerceAtLeast(0))
-            _products.value = updated
-        }
-    }
-
-    fun updateProductStatus(productId: Int, newQty: Int) {
-        val updated = _products.value.toMutableList()
-        val index = updated.indexOfFirst { it.id == productId }
-        if (index >= 0) {
-            updated[index] = updated[index].copy(quantity = newQty.coerceAtLeast(0))
             _products.value = updated
         }
     }
@@ -659,12 +689,13 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun addDebt(debt: CustomerDebt) {
+    fun addDebt(debt: CustomerDebt): CustomerDebt {
         _debtIdCounter++
         val debtWithId = debt.copy(id = _debtIdCounter)
         val updated = _debts.value.toMutableList()
         updated.add(0, debtWithId)
         _debts.value = updated
+        return debtWithId
     }
 
     fun getDebtById(id: Int): CustomerDebt? = _debts.value.find { it.id == id }
@@ -692,6 +723,23 @@ class AppViewModel : ViewModel() {
         )
         _payments.value = _payments.value + payment
     }
+
+    /** Record a debt-balance increase in the ledger (web transactions[] parity). */
+    fun addDebtTransaction(debtId: Int, type: String, description: String, amount: Double, timestamp: Long = System.currentTimeMillis()) {
+        _debtTxIdCounter++
+        _debtTransactions.value = _debtTransactions.value + DebtTransaction(
+            id = _debtTxIdCounter,
+            debtId = debtId,
+            type = type,
+            description = description,
+            amount = amount,
+            timestamp = timestamp
+        )
+    }
+
+    /** Ledger entries for one debt, chronological (web transactions[]). */
+    fun getDebtTransactionsForDebt(debtId: Int): List<DebtTransaction> =
+        _debtTransactions.value.filter { it.debtId == debtId }.sortedBy { it.timestamp }
 
     /**
      * Complete the end-of-day closing.
@@ -790,11 +838,13 @@ class AppViewModel : ViewModel() {
         _specificSales.value = emptyList()
         _debts.value = emptyList()
         _payments.value = emptyList()
+        _debtTransactions.value = emptyList()
         _endOfDayData.value = null
         _productIdCounter = 10
         _saleIdCounter = 3
         _debtIdCounter = 4
         _paymentIdCounter = 10
+        _debtTxIdCounter = 100
         dayOpen = false
         dayDate = ""
         dayArchived = false
@@ -963,6 +1013,13 @@ class AppViewModel : ViewModel() {
                     put("timestamp", p.timestamp); put("note", p.note ?: org.json.JSONObject.NULL)
                 }
             }))
+            put("debtTransactions", org.json.JSONArray(_debtTransactions.value.map { tx ->
+                JSONObject().apply {
+                    put("id", tx.id); put("debtId", tx.debtId); put("type", tx.type)
+                    put("description", tx.description ?: org.json.JSONObject.NULL)
+                    put("amount", tx.amount); put("timestamp", tx.timestamp)
+                }
+            }))
             put("lowStockCount", lowStockCount)
             put("outOfStockCount", outOfStockCount)
             put("totalOutstandingDebts", totalOutstandingDebts)
@@ -1048,6 +1105,47 @@ class AppViewModel : ViewModel() {
             }
             if (payments.isNotEmpty()) _payments.value = payments
         }
+        // Debt Transactions
+        if (obj.has("debtTransactions")) {
+            val arr = obj.getJSONArray("debtTransactions")
+            val txs = mutableListOf<DebtTransaction>()
+            for (i in 0 until arr.length()) {
+                val t = arr.getJSONObject(i)
+                txs.add(DebtTransaction(
+                    id = t.optInt("id", _debtTxIdCounter + i + 1),
+                    debtId = t.optInt("debtId", 0),
+                    type = t.optString("type", "debt"),
+                    description = if (t.isNull("description")) null else t.optString("description", null),
+                    amount = t.optDouble("amount", 0.0),
+                    timestamp = t.optLong("timestamp", System.currentTimeMillis())
+                ))
+            }
+            if (txs.isNotEmpty()) {
+                _debtTransactions.value = txs
+                val maxTxId = txs.maxOfOrNull { it.id } ?: 100
+                if (maxTxId > _debtTxIdCounter) _debtTxIdCounter = maxTxId
+            }
+        }
+        // Web loadState parity: backfill an initial ledger row for imported debts
+        // that have none, so history + running balance stay consistent.
+        val importedDebts = _debts.value
+        val ledgerIds = _debtTransactions.value.map { it.debtId }.toSet()
+        val missing = importedDebts.filter { it.id !in ledgerIds }
+        if (missing.isNotEmpty()) {
+            val newTxs = _debtTransactions.value.toMutableList()
+            missing.forEach { debt ->
+                _debtTxIdCounter++
+                newTxs.add(DebtTransaction(
+                    id = _debtTxIdCounter,
+                    debtId = debt.id,
+                    type = "debt",
+                    description = null,
+                    amount = debt.amount,
+                    timestamp = debt.createdAt
+                ))
+            }
+            _debtTransactions.value = newTxs
+        }
     }
 
     fun generateTestSale() {
@@ -1086,9 +1184,10 @@ class AppViewModel : ViewModel() {
         // Deduct stock
         deductStock(product.id, qty)
 
-        // If customer, create debt
+        // If customer, create debt + record ledger entry (web saveSale parity)
         if (customerName != null) {
             addToDebtBalance(_debts.value[0].id, amount)
+            addDebtTransaction(_debts.value[0].id, "debt", product.name, amount)
         }
     }
 
@@ -1101,6 +1200,7 @@ class AppViewModel : ViewModel() {
 
         val newDebts = _debts.value.toMutableList()
         val newPayments = _payments.value.toMutableList()
+        val newTxs = _debtTransactions.value.toMutableList()
         for (i in 0 until count) {
             _debtIdCounter++
             val name = names[rand.nextInt(names.size)]
@@ -1113,6 +1213,16 @@ class AppViewModel : ViewModel() {
                 amount = amount,
                 remainingBalance = if (isSettled) 0.0 else amount,
                 createdAt = now - (i + 1) * day
+            ))
+            // Initial ledger entry (web: initial transactions[] row)
+            _debtTxIdCounter++
+            newTxs.add(DebtTransaction(
+                id = _debtTxIdCounter,
+                debtId = debtId,
+                type = "debt",
+                description = "Test debt",
+                amount = amount,
+                timestamp = now - (i + 1) * day
             ))
             if (isSettled) {
                 _paymentIdCounter++
@@ -1127,6 +1237,7 @@ class AppViewModel : ViewModel() {
         }
         _debts.value = newDebts
         _payments.value = newPayments
+        _debtTransactions.value = newTxs
         return count
     }
 
@@ -1169,6 +1280,7 @@ class AppViewModel : ViewModel() {
                 "debts" -> {
                     _debts.value = emptyList()
                     _payments.value = emptyList()
+                    _debtTransactions.value = emptyList()
                 }
                 "eod" -> _endOfDayData.value = null
             }

@@ -3234,3 +3234,492 @@ Status: PENDING VERIFICATION
   Dev Date Override to tomorrow, then open Morning — the banner
   should show (this is the old working path). The REAL-time path
   is the one that still needs the 1-2 day check above.
+
+
+══════════════════════════════════════════════════════════
+PHASE 41 — DEBT DETAIL LOCALIZATION: "TOTAL COLLECTED" TERMINOLOGY (ISSUE 2)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user-reported issue — web ver shows "Total Collected",
+mobile ver shows "Total Paid"; figure out which one to keep.
+(Web-side ISSUE 1 — recordPayment/currentBalance raw keys — was
+web-only and is logged in the web progress.txt v2.43.)
+
+┌────────────────────────────────────────────────────────────┐
+│ DECISION — KEEP "TOTAL COLLECTED" (web prototype term)     │
+└────────────────────────────────────────────────────────────┘
+  The web prototype (the UX/pixel reference) displays "Total
+  Debt" / "Total Collected" on its debt detail overlay. The
+  mobile CustomerDebtDetailScreen previously hardcoded "Total
+  Debt" / "Total Paid". Decision: align mobile to the web term
+  "Total Collected" for cross-platform consistency.
+
+  Changes:
+  1. Strings.kt: added "totalDebt" (Total Debt / Kabuuang Utang)
+     and "totalCollected" (Total Collected / Kabuuang Nakolekta)
+     to BOTH the en and fil dictionaries.
+  2. CustomerDebtDetailScreen.kt: replaced the hardcoded labels
+     Text("Total Debt") / Text("Total Paid") with
+     "totalDebt".t(lang) / "totalCollected".t(lang); local var
+     renamed totalPaid → totalCollected.
+
+  Behavior AFTER: the customer debt ledger summary card is fully
+  localized — "Total Debt" / "Total Collected" in English,
+  "Kabuuang Utang" / "Kabuuang Nakolekta" in Filipino — matching
+  the web app's terminology.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Grep verify: totalDebt/totalCollected present in both dicts;
+    CustomerDebtDetailScreen uses .t(lang) — no hardcoded
+    "Total Paid"/"Total Debt" text remains on the screen.
+
+  Affected files (mobile, git copy):
+  - app/src/main/java/com/example/sari_sari_smart/ui/localization/
+    Strings.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/
+    CustomerDebtDetailScreen.kt
+  - progress.txt: This entry
+
+  NOTE: standalone copy Sari-sari_smart/... still lacks this
+  localization change -> port pending.
+
+
+══════════════════════════════════════════════════════════
+PHASE 42 — DEBT TRANSACTION LEDGER PORT (web → mobile)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user-reported — the mobile debt-detail history does not
+look/work like the web ver. Investigation found the root cause
+was the DATA MODEL, not rendering: the web keeps a per-debt
+transactions[] ledger (every balance change becomes a history
+row), while the mobile app had NO ledger — CustomerDebt was
+just (id, name, amount, remainingBalance, createdAt). Mobile
+history was synthesized from createdAt + payments, so:
+  - utang sales (product names) never appeared in history
+  - manual debt adds never appeared
+  - the running balance could silently contradict the balance
+    card (e.g. +₱50 added to an existing customer, history
+    still only shows the original amount minus payments)
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX — PORT THE WEB'S debt.transactions[] LEDGER            │
+└────────────────────────────────────────────────────────────┘
+
+  1. New ledger data layer (mirrors web transactions[]):
+     - DebtTransaction domain model (Models.kt)
+     - DebtTransactionEntity (Room) + DebtTransactionDao:
+       table debt_transactions, FK → customer_debts(id)
+       ON DELETE CASCADE, indexed on debtId
+     - AppDatabase v3 → v4 with NON-DESTRUCTIVE MIGRATION_3_4
+       (existing user data survives the upgrade)
+     - AppRepository + NavGraph wired for the new DAO
+
+  2. Every balance-growing path now records a history row:
+     - Utang sale (SaleBottomSheet) → {type:'debt',
+       description: <product name>} — like web saveSale()
+     - Manual debt add (NewDebtScreen) → {type:'debt',
+       description: 'Manual'} — like web saveNewDebt()
+     - Payments stay in DebtPayment (payment ledger), merged
+       into the same history
+
+  3. CustomerDebtDetailScreen reads the ledger (+ payments)
+     instead of synthesizing, in web renderDebtDetail order.
+     A debtor with 3 purchases now shows 3 rows with product
+     names and real dates, matching the web row-for-row.
+
+  4. Legacy backfill (web loadState parity): debts with no
+     ledger rows get a permanent initial entry at load/import,
+     so the running balance ALWAYS reconciles — even after a
+     legacy debt receives its first new ledger entry.
+
+  5. Ledger covered everywhere: Room persistence, JSON
+     export/import, resetAllData, clearSelectedData, dev
+     test-data generators (generateTestSale /
+     generateTestDebts), unit tests.
+
+  6. TEST HARNESS FIX (pre-existing bug, unblocked tests):
+     the midnight-ticker in AppViewModel.init crashes every
+     JVM unit test at HEAD (no Main dispatcher). Added
+     kotlinx-coroutines-test + Dispatchers.setMain, plus
+     3 new ledger tests.
+
+  Behavior AFTER: debt history rows carry product-name / Manual
+  descriptions with real per-sale dates; running balance always
+  equals the balance card; matches web ver.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - ./gradlew test -> BUILD SUCCESSFUL, 34/34 unit tests pass
+    (16 AppViewModel tests × debug + release, incl. 3 new
+    ledger tests)
+  - Code review clean; reviewer-flagged backfill gap fixed
+
+  ⚠️ NOTE: MIGRATION_3_4 is validated by Room at RUNTIME on
+  first launch after upgrade (exportSchema = false) — worth a
+  device test with existing data.
+
+  Affected files (mobile, git copy):
+  - app/src/main/java/com/example/sari_sari_smart/data/Models.kt
+  - data/local/entity/DebtTransactionEntity.kt (NEW)
+  - data/local/dao/DebtTransactionDao.kt (NEW)
+  - data/local/AppDatabase.kt
+  - data/AppRepository.kt
+  - ui/navigation/NavGraph.kt
+  - ui/screens/AppViewModel.kt
+  - ui/components/SaleBottomSheet.kt
+  - ui/screens/NewDebtScreen.kt
+  - ui/screens/CustomerDebtDetailScreen.kt
+  - app/build.gradle.kts (added coroutines-test to unit tests)
+  - app/src/test/java/com/example/sari_sari_smart/ui/screens/
+    AppViewModelTest.kt
+  - progress.txt: This entry
+
+  NOTE: the earlier visual restyle of the history rows
+  (relative dates Today/Yesterday/MMM d, icon | desc + type
+  tag | amount | running balance, web header row) is part of
+  this same effort but was applied before the ledger; it is
+  what makes the rows LOOK like the web, this PHASE makes the
+  CONTENT match.
+
+
+══════════════════════════════════════════════════════════
+PHASE 43 — TUTORIAL COVERAGE COMPLETION: 3 NEW TUTORIALS + HEADER (?) ON ALL 9 PAGES
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user audit — which pages/subpages have a tutorial icon?
+Only the 5 main pages had one; the 9 support/sub pages did
+not, and 3 of those (Product Detail, Customer Debt Detail,
+Record Payment) had no tutorial at all. Request: "make a
+tutorial for those that doesn't have any, after that put the
+tutorial icon to all stated pages".
+
+┌────────────────────────────────────────────────────────────┐
+│ ADDED — 3 NEW TUTORIALS + "?" ICON ON ALL 9 PAGES         │
+└────────────────────────────────────────────────────────────┘
+
+  1. Three new page tutorials (EN + FIL, registered in
+     pageTutorials):
+     - productDetail (5 steps)       — ProductDetailScreen
+     - customerDebtDetail (5 steps)  — CustomerDebtDetailScreen
+     - recordPayment (4 steps)       — RecordPaymentScreen
+     They appear automatically in the Help & Settings tutorial
+     selectors (16 tutorials total).
+
+  2. New shared composable TutorialIconButton (AppHeader.kt) —
+     the bold "?" button used by the 5 main pages, extracted to
+     one reusable component; the 2 pre-existing inline "?"
+     blocks were refactored to use it too.
+
+  3. "?" icon added to the headers of all 9 iconless pages:
+     AddStock -> addProduct · ProductDetail -> productDetail
+     Restock -> restock · NewDebt -> newDebt ·
+     CustomerDebtDetail -> customerDebtDetail ·
+     RecordPayment -> recordPayment · Reports -> report ·
+     Settings -> settings · Help -> help
+     (HelpScreen also gained a proper green page header with the
+     "?" in its actions — it previously had no header at all.)
+
+  4. Launch mechanics (NavGraph.kt):
+     - startPageTutorial() now launches IN PLACE when the user
+       is already on the tutorial's page (header "?" click) —
+       the overlay appears over the current screen instead of
+       navigating away.
+     - pageForRoute()/routeForPage() extended for the new
+       pages; launching an arg'd-page tutorial from the
+       Help/Settings selectors falls back to its parent list
+       page (product_detail -> inventory, customer_debt_detail
+       & record_payment -> debts).
+     - The report tutorial was re-anchored from "morning" to
+       "reports" — it now plays on the page where its icon
+       lives.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Code review: passed (only edge case = selector launches for
+    arg'd pages, which is harmless).
+
+  Affected files (mobile, git copy):
+  - ui/components/TutorialOverlay.kt (pageTutorials registry)
+  - ui/components/AppHeader.kt (TutorialIconButton + refactor)
+  - ui/localization/Strings.kt (tut*/...Tutorial* EN+FIL)
+  - ui/screens/: AddStockScreen, ProductDetailScreen,
+    RestockScreen, NewDebtScreen, CustomerDebtDetailScreen,
+    RecordPaymentScreen, ReportsScreen, SettingsScreen,
+    HelpScreen (onTutorialClick param + "?" actions button)
+  - ui/navigation/NavGraph.kt (pageForRoute/routeForPage +
+    startPageTutorial in-place launch + 9 onTutorialClick)
+
+
+══════════════════════════════════════════════════════════
+PHASE 44 — PAGE TUTORIAL HIGHLIGHT FRAMES (ALL 15 PAGE TUTORIALS)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user audit — "do all tutorials in the mobile have clear
+instructions and highlights?" Verdict: instructions = YES for
+all 16 (every step key exists EN + FIL); highlights = NO — only
+the main tutorial drew a frame. Web parity gap (web page
+tutorials highlight every step via CSS selectors). User: add
+them.
+
+┌────────────────────────────────────────────────────────────┐
+│ ADDED — PER-STEP HIGHLIGHT TARGETS ON EVERY PAGE TUTORIAL  │
+└────────────────────────────────────────────────────────────┘
+
+  1. Model: PageTutorial gained `highlights: List<String?>`
+     (one entry per step; null = no frame). All 16 entries now
+     carry targets; getCurrentTutorialSteps() wires each step's
+     highlightTarget = pt.highlights.getOrNull(i - 1).
+
+  2. ~50 unique highlight target ids registered across 13
+     screens via Modifier.tutorialHighlight(id, highlightState)
+     (TutorialHighlightState.kt): search bars, buttons, cards,
+     list areas, and sections.
+
+  3. Coverage per tutorial (non-null targets only):
+     home: morningStockCard, morningDebtCard
+     stock: stockSearchBar, addStockBtn, inventoryList
+     sales: dayStatsGrid x2, sellFab, dayTxFeed
+     debt: totalDebtCard, newDebtBtn, debtList x2
+     eod: closingEarnings, closingUtang, completeDayBtn
+     report: reportPeriodToggle, reportSummaryCards,
+             reportRecentTx, reportBestSellers, reportLowStock
+     settings: settingsLanguage, settingsTextSize,
+               settingsStoreName, settingsOwnerName
+     addProduct: addStockNameField, addStockMarkup,
+                 addStockQtyField, addStockSaveBtn
+     newSale: sellFab
+     newDebt: newDebtNameField, newDebtAmountField,
+              newDebtSaveBtn
+     help: helpTutSelector, helpHowTo, helpContact, helpAbout
+     restock: restockStep1Section, restockSearchField,
+              restockProductList, restockContinueBtn,
+              restockStep2Section, restockPurchaseList,
+              restockDoneBtn
+     productDetail: pdStockAlert, pdStatusChips, pdActions,
+                    pdDeleteBtn
+     customerDebtDetail: cddBalanceCard, cddLedger,
+                         cddRecordPaymentBtn
+     recordPayment: rpAmountField, rpRemainingPreview,
+                    rpNoteField, rpPayBtn
+
+  4. Intentional gaps (mirrors the web's text-vs-page
+     mismatches): steps whose copy describes OTHER screens
+     (home 6-10 -> closing, stock 7-10 -> product/add-stock,
+     sales 9-10 -> sale sheet, debt 6-10 -> detail pages,
+     newSale 2-5 -> sheet) stay null. Conditional elements
+     (stock alert, Record Payment on settled debts, remaining
+     preview before typing) show no frame when absent.
+     Auto-scroll doesn't fire for screens where the overlay
+     lives outside the NavHost (pre-existing structure);
+     frames draw wherever the element is visible.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - grep: all non-null target ids registered in screens
+    (52 ids, zero MISSING)
+  - Code review: passed
+
+  Affected files (mobile, git copy): TutorialOverlay.kt,
+  NavGraph.kt, and 13 screens: StocksScreen, DayModeScreen,
+  DebtsScreen, EveningClosingScreen, ReportsScreen,
+  SettingsScreen, AddStockScreen, NewDebtScreen, HelpScreen,
+  RestockScreen, ProductDetailScreen, CustomerDebtDetailScreen,
+  RecordPaymentScreen.
+
+
+══════════════════════════════════════════════════════════
+PHASE 45 — TUTORIALS/ DOCS SYNC (16 TUTORIALS DOCUMENTED)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: compare-and-contrast of the tutorials/ folders (web vs
+mobile). Web folder was in sync with app.js (9 = 9). Mobile
+folder documented only 13 of 16 code tutorials and carried
+stale claims: "page tutorials have NO highlight targets",
+"there is no Previous", report tutorial anchored to "morning".
+User: bring the mobile folder in sync.
+
+┌────────────────────────────────────────────────────────────┐
+│ CHANGED — MOBILE tutorials/ FOLDER BROUGHT IN SYNC         │
+└────────────────────────────────────────────────────────────┘
+
+  1. 3 new doc files: product_detail_tutorial.txt (5),
+     customer_debt_detail_tutorial.txt (5),
+     record_payment_tutorial.txt (4) — EN/FIL text copied
+     verbatim from Strings.kt + per-step highlight ids.
+  2. All 13 existing docs updated: "no highlight" notes
+     removed, per-step "Target element" ids now match the
+     code's highlights lists, launch notes include the header
+     (?) in-place launch, last-step button wording corrected to
+     "Get Started", report doc re-anchored to "reports".
+  3. README.md rewritten: 16-tutorial table, highlights field
+     in pageTutorials, Previous + Get Started button rules,
+     45% box rule / 160dp auto-scroll, accurate Known Platform
+     Differences vs the web.
+
+  Validation: every doc's step count == code stepCount; every
+  documented highlight id exists in the code's highlights
+  lists; stale-claim grep scan clean; code review passed (1
+  cosmetic settings step-5 target/text caveat added).
+
+  Affected files (mobile, git copy): tutorials/README.md + all
+  16 tutorials/*.txt (3 new, 13 updated). No Kotlin touched.
+
+
+══════════════════════════════════════════════════════════
+PHASE 46 — REMOVE "UPDATE STATUS" FEATURE FROM PRODUCT DETAIL (both apps)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user asked what the Update Status chips on the Product
+Detail page were for, then asked to remove the feature from
+both the web and mobile versions.
+
+  Removed (mobile):
+  - updateProductStatus() in AppViewModel
+  - Status chips card + selectedStatus state in ProductDetailScreen
+  - i18n keys updateStatus / plenty / gettingLow / outOfStock (EN + FIL)
+  - productDetailTutorial3 key; steps renumbered 4->3, 5->4
+  - TutorialOverlay productDetail PageTutorial: 5 -> 4 steps,
+    highlights without pdStatusChips
+  - tutorials/product_detail_tutorial.txt rewritten to 4 steps
+  - tutorials/README.md step count 5 -> 4
+
+  Removed (web, mirror):
+  - updateWebProductStatus() + window export, chips row +
+    #pdStatusChips block in renderProductDetail(), i18n keys
+    updateStatus / plenty / gettingLow / outOfStock (EN + FIL),
+    tutorial step 3 + renumber, doc/README updates.
+
+  Notes:
+  - The derived stock status system (getStockStatus / StockStatus:
+    plenty/low/out colors, alert banners) is UNTOUCHED — stock is
+    still categorized by quantity, just without the manual shortcut.
+  - Stocks screen filter chips untouched (none referenced these keys).
+  - No unit/DAO tests referenced the removed code.
+
+  Affected files (mobile, git copy): ProductDetailScreen.kt,
+  AppViewModel.kt, Strings.kt, TutorialOverlay.kt,
+  tutorials/product_detail_tutorial.txt (5->4 steps),
+  tutorials/README.md, progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 47 — MAKE REPORTS & HELP PAGES REACHABLE (Settings "More" section)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user reported that the Reports and Help pages cannot
+be accessed in the mobile version.
+
+Root cause:
+- ReportsScreen/HelpScreen + Routes.REPORTS/HELP + composable
+  blocks all existed, but NOTHING in the app navigated to them
+  (grep for navigate(Routes.REPORTS/HELP) = zero matches).
+- BottomNavBar has only Morning/Day/Closing + Inventory/Debts
+  (no Reports/Help/Settings tab).
+- SettingsScreen never got the "More" section that the web
+  version added in v2.45 (reports.html + help.html links), so
+  the pages were only reachable as tutorial targets.
+- The one existing callback (DebtsScreen onNavigateToReports)
+  was wired to Routes.MORNING in NavGraph and its viewReports
+  key is never rendered, so it is unreachable today.
+
+Fix (per user choice: Settings links only):
+- Strings.kt: added moreSection key (EN "More" / FIL "Higit Pa").
+  Reused existing viewReports + help keys for the button labels.
+- SettingsScreen.kt: added onOpenReports/onOpenHelp callbacks
+  and a "More" section (Reports + Help buttons) between the
+  Tutorial Selector and Data Management — mirrors the web
+  setting.html More section. Icon imports widened to filled.*.
+- NavGraph.kt: wired onOpenReports -> Routes.REPORTS and
+  onOpenHelp -> Routes.HELP in the SETTINGS composable.
+
+  NOT changed (user choice): the DebtsScreen onNavigateToReports
+  wiring (still Routes.MORNING) and no View Reports button on
+  the Debts screen — left as-is for minimal change.
+
+Validation:
+- ./gradlew compileDebugKotlin -> BUILD SUCCESSFUL (exit 0)
+- No unit/DAO tests reference SettingsScreen or the new keys.
+
+Affected files (mobile, git copy): SettingsScreen.kt,
+NavGraph.kt, Strings.kt, progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 48 — REPORTS LABEL LANGUAGE-AWARE (reportsTitle EN/FIL)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user reported the Reports button/title reads
+"Ulat / Reports" in both the web Settings page and the mobile
+Reports header regardless of the app language. User chose:
+EN "Reports" / FIL "Ulat".
+
+  Mobile changes:
+  - Strings.kt: added reportsTitle key (EN "Reports" /
+    FIL "Ulat").
+  - ReportsScreen.kt: header title was a HARDCODED
+    "Ulat / Reports" (ignored language) -> now
+    Text("reportsTitle".t(lang)).
+  - SettingsScreen.kt: More-section Reports button switched
+    from viewReports key to reportsTitle for label parity
+    with the web.
+
+  Web changes (mirror): EN dict reportsTitle -> 'Reports'
+  (bug: Filipino text in the EN dictionary), FIL dict ->
+  'Ulat', static fallbacks in setting/help/reports.html.
+
+Validation:
+- ./gradlew compileDebugKotlin -> exit 0
+- No residual 'Ulat / Reports' in mobile src/tutorials.
+
+  Note: the viewReports key ("View Reports"/"Tingnan ang Ulat")
+  is now unused again — it was activated in Phase 47 (Settings
+  More button) and this phase switched that button to
+  reportsTitle. Deliberately kept: it is reserved for the
+  deferred Debts "View Reports" button (onNavigateToReports
+  stub, still wired to Routes.MORNING).
+
+Affected files (mobile, git copy): Strings.kt,
+ReportsScreen.kt, SettingsScreen.kt, progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 49 — REPORTS BACK BUTTON MATCHES APP PATTERN
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user reported the Reports page back button looks wrong
+compared to all the other back buttons in the app.
+
+Root cause:
+- ReportsScreen was the ONLY screen using a text-based back
+  button (TextButton with hardcoded "← Back", no i18n key).
+  Every other screen (AddStock, ProductDetail, RecordPayment,
+  Restock, Settings, NewDebt, CustomerDebtDetail) uses the
+  standard IconButton + Icons.Default.ArrowBack pattern. The
+  screen never imported the Material icons, which is why it
+  fell back to a text button.
+- Web parity is fine: reports.html uses the same arrow header
+  button as all other web pages.
+
+Fix (per user choice: match app pattern only):
+- ReportsScreen.kt: added Icons + ArrowBack imports, replaced
+  the TextButton/"← Back" with IconButton + ArrowBack icon.
+- TextButton still used elsewhere in the file (transaction /
+  low-stock toggles), so no unused-import concern.
+- HelpScreen NOT changed (user chose not to; it currently has
+  no back button at all — noted as future follow-up).
+
+Validation:
+- ./gradlew compileDebugKotlin -> exit 0
+
+Affected files (mobile, git copy): ReportsScreen.kt,
+progress.txt: This entry.

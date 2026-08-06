@@ -21,6 +21,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sari_sari_smart.data.*
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -34,8 +37,10 @@ fun RestockScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit,
     onComplete: () -> Unit,
-    onNavigateToInventory: () -> Unit = {}
+    onNavigateToInventory: () -> Unit = {},
+    onTutorialClick: (() -> Unit)? = null
 ) {
+    val highlightState = LocalTutorialHighlightState.current
     val products by viewModel.products.collectAsState()
     val restockTemp by viewModel.restockTemp.collectAsState()
     val scope = rememberCoroutineScope()
@@ -66,6 +71,9 @@ fun RestockScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick, tint = Green600)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -99,7 +107,7 @@ fun RestockScreen(
                 Text(
                     text = "Step 1: Check Shelves",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp).tutorialHighlight("restockStep1Section", highlightState)
                 )
                 Text(
                     text = "Enter the actual count you see on your shelf for each product.",
@@ -115,7 +123,7 @@ fun RestockScreen(
                     placeholder = { Text("Search product...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().tutorialHighlight("restockSearchField", highlightState),
                     shape = RoundedCornerShape(12.dp)
                 )
 
@@ -132,7 +140,7 @@ fun RestockScreen(
 
                 // Product list
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).tutorialHighlight("restockProductList", highlightState),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (filteredProducts.isEmpty()) {
@@ -171,7 +179,7 @@ fun RestockScreen(
                         viewModel.applyCorrectionsToProducts()
                         viewModel.setRestockStep(2)
                     },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).tutorialHighlight("restockContinueBtn", highlightState),
                     shape = RoundedCornerShape(12.dp),
                     enabled = true
                 ) {
@@ -196,7 +204,7 @@ fun RestockScreen(
                 Text(
                     text = "Step 2: Record Purchases",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp).tutorialHighlight("restockStep2Section", highlightState)
                 )
                 Text(
                     text = "Search for a product, enter cost per unit and quantity.",
@@ -308,7 +316,7 @@ fun RestockScreen(
                 // Purchase list
                 val purchases = restockTemp.purchases
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).tutorialHighlight("restockPurchaseList", highlightState),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     if (purchases.isEmpty()) {
@@ -360,7 +368,7 @@ fun RestockScreen(
                         scope.launch { snackbarHostState.showSnackbar("Restock saved! Inventory updated.") }
                         onComplete()
                     },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tutorialHighlight("restockDoneBtn", highlightState),
                     shape = RoundedCornerShape(12.dp),
                     enabled = purchases.isNotEmpty()
                 ) {

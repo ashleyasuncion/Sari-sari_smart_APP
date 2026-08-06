@@ -437,8 +437,10 @@ fun SaleBottomSheet(
                                 }
                                 if (existingDebt != null) {
                                     viewModel.addToDebtBalance(existingDebt.id, totalAmount)
+                                    // Ledger entry (web saveSale parity: description = product name)
+                                    viewModel.addDebtTransaction(existingDebt.id, "debt", product.name, totalAmount)
                                 } else {
-                                    viewModel.addDebt(
+                                    val newDebt = viewModel.addDebt(
                                         CustomerDebt(
                                             id = 0,
                                             customerName = customerName,
@@ -446,6 +448,7 @@ fun SaleBottomSheet(
                                             remainingBalance = totalAmount
                                         )
                                     )
+                                    viewModel.addDebtTransaction(newDebt.id, "debt", product.name, totalAmount)
                                 }
                             }
                         }

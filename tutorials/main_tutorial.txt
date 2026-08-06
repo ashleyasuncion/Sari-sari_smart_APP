@@ -3,20 +3,20 @@ SARI-SARI SMART (ANDROID) — MAIN TUTORIAL (14 STEPS)
 Config: NavGraph.kt -> val tutorialSteps
 Type: multi-page full-flow tutorial
 Pages: morning -> day -> closing -> inventory -> debts -> settings
-Launch: auto on fresh app launch (Morning LaunchedEffect); Settings ->
-  Tutorial selector -> Main Tutorial; Help -> "Replay Tutorial"; all manual
-  launches route through startPageTutorial("main") -> startTutorial(replay=true)
-  (web v2.40 parity — behaves identically to the auto-launch).
+Launch: auto on fresh app launch (once per app session); also from Settings -> Tutorial selector
+        / Help -> "Replay Tutorial" (both route through startPageTutorial("main") -> startTutorial(replay = true)
+        and navigate to Morning, behaving identically to the auto-launch)
 
 SHARED STEP FIELDS
-- Highlight: pure outline — white 2dp inner ring + green 4dp outer ring,
-  transparent center, follows registered bounds (tutorialHighlight modifier)
-- Box position rule: no target -> bottom; target in top 45% -> bottom; else top
-- Auto-scroll: animates scroll so the target is visible before showing the step
-- Navigation: Next advances; last step becomes Finish; Skip on replay only;
-  backdrop tap (replay) dismisses in place; no Previous
-- Completion: after the FINAL step the app returns to the MORNING page
-  (web v2.40 parity fix)
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on step 14 the button reads
+  "Get Started" and FINISHES, returning the user to the Morning page (web v2.40 parity);
+  Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Page transitions: Next navigates when the next step's page differs (popUpTo(MORNING) + launchSingleTop);
+  Previous walks back through the same route mapping; DAY/CLOSING entry guards are skipped while active
 
 ----------------------------------------------------------------------
 STEP 1 — Welcome
@@ -27,7 +27,7 @@ STEP 1 — Welcome
   Target element : none
   Highlight      : none
   Box position   : bottom center
-  Transition     : none (already on Morning)
+  Transition     : stays on morning
   Interaction    : read text, tap Next
 ----------------------------------------------------------------------
 STEP 2 — Stock card
@@ -36,8 +36,8 @@ STEP 2 — Stock card
   Text FIL: "Ang Stock card ay nagpapakita ng mga item na nauubos o wala na. I-tap ang Inventory para tingnan ang iyong mga item."
   Target page    : morning
   Target element : morningStockCard (MorningCheckScreen)
-  Highlight      : Stock card on the Morning dashboard
-  Box position   : runtime rule
+  Highlight      : the Stock Alert card (top area)
+  Box position   : expected bottom
   Transition     : none
   Interaction    : look at the Stock card, tap Next
 ----------------------------------------------------------------------
@@ -47,8 +47,8 @@ STEP 3 — Debt card
   Text FIL: "Ang Debt card ay nagpapakita ng utang ng mga kostumer. I-tap ang Debts para makita at subaybayan ang mga bayad."
   Target page    : morning
   Target element : morningDebtCard (MorningCheckScreen)
-  Highlight      : Debt card on the Morning dashboard
-  Box position   : runtime rule
+  Highlight      : the Outstanding Debts card (top area)
+  Box position   : expected bottom
   Transition     : none
   Interaction    : look at the Debt card, tap Next
 ----------------------------------------------------------------------
@@ -58,12 +58,12 @@ STEP 4 — Start the Day
   Text FIL: "Kapag handa na, i-tap ang 'Simulan ang Araw' para buksan ang tindahan at magsimulang magtala ng benta."
   Target page    : morning
   Target element : startDayBtn (MorningCheckScreen)
-  Highlight      : "Start the Day" button
-  Box position   : runtime rule
+  Highlight      : the Start the Day button (bottom of page)
+  Box position   : expected top
   Transition     : none
   Interaction    : see the button, tap Next
 ----------------------------------------------------------------------
-STEP 5 — Welcome to Day Mode
+STEP 5 — Day Mode intro
   Key      : tutorial5
   Text EN : "Welcome to Day Mode! This is where you record sales as they happen throughout the day."
   Text FIL: "Maligayang pagdating sa Day Mode! Dito mo itinatala ang mga benta habang nangyayari ang mga ito."
@@ -80,23 +80,23 @@ STEP 6 — Today summary
   Text FIL: "Ang Today summary ay nagpapakita ng iyong kita, naibenta, at utang sa isang sulyap."
   Target page    : day
   Target element : dayStatsGrid (DayModeScreen)
-  Highlight      : stats summary grid
-  Box position   : runtime rule
+  Highlight      : the stats summary grid (top area)
+  Box position   : expected bottom
   Transition     : none
-  Interaction    : look at the stats, tap Next
+  Interaction    : look at the summary, tap Next
 ----------------------------------------------------------------------
-STEP 7 — Sell FAB
+STEP 7 — Sell button
   Key      : tutorial7
   Text EN : "Tap the + button to open the sale sheet. Select a product, enter quantity, and save the sale."
   Text FIL: "I-tap ang + button para buksan ang sale sheet. Pumili ng produkto, ilagay ang dami, at i-save ang benta."
   Target page    : day
-  Target element : sellFab (BottomNavBar center FAB)
-  Highlight      : the + Sell FAB in the bottom nav
-  Box position   : runtime rule
+  Target element : sellFab (bottom nav)
+  Highlight      : the Sell FAB in the bottom nav
+  Box position   : expected top
   Transition     : none
-  Interaction    : see the FAB, tap Next
+  Interaction    : see the + button, tap Next
 ----------------------------------------------------------------------
-STEP 8 — Closing screen
+STEP 8 — Closing intro
   Key      : tutorial8
   Text EN : "At the end of the day, the Closing screen shows a full summary of today's performance."
   Text FIL: "Sa pagtatapos ng araw, ang Closing screen ay nagpapakita ng buong summary ng performance ngayong araw."
@@ -113,8 +113,8 @@ STEP 9 — Cost + earnings
   Text FIL: "Ilagay ang iyong gastos sa paninda at kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita."
   Target page    : closing
   Target element : closingEarnings (EveningClosingScreen)
-  Highlight      : earnings/cost section
-  Box position   : runtime rule
+  Highlight      : the earnings / cost section
+  Box position   : per runtime rule
   Transition     : none
   Interaction    : look at the section, tap Next
   NOTE: this key was previously shadowed by a duplicate 'tutorial9'
@@ -127,8 +127,8 @@ STEP 10 — Day Complete
   Text FIL: "I-tap ang 'Tapos Na ang Araw' para tapusin. Ang iyong daily summary ay mase-save sa history."
   Target page    : closing
   Target element : completeDayBtn (EveningClosingScreen)
-  Highlight      : "Day Complete" button
-  Box position   : runtime rule
+  Highlight      : the Complete Day button (bottom of page)
+  Box position   : expected top
   Transition     : none
   Interaction    : see the button, tap Next
 ----------------------------------------------------------------------
@@ -138,8 +138,8 @@ STEP 11 — Inventory search
   Text FIL: "Ang Inventory page ay nagbibigay-daan sa iyo na maghanap, magdagdag, at mamahala ng stock."
   Target page    : inventory  (navigates from closing)
   Target element : stockSearchBar (StocksScreen)
-  Highlight      : the search bar
-  Box position   : runtime rule
+  Highlight      : the search bar (top of page)
+  Box position   : expected bottom
   Transition     : Next navigates closing -> inventory
   Interaction    : look at the search bar, tap Next
 ----------------------------------------------------------------------
@@ -149,8 +149,8 @@ STEP 12 — Add Stock button
   Text FIL: "I-tap ang 'Magdagdag ng Stock' para magdagdag ng bagong produkto o mag-restock."
   Target page    : inventory
   Target element : addStockBtn (StocksScreen)
-  Highlight      : "Add Stock" button
-  Box position   : runtime rule
+  Highlight      : the Add Stock button (top area)
+  Box position   : expected bottom
   Transition     : none
   Interaction    : see the button, tap Next
 ----------------------------------------------------------------------
@@ -160,8 +160,8 @@ STEP 13 — Debts total
   Text FIL: "Ang Debts page ay sumusubaybay sa lahat ng utang ng kostumer. Ang kabuuang halaga ay nasa itaas."
   Target page    : debts  (navigates from inventory)
   Target element : totalDebtCard (DebtsScreen)
-  Highlight      : total outstanding card
-  Box position   : runtime rule
+  Highlight      : the Total Outstanding card (top of page)
+  Box position   : expected bottom
   Transition     : Next navigates inventory -> debts
   Interaction    : look at the total card, tap Next
 ----------------------------------------------------------------------
@@ -171,11 +171,11 @@ STEP 14 — Settings
   Text FIL: "Pumunta sa Settings anumang oras para baguhin ang wika, laki ng teksto, o pangalan ng tindahan."
   Target page    : settings  (navigates from debts)
   Target element : settingsLanguage (SettingsScreen)
-  Highlight      : the language row
-  Box position   : runtime rule
+  Highlight      : the language row (top of page)
+  Box position   : expected bottom
   Transition     : Next navigates debts -> settings
-  Interaction    : read text, tap Finish
-  COMPLETION     : after this final step the app returns to the MORNING
-                   page (web v2.40 parity fix) — it no longer strands the
-                   user on Settings.
+  Interaction    : read text, tap Get Started
+  COMPLETION     : the button reads "Get Started"; tapping it FINISHES the
+                   tutorial and returns the user to the MORNING page (web
+                   v2.40 parity fix) — it no longer strands the user on Settings.
 ----------------------------------------------------------------------

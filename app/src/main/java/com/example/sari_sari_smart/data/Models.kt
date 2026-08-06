@@ -69,6 +69,21 @@ data class DebtPayment(
     val note: String? = null
 )
 
+/**
+ * Per-debt transaction ledger — mirrors the web's `debt.transactions[]` array.
+ * Every debt-balance increase (utang sale, manual add) becomes a row so the
+ * debt history can show individual entries with descriptions and dates,
+ * exactly like the web prototype. Payments live in [DebtPayment].
+ */
+data class DebtTransaction(
+    val id: Int,
+    val debtId: Int,
+    val type: String,            // "debt" = added to balance
+    val description: String?,    // product name (utang sale) or "Manual"
+    val amount: Double,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 // ── Restock Day Models ─────────────────────────────────────────────────
 
 data class RestockLogEntry(

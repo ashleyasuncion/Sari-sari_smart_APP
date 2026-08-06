@@ -13,6 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,10 +34,12 @@ fun AddStockScreen(
     productId: Int? = null,
     defaultMarkup: Int = 20,
     onBack: () -> Unit,
-    onSaved: () -> Unit = {}
+    onSaved: () -> Unit = {},
+    onTutorialClick: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
+    val highlightState = LocalTutorialHighlightState.current
     val fmt = remember { NumberFormat.getCurrencyInstance(Locale("en", "PH")) }
 
     val existingProduct = productId?.let { viewModel.getProductById(it) }
@@ -47,6 +52,9 @@ fun AddStockScreen(
     var costPrice by remember { mutableStateOf(existingProduct?.costPrice?.let { if (it > 0) it.toString() else "" } ?: "") }
     var sellPrice by remember { mutableStateOf(existingProduct?.sellingPrice?.let { if (it > 0) it.toString() else "" } ?: "") }
     var markupPercent by remember { mutableStateOf(defaultMarkup.toString()) }
+    // Web parity: once the user types a selling price manually, stop
+    // auto-filling it from the markup (mirrors web _userEditedPrice).
+    var userEditedPrice by remember { mutableStateOf(false) }
     var lowStockThreshold by remember { mutableStateOf((existingProduct?.lowStockThreshold ?: 5).toString()) }
 
     val cost = costPrice.toDoubleOrNull() ?: 0.0
@@ -68,6 +76,9 @@ fun AddStockScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
@@ -113,7 +124,7 @@ fun AddStockScreen(
                 onValueChange = { itemName = it },
                 label = { Text("itemName".t(lang)) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("addStockNameField", highlightState),
                 shape = MaterialTheme.shapes.medium
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -126,7 +137,7 @@ fun AddStockScreen(
                 placeholder = { Text("1") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("addStockQtyField", highlightState),
                 shape = MaterialTheme.shapes.medium
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -147,44 +158,32 @@ fun AddStockScreen(
 
             // ── Markup Helper ────────────────────────────────────────────
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("addStockMarkup", highlightState),
                 colors = CardDefaults.cardColors(containerColor = Green50),
                 shape = MaterialTheme.shapes.medium
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "markupPercent".t(lang),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Green800
-                    )
-
-                    Slider(
-                        value = markupPercent.toFloatOrNull()?.coerceIn(0f, 100f) ?: 20f,
-                        onValueChange = {
-                            markupPercent = it.toInt().toString()
-                            // Auto-calculate selling price from markup
-                            if (cost > 0) {
-                                sellPrice = String.format("%.2f", cost * (1 + it / 100f))
+                    // Web parity: markup is a plain number input (not a slider)
+                    OutlinedTextField(
+                        value = markupPercent,
+                        onValueChange = { value ->
+                            val filtered = value.filter { c -> c.isDigit() }
+                            markupPercent = filtered
+                            // Auto-calculate selling price from markup, but only
+                            // while the user hasn't typed a price manually
+                            val m = (filtered.toDoubleOrNull() ?: 20.0) / 100.0
+                            if (cost > 0 && m > 0 && !userEditedPrice) {
+                                sellPrice = String.format("%.2f", cost * (1 + m))
                             }
                         },
-                        valueRange = 0f..100f,
-                        steps = 19,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Green600,
-                            activeTrackColor = Green600,
-                            inactiveTrackColor = Green200
-                        )
-                    )
-
-                    Row(
+                        label = { Text("markupPercent".t(lang)) },
+                        placeholder = { Text("20") },
+                        suffix = { Text("%") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("0%", style = MaterialTheme.typography.bodySmall, color = Gray400)
-                        Text("$markupPercent%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Green800)
-                        Text("100%", style = MaterialTheme.typography.bodySmall, color = Gray400)
-                    }
+                        shape = MaterialTheme.shapes.medium
+                    )
 
                     if (suggestedPrice > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -201,7 +200,10 @@ fun AddStockScreen(
             // Selling price
             OutlinedTextField(
                 value = sellPrice,
-                onValueChange = { sellPrice = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = {
+                    sellPrice = it.filter { c -> c.isDigit() || c == '.' }
+                    userEditedPrice = true
+                },
                 label = { Text("sellPrice".t(lang)) },
                 placeholder = { Text("0.00") },
                 singleLine = true,
@@ -285,7 +287,10 @@ fun AddStockScreen(
                         onBack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .tutorialHighlight("addStockSaveBtn", highlightState),
                 shape = MaterialTheme.shapes.medium,
                 enabled = itemName.isNotBlank() && (sellPrice.toDoubleOrNull() ?: 0.0) > 0
             ) {

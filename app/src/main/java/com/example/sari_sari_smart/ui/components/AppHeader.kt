@@ -22,6 +22,22 @@ import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
  * 2. Support header (Inventory, Debts): Shows back arrow + page title + tutorial (?) + settings (⚙)
  */
 
+// ── Shared tutorial ("?") header button ────────────────────────────────────
+// The web prototype shows a (?) Help button in the top-right of every page
+// header; this is its Compose equivalent, reused by all screens.
+
+@Composable
+fun TutorialIconButton(onClick: () -> Unit, tint: Color = Color.White) {
+    IconButton(onClick = onClick) {
+        Text(
+            text = "?",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = tint
+        )
+    }
+}
+
 // ── Moment Header (for Morning, Day, Closing screens) ─────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,16 +58,7 @@ fun MomentAppHeader(
             )
         },
         actions = {
-            if (onTutorialClick != null) {
-                IconButton(onClick = onTutorialClick) {
-                    Text(
-                        text = "?",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
+            if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
             if (onInventoryClick != null) {
                 IconButton(onClick = onInventoryClick) {
                     Icon(
@@ -115,16 +122,7 @@ fun SupportAppHeader(
             }
         },
         actions = {
-            if (onTutorialClick != null) {
-                IconButton(onClick = onTutorialClick) {
-                    Text(
-                        text = "?",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
+            if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
             if (onSettingsClick != null) {
                 IconButton(onClick = onSettingsClick) {
                     Icon(

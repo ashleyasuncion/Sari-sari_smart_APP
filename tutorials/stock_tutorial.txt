@@ -2,58 +2,96 @@ SARI-SARI SMART (ANDROID) — STOCK TUTORIAL (10 STEPS)
 =====================================================
 Config: TutorialOverlay.kt -> pageTutorials ("stock", prefix "stockTutorial")
 Page: inventory (all steps)
-Launch: Inventory header (?) button -> Stock Tutorial (startPageTutorial("stock"))
+Launch: Inventory header (?) button -> in-place launch (startPageTutorial("stock"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates here if needed)
 
-NOTE: Android page tutorials generate steps with NO highlight targets, so
-the box stays at bottom center and no highlight frame is drawn.
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
 
 STEP 1 — Stocks page intro
   Key      : stockTutorial1
   Text EN : "This is the Stocks page where you manage all your inventory items."
   Text FIL: "Ito ang Stocks page kung saan mo pinamamahalaan ang lahat ng iyong inventory item."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 2 — Search bar
   Key      : stockTutorial2
   Text EN : "Use the Search bar to quickly find any item by typing its name."
   Text FIL: "Gamitin ang Search bar para mabilis na makahanap ng item sa pamamagitan ng pag-type ng pangalan nito."
-  Interaction : look at the search bar, tap Next
+  Target element : stockSearchBar (StocksScreen)
+  Highlight      : the search bar (top of page)
+  Box position   : expected bottom
+  Interaction    : look at the search bar, tap Next
 STEP 3 — Add Stock
   Key      : stockTutorial3
   Text EN : "Tap \"Add Stock\" to add new products or restock existing ones. Fill in the name, quantity, cost per unit, and selling price. You can set a markup percentage to auto-calculate the selling price."
   Text FIL: "I-tap ang \"Add Stock\" para magdagdag ng bagong produkto o mag-restock ng existing item na may detalye tulad ng pangalan, dami, halaga, at presyo."
-  Interaction : see the Add Stock button, tap Next
+  Target element : addStockBtn (StocksScreen)
+  Highlight      : the Add Stock button (top area)
+  Box position   : expected bottom
+  Interaction    : see the Add Stock button, tap Next
 STEP 4 — Running Low section
   Key      : stockTutorial4
   Text EN : "Items running low appear in the \"Running Low\" section at the top, showing remaining quantity and a quick \"Add Stock\" button."
   Text FIL: "Ang mga item na nauubos ay lilitaw sa \"Kulang Na\" section sa itaas, na may natitirang dami at mabilis na \"Add Stock\" button."
-  Interaction : look at the Running Low section, tap Next
+  Target element : none
+  Highlight      : none (text describes the Running Low section)
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 5 — Color-coded inventory
   Key      : stockTutorial5
   Text EN : "All your inventory is listed below with color-coded borders: green = plenty, orange = getting low, red = out of stock."
   Text FIL: "Ang lahat ng iyong inventory ay nakalista sa ibaba na may color-coded na border: green = marami pa, orange = medyo kulang, red = wala na."
-  Interaction : look at the item list, tap Next
+  Target element : inventoryList (StocksScreen LazyColumn)
+  Highlight      : the inventory list area
+  Box position   : per runtime rule
+  Interaction    : look at the item list, tap Next
 STEP 6 — Item card
   Key      : stockTutorial6
   Text EN : "Each item card shows the name, status indicator, quantity on hand, profit margin percentage, and a \"Sold\" button to quickly deduct stock when you make a sale."
   Text FIL: "Ang bawat item card ay nagpapakita ng pangalan, status indicator, dami, at \"Sold\" button para mabilis na bawasan ang stock."
-  Interaction : look at an item card, tap Next
+  Target element : none
+  Highlight      : none (text describes the item card)
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 7 — Product page
   Key      : stockTutorial7
   Text EN : "Tap any item card to open its dedicated Product page showing cost price, selling price, profit margin, and stock status. This is where you manage individual item details."
   Text FIL: "I-tap ang kahit anong item card para buksan ang Product page nito. Makikita mo ang halaga, presyo ng benta, profit margin, at stock status. Dito mo pinamamahalaan ang detalye ng bawat item."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none (text describes the Product page, a different screen)
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 8 — Product page actions
   Key      : stockTutorial8
   Text EN : "On the Product page, you can deduct stock when items are sold, update the stock status (Plenty, Getting Low, or Out of Stock), or tap \"Edit\" to modify item details. Stock updates are reflected immediately."
   Text FIL: "Sa Product page, maaari mong bawasan ang stock kapag may naibenta, i-update ang stock status (Marami Pa, Medyo Kulang, Wala Na), o i-tap ang \"Edit\" para baguhin ang item details."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none (text describes the Product page, a different screen)
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 9 — Add Stock page
   Key      : stockTutorial9
   Text EN : "The Add Stock page lets you add new products or restock existing ones. Enter the item name, quantity, cost per unit, and selling price. The markup helper suggests the right selling price automatically."
   Text FIL: "Ang Add Stock page ay kung saan mo pinupunan ang pangalan ng produkto, dami, halaga, at presyo ng benta. Ang markup helper ay awtomatikong nagbibigay ng tamang selling price."
-  Interaction : read text, tap Next
+  Target element : none
+  Highlight      : none (text describes the Add Stock page, a different screen)
+  Box position   : bottom center
+  Interaction    : read text, tap Next
 STEP 10 — Save product
   Key      : stockTutorial10
   Text EN : "Fill in all the fields and tap \"Save\" to add the product to inventory. The markup percentage helps you maintain consistent pricing across similar products."
   Text FIL: "Punan ang lahat ng field at i-tap ang \"Save\" para idagdag ang produkto sa inventory. Ang markup percentage ay tumutulong sa iyo na mapanatili ang consistent na pricing."
-  Interaction : read text, tap Finish (page tutorial finishes in place)
+  Target element : none
+  Highlight      : none (text describes the Add Stock page, a different screen)
+  Box position   : bottom center
+  Interaction    : read text, tap Get Started (page tutorial finishes in place)

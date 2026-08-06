@@ -13,11 +13,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
 import com.example.sari_sari_smart.ui.components.PageTutorial
+import com.example.sari_sari_smart.ui.components.TutorialHighlightState
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
 import com.example.sari_sari_smart.ui.components.pageTutorials
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,21 +49,43 @@ private val howToItems = listOf(
 fun HelpScreen(
     onReplayTutorial: () -> Unit,
     onOpenSettings: () -> Unit,
-    onLaunchPageTutorial: ((String) -> Unit)? = null
+    onLaunchPageTutorial: ((String) -> Unit)? = null,
+    onTutorialClick: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
+    val highlightState = LocalTutorialHighlightState.current
     var showAbout by remember { mutableStateOf(false) }
     var showContact by remember { mutableStateOf(false) }
     var selectedTutorial by remember { mutableStateOf<PageTutorial?>(null) }
     var tutDropdownExpanded by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Page header with the tutorial (?) button — matches the other screens
+        Surface(
+            color = Green600,
+            modifier = Modifier.fillMaxWidth().statusBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "help".t(lang),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
+                if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
+            }
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
         HelpMenuItem(
             icon = Icons.Default.PlayArrow,
             label = "replayTutorial".t(lang),
@@ -69,7 +96,7 @@ fun HelpScreen(
 
         // Tutorial Selector Dropdown
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().tutorialHighlight("helpTutSelector", highlightState),
             colors = CardDefaults.cardColors(containerColor = Green50),
             shape = MaterialTheme.shapes.medium
         ) {
@@ -131,7 +158,7 @@ fun HelpScreen(
             "howToUse".t(lang),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 12.dp)
+            modifier = Modifier.padding(vertical = 12.dp).tutorialHighlight("helpHowTo", highlightState)
         )
 
         howToItems.forEach { item ->
@@ -144,13 +171,17 @@ fun HelpScreen(
         HelpMenuItem(
             icon = Icons.Default.Email,
             label = "contactInfo".t(lang),
-            onClick = { showContact = true }
+            onClick = { showContact = true },
+            highlightId = "helpContact",
+            highlightState = highlightState
         )
 
         HelpMenuItem(
             icon = Icons.Default.Info,
             label = "aboutApp".t(lang),
-            onClick = { showAbout = true }
+            onClick = { showAbout = true },
+            highlightId = "helpAbout",
+            highlightState = highlightState
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -164,7 +195,8 @@ fun HelpScreen(
             Text("settings".t(lang))
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 
     if (showAbout) {
@@ -235,10 +267,19 @@ private fun HowToAccordionItem(item: HowToItem, lang: String) {
 }
 
 @Composable
-private fun HelpMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun HelpMenuItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    highlightId: String? = null,
+    highlightState: TutorialHighlightState? = null
+) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .then(if (highlightId != null && highlightState != null) Modifier.tutorialHighlight(highlightId, highlightState) else Modifier),
         shape = MaterialTheme.shapes.medium
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

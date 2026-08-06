@@ -59,7 +59,10 @@ fun StocksScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            .tutorialHighlight("inventoryList", highlightState),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // ── Search bar ──────────────────────────────────────────────────

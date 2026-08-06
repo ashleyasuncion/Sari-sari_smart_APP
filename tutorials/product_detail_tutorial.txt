@@ -1,0 +1,50 @@
+SARI-SARI SMART (ANDROID) — PRODUCT DETAIL TUTORIAL (4 STEPS)
+=============================================================
+Config: TutorialOverlay.kt -> pageTutorials ("productDetail", prefix "productDetailTutorial")
+Page: product_detail (all steps)
+Launch: Product Detail page header (?) button -> in-place launch (startPageTutorial("productDetail"));
+        Settings -> Tutorial selector / Help -> Tutorial selector (navigates to the Inventory
+        page, then the tutorial plays over the product detail screen)
+
+SHARED STEP FIELDS
+- Highlight appearance: pure outline — transparent center (element stays visible), white 2dp inner ring +
+  green 4dp outer ring (offset 2dp outward), rounded corners ~12-14dp, -4dp offset around the target
+- Navigation: Previous appears from step 2 onward; Next advances; on the last step the button reads
+  "Get Started" and finishes in place; Skip (left side) + backdrop tap dismiss only on replay
+- Box position rule: no highlight -> bottom center; target center in top 45% of screen -> card at bottom;
+  otherwise card at top (below the header pill)
+- Auto-scroll: when the step's highlight target is off-screen, the page scrolls to reveal it (where the
+  screen provides a scroll state)
+
+STEP 1 — Product detail intro
+  Key      : productDetailTutorial1
+  Text EN : "This page shows everything about a product: name, unit, stock quantity, cost price, selling price, and profit margin."
+  Text FIL: "Ang page na ito ay nagpapakita ng lahat tungkol sa produkto: pangalan, unit, stock quantity, presyo ng stock, presyo ng benta, at profit margin."
+  Target element : none
+  Highlight      : none
+  Box position   : bottom center
+  Interaction    : read text, tap Next
+STEP 2 — Stock alert
+  Key      : productDetailTutorial2
+  Text EN : "A color-coded alert appears when stock is running low or out of stock."
+  Text FIL: "May color-coded na alert kapag mababa na o ubos na ang stock."
+  Target element : pdStockAlert
+  Highlight      : the stock alert card (top of page; only rendered when the product is low/out)
+  Box position   : expected bottom
+  Interaction    : look at the alert (if present), tap Next
+STEP 3 — Actions
+  Key      : productDetailTutorial3
+  Text EN : "Deduct sold or damaged stock, restock, or edit the product details from this page."
+  Text FIL: "Ibawas ang nabentang stock, mag-restock, o i-edit ang detalye ng produkto dito."
+  Target element : pdActions
+  Highlight      : the deduct / restock / edit action buttons
+  Box position   : per runtime rule
+  Interaction    : look at the actions, tap Next
+STEP 4 — Delete
+  Key      : productDetailTutorial4
+  Text EN : "Use Delete to permanently remove the product — with a confirmation first."
+  Text FIL: "Gamitin ang Delete para permanenteng alisin ang produkto — may kumpirmasyon muna."
+  Target element : pdDeleteBtn
+  Highlight      : the Delete button (bottom of page)
+  Box position   : expected top
+  Interaction    : see the button, tap Get Started (finishes in place)

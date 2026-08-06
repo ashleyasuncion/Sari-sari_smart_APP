@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +22,7 @@ import com.example.sari_sari_smart.ui.localization.LocalTextScale
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
 import com.example.sari_sari_smart.ui.components.PageTutorial
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
 import com.example.sari_sari_smart.ui.components.pageTutorials
 import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.theme.*
@@ -35,7 +36,10 @@ fun SettingsScreen(
     viewModel: AppViewModel? = null,
     onBack: () -> Unit,
     onResetComplete: () -> Unit = {},
-    onLaunchTutorial: (String) -> Unit = {}
+    onLaunchTutorial: (String) -> Unit = {},
+    onTutorialClick: (() -> Unit)? = null,
+    onOpenReports: () -> Unit = {},
+    onOpenHelp: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val langState = LocalLanguage.current
@@ -98,6 +102,9 @@ fun SettingsScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -143,7 +150,7 @@ fun SettingsScreen(
 
             // ── Text Size (applies immediately) ──
             SettingsSectionTitle("textSize".t(settings.language))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.tutorialHighlight("settingsTextSize", highlightState)) {
                 listOf("standard" to "standard".t(settings.language), "large" to "large".t(settings.language), "extra-large" to "extraLarge".t(settings.language)).forEach { (value, label) ->
                     FilterChip(
                         selected = selectedSize == value,
@@ -170,7 +177,7 @@ fun SettingsScreen(
                 },
                 label = { Text("storeName".t(settings.language)) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsStoreName", highlightState)
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
@@ -181,7 +188,7 @@ fun SettingsScreen(
                 },
                 label = { Text("ownerName".t(settings.language)) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsOwnerName", highlightState)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -252,6 +259,31 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── More (Reports / Help) — web v2.45 parity: the web Settings
+            // page gained a "More" section linking Reports and Help; the
+            // mobile screens existed but had no entry points, so these two
+            // buttons make them reachable.
+            SettingsSectionTitle("moreSection".t(settings.language))
+            OutlinedButton(
+                onClick = onOpenReports,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("reportsTitle".t(settings.language))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onOpenHelp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Help, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("help".t(settings.language))
             }
 
             Spacer(modifier = Modifier.height(24.dp))

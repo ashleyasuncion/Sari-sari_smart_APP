@@ -63,7 +63,8 @@ fun NavGraph(
             customerDebtDao = app.database.customerDebtDao(),
             endOfDayDao = app.database.endOfDayDao(),
             restockLogDao = app.database.restockLogDao(),
-            debtPaymentDao = app.database.debtPaymentDao()
+            debtPaymentDao = app.database.debtPaymentDao(),
+            debtTransactionDao = app.database.debtTransactionDao()
         )
     }
     LaunchedEffect(Unit) {
@@ -110,7 +111,11 @@ fun NavGraph(
     fun getCurrentTutorialSteps(): List<TutorialStep> {
         return pageTutorial?.let { pt ->
             (1..pt.stepCount).map { i ->
-                TutorialStep("${pt.stepsKeyPrefix}$i", pt.page)
+                TutorialStep(
+                    i18nKey = "${pt.stepsKeyPrefix}$i",
+                    page = pt.page,
+                    highlightTarget = pt.highlights.getOrNull(i - 1)
+                )
             }
         } ?: tutorialSteps
     }
@@ -129,6 +134,10 @@ fun NavGraph(
         Routes.ADD_STOCK -> "add_stock"
         Routes.NEW_DEBT -> "new_debt"
         Routes.RESTOCK -> "restock"
+        Routes.REPORTS -> "reports"
+        Routes.PRODUCT_DETAIL -> "product_detail"
+        Routes.CUSTOMER_DEBT_DETAIL -> "customer_debt_detail"
+        Routes.RECORD_PAYMENT -> "record_payment"
         else -> "morning"
     }
 
@@ -137,6 +146,12 @@ fun NavGraph(
         "inventory" -> Routes.INVENTORY; "debts" -> Routes.DEBTS
         "help" -> Routes.HELP; "settings" -> Routes.SETTINGS; "add_stock" -> Routes.addStock()
         "new_debt" -> Routes.NEW_DEBT; "restock" -> Routes.RESTOCK
+        "reports" -> Routes.REPORTS
+        // Arg'd pages have no fixed route id — fall back to their parent list page
+        // when launched from Help/Settings (launching from the page itself stays put).
+        "product_detail" -> Routes.INVENTORY
+        "customer_debt_detail" -> Routes.DEBTS
+        "record_payment" -> Routes.DEBTS
         else -> Routes.MORNING
     }
 
@@ -235,9 +250,14 @@ fun NavGraph(
             // Page tutorials must also mark the session guard — otherwise returning to
             // Morning after one finishes would auto-start the main tutorial.
             tutorialLaunchedThisSession = true
-            val route = routeForPage(tut.page)
-            navController.navigate(route) {
-                popUpTo(Routes.MORNING) { saveState = true }; launchSingleTop = true
+            // Launching from the tutorial's own page (the header "?" button) stays in
+            // place — only navigate when launched from elsewhere (Help/Settings selector).
+            val currentRoute = navController.currentDestination?.route ?: ""
+            if (pageForRoute(currentRoute) != tut.page) {
+                val route = routeForPage(tut.page)
+                navController.navigate(route) {
+                    popUpTo(Routes.MORNING) { saveState = true }; launchSingleTop = true
+                }
             }
         }
     }
@@ -462,7 +482,8 @@ fun NavGraph(
                     productId = productId?.let { if (it >= 0) it else null },
                     defaultMarkup = appSettings.defaultMarkup,
                     onBack = { navController.popBackStack() },
-                    onSaved = { }
+                    onSaved = { },
+                    onTutorialClick = { startPageTutorial("addProduct") }
                 )
             }
 
@@ -492,7 +513,8 @@ fun NavGraph(
                 NewDebtScreen(
                     viewModel = appViewModel,
                     onBack = { navController.popBackStack() },
-                    onSaved = { }
+                    onSaved = { },
+                    onTutorialClick = { startPageTutorial("newDebt") }
                 )
             }
 
@@ -502,7 +524,8 @@ fun NavGraph(
                     viewModel = appViewModel,
                     debtId = debtId,
                     onBack = { navController.popBackStack() },
-                    onRecordPayment = { id -> navController.navigate(Routes.recordPayment(id)) }
+                    onRecordPayment = { id -> navController.navigate(Routes.recordPayment(id)) },
+                    onTutorialClick = { startPageTutorial("customerDebtDetail") }
                 )
             }
 
@@ -512,7 +535,8 @@ fun NavGraph(
                     viewModel = appViewModel,
                     debtId = debtId,
                     onBack = { navController.popBackStack() },
-                    onPaymentSaved = { navController.popBackStack() }
+                    onPaymentSaved = { navController.popBackStack() },
+                    onTutorialClick = { startPageTutorial("recordPayment") }
                 )
             }
 
@@ -524,7 +548,8 @@ fun NavGraph(
                     onBack = { navController.popBackStack() },
                     onEdit = { id -> navController.navigate(Routes.addStock(id)) },
                     onRestock = { id -> navController.navigate(Routes.addStock(id)) },
-                    onDeleted = { navController.popBackStack() }
+                    onDeleted = { navController.popBackStack() },
+                    onTutorialClick = { startPageTutorial("productDetail") }
                 )
             }
 
@@ -535,7 +560,8 @@ fun NavGraph(
                     // first, real 14-step flow, highlights). Web v2.40 parity.
                     onReplayTutorial = { startPageTutorial("main") },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                    onLaunchPageTutorial = { tutId -> startPageTutorial(tutId) }
+                    onLaunchPageTutorial = { tutId -> startPageTutorial(tutId) },
+                    onTutorialClick = { startPageTutorial("help") }
                 )
             }
 
@@ -549,7 +575,10 @@ fun NavGraph(
                             popUpTo(0) { inclusive = true }
                         }
                     },
-                    onLaunchTutorial = { tutId -> startPageTutorial(tutId) }
+                    onLaunchTutorial = { tutId -> startPageTutorial(tutId) },
+                    onTutorialClick = { startPageTutorial("settings") },
+                    onOpenReports = { navController.navigate(Routes.REPORTS) },
+                    onOpenHelp = { navController.navigate(Routes.HELP) }
                 )
             }
 
@@ -557,7 +586,8 @@ fun NavGraph(
             composable(Routes.REPORTS) {
                 ReportsScreen(
                     viewModel = appViewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onTutorialClick = { startPageTutorial("report") }
                 )
             }
 
@@ -575,7 +605,8 @@ fun NavGraph(
                         navController.navigate(Routes.INVENTORY) {
                             popUpTo(Routes.INVENTORY) { inclusive = true }
                         }
-                    }
+                    },
+                    onTutorialClick = { startPageTutorial("restock") }
                 )
             }
         }

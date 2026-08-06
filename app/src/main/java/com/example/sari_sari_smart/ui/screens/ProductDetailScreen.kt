@@ -16,6 +16,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.sari_sari_smart.data.Product
 import com.example.sari_sari_smart.data.StockStatus
+import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
+import com.example.sari_sari_smart.ui.components.TutorialIconButton
+import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,17 +38,18 @@ fun ProductDetailScreen(
     onBack: () -> Unit,
     onEdit: (Int) -> Unit = {},
     onRestock: (Int) -> Unit = {},
-    onDeleted: () -> Unit = {}
+    onDeleted: () -> Unit = {},
+    onTutorialClick: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
+    val highlightState = LocalTutorialHighlightState.current
     val fmt = remember { NumberFormat.getCurrencyInstance(Locale("en", "PH")) }
 
     val products by viewModel.products.collectAsState()
     val product = products.find { it.id == productId }
 
     var deductQty by remember { mutableStateOf("") }
-    var selectedStatus by remember { mutableIntStateOf(-1) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val snackbarHost = LocalSnackbarHost.current
@@ -64,6 +68,9 @@ fun ProductDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
@@ -105,13 +112,13 @@ fun ProductDetailScreen(
         ) {
             // ── Out-of-stock banner ──────────────────────────────────────
             if (product.status == StockStatus.OUT_OF_STOCK) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Red50),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Red600)
+            Card(
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("pdStockAlert", highlightState),
+                colors = CardDefaults.cardColors(containerColor = Red50),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Red600)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
@@ -192,52 +199,6 @@ fun ProductDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── Status chips ─────────────────────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Surface),
-                shape = MaterialTheme.shapes.medium,
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("updateStatus".t(lang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            Triple(StockStatus.PLENTY, "plenty".t(lang), Green600),
-                            Triple(StockStatus.LOW, "gettingLow".t(lang), Amber600),
-                            Triple(StockStatus.OUT_OF_STOCK, "outOfStock".t(lang), Red600)
-                        ).forEach { (status, label, color) ->
-                            FilterChip(
-                                selected = selectedStatus == status.ordinal,
-                                onClick = {
-                                    selectedStatus = status.ordinal
-                                    val qty = when (status) {
-                                        StockStatus.PLENTY -> 10
-                                        StockStatus.LOW -> 3
-                                        StockStatus.OUT_OF_STOCK -> 0
-                                    }
-                                    viewModel.updateProductStatus(product.id, qty)
-                                },
-                                label = { Text(label, style = MaterialTheme.typography.bodySmall) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = color.copy(alpha = 0.12f),
-                                    selectedLabelColor = color
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = selectedStatus == status.ordinal,
-                                    borderColor = color.copy(alpha = 0.3f),
-                                    selectedBorderColor = color
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // ── Deduct stock ─────────────────────────────────────────────
             if (product.quantity > 0) {
                 Card(
@@ -283,7 +244,9 @@ fun ProductDetailScreen(
 
             // ── Action buttons ───────────────────────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tutorialHighlight("pdActions", highlightState),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
@@ -310,7 +273,7 @@ fun ProductDetailScreen(
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
                 onClick = { showDeleteConfirm = true },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp).tutorialHighlight("pdDeleteBtn", highlightState),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Red600),
                 shape = MaterialTheme.shapes.medium
             ) {

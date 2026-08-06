@@ -1,0 +1,34 @@
+SARI-SARI SMART (ANDROID) — NEW SALE TUTORIAL (5 STEPS)
+=======================================================
+Config: TutorialOverlay.kt -> pageTutorials ("newSale", prefix "newSaleTutorial")
+Page: day (all steps — the New Sale sheet opens from Day Mode)
+Launch: New Sale page -> Tutorial selector / Help selector (startPageTutorial("newSale"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn.
+
+STEP 1 — New Sale intro
+  Key      : newSaleTutorial1
+  Text EN : "This page lets you record a specific sale for notable items or credit/utang transactions."
+  Text FIL: "Ang page na ito ay para magtala ng specific sale para sa mga notable items o credit/utang transactions."
+  Interaction : read text, tap Next
+STEP 2 — Product name & quantity
+  Key      : newSaleTutorial2
+  Text EN : "Enter the item or product name and the quantity sold."
+  Text FIL: "Ilagay ang pangalan ng item at ang quantity na naibenta."
+  Interaction : look at the fields, tap Next
+STEP 3 — Automatic total
+  Key      : newSaleTutorial3
+  Text EN : "The total amount is calculated automatically based on the product's selling price."
+  Text FIL: "Ang total amount ay awtomatikong kinakwenta batay sa selling price ng produkto."
+  Interaction : read text, tap Next
+STEP 4 — Customer name (utang)
+  Key      : newSaleTutorial4
+  Text EN : "If the customer is buying on credit (utang), enter their name here. This will automatically create a debt record."
+  Text FIL: "Kung ang kostumer ay bumibili on credit (utang), ilagay ang kanilang pangalan dito. Awtomatikong lilikha ito ng debt record."
+  Interaction : look at the customer field, tap Next
+STEP 5 — Save Sale
+  Key      : newSaleTutorial5
+  Text EN : "Tap \"Save Sale\" to record the transaction. If a customer name was entered, it will also appear in the Utang page."
+  Text FIL: "I-tap \"Save Sale\" para itala ang transaction. Kung may customer name, lalabas din ito sa Utang page."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

@@ -50,17 +50,29 @@ fun DayModeScreen(
     val scrollState = rememberScrollState()
     val highlightState = LocalTutorialHighlightState.current
 
-    val dailyEntry by viewModel.dailyEntry.collectAsState()
     val specificSales by viewModel.specificSales.collectAsState()
     val debts by viewModel.debts.collectAsState()
+    // Observable current date — recomposes this screen on midnight rollover / resume
+    // so the header date and today-based stats stay correct in real time.
+    val currentDate by viewModel.currentDate.collectAsState()
 
     val today = viewModel.today
     val todaySales = specificSales.filter { it.date == today }
-    val todayEarnings = dailyEntry?.earnings ?: viewModel.todayRecordedSales
+    // Recorded Sales Today = actual recorded cash sales (web parity: the web's
+    // getTodayEarnings() sums only cash sales, never a seeded/manual DailyEntry.
+    // A stale DailyEntry.earnings (e.g. the old 1,250 sample seed) must not
+    // override real sales or show money before any sale is recorded).
+    val todayEarnings = viewModel.todayRecordedSales
     val todayUtangTotal = viewModel.specificSales.value.filter { it.date == today && it.customerName != null }.sumOf { it.amount }
 
     val dateFormat = remember { SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()) }
-    val todayFormatted = remember { dateFormat.format(Date()) }
+    // Display the (possibly dev-overridden) app date so the header matches simulated day
+    val todayFormatted = remember(currentDate, viewModel.today) {
+        val parsed = try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(viewModel.today)
+        } catch (e: Exception) { null }
+        dateFormat.format(parsed ?: Date())
+    }
 
     // Collapsible transactions state
     var transactionsExpanded by remember { mutableStateOf(true) }

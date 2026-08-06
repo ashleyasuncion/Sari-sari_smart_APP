@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -44,8 +45,126 @@ class AppViewModel : ViewModel() {
     private val _reportPeriod = MutableStateFlow("day")
     val reportPeriod: StateFlow<String> = _reportPeriod.asStateFlow()
 
+    private val _currentDate = MutableStateFlow(dateNow())
+    /** Observable current date (yyyy-MM-dd). Kept in sync with the device clock at
+     *  each midnight and on app resume, so date-dependent UI (Morning overdue
+     *  banner, Day/Closing entry guards, headers) recomputes in REAL time instead
+     *  of freezing at the value captured when it first composed. */
+    val currentDate: StateFlow<String> = _currentDate.asStateFlow()
+
     val today: String
-        get() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        get() = if (devDateOverride.isNotBlank()) devDateOverride else _currentDate.value
+
+    private fun dateNow(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+    /** Re-sync [currentDate] with the device clock (wired to app ON_RESUME). */
+    fun refreshCurrentDate() {
+        _currentDate.value = dateNow()
+    }
+
+    /** Dev-only temporary date override (YYYY-MM-DD).
+     *  In-memory only — NEVER persisted to AppSettings/Room, so it resets on
+     *  app restart and never affects real data permanently. */
+    var devDateOverride: String by mutableStateOf("")
+
+    /** Snapshot of the real business day taken when a dev override is applied,
+     *  so clearing the override restores the exact pre-test state.
+     *  In-memory only — never persisted, matching the override's lifetime. */
+    private data class DayStateSnapshot(
+        val dayOpen: Boolean,
+        val dayDate: String,
+        val dayArchived: Boolean,
+        val sales: List<SpecificSale>,
+        val dailyEntry: DailyEntry?,
+        val endOfDayData: EndOfDayData?
+    )
+
+    private var devDaySnapshot: DayStateSnapshot? = null
+
+    /** Set a temporary dev date override. Returns false if the format is invalid. */
+    fun setDevDateOverride(date: String): Boolean {
+        val d = date.trim()
+        if (d.isEmpty()) {
+            // Empty input clears the override and restores the pre-test business state.
+            devDateOverride = ""
+            restoreDevDaySnapshot()
+            return true
+        }
+        if (!d.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return false
+        // Reject impossible dates (e.g. 2026-99-99) via non-lenient parse
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        fmt.isLenient = false
+        try { fmt.parse(d) } catch (e: Exception) { return false }
+        // Snapshot the real business day BEFORE applying the override so clearing
+        // it restores the exact pre-test state (no sales/day-state loss).
+        if (devDaySnapshot == null) {
+            devDaySnapshot = DayStateSnapshot(
+                dayOpen = dayOpen,
+                dayDate = dayDate,
+                dayArchived = dayArchived,
+                sales = _specificSales.value.toList(),
+                dailyEntry = _dailyEntry.value,
+                endOfDayData = _endOfDayData.value
+            )
+        }
+        devDateOverride = d
+        // If the perceived date moved past the open day, the Morning page now
+        // SURFACES the stale day (overdue banner + close-stale button) instead
+        // of auto-archiving it (web v2.35 parity).
+        return true
+    }
+
+    fun clearDevDateOverride() {
+        devDateOverride = ""
+        restoreDevDaySnapshot()
+    }
+
+    /** Dev-only temporary HOUR override (0-23) for testing the time-based greeting.
+     *  In-memory only — NEVER persisted, matching devDateOverride's lifetime. */
+    var devTimeOverride: Int? by mutableStateOf(null)
+
+    /** Time-of-day greeting key (web greetingForTime parity): devTimeOverride wins,
+     *  otherwise the real device hour. h<12 → morning, h<18 → afternoon, else evening. */
+    fun greetingForTimeKey(): String {
+        val h = devTimeOverride ?: Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        return when {
+            h < 12 -> "greetingMorning"
+            h < 18 -> "greetingAfternoon"
+            else -> "greetingEvening"
+        }
+    }
+
+    /** Set a temporary dev time override from a raw string (mirrors setDevDateOverride).
+     *  Blank = clear; non-numeric or out-of-range 0-23 = invalid (returns false). */
+    fun setDevTimeOverride(input: String): Boolean {
+        val t = input.trim()
+        if (t.isEmpty()) { devTimeOverride = null; return true }   // blank = clear
+        val hour = t.toIntOrNull() ?: return false                 // garbage = invalid
+        if (hour < 0 || hour > 23) return false                    // out of range = invalid
+        devTimeOverride = hour
+        return true
+    }
+
+    fun clearDevTimeOverride() {
+        devTimeOverride = null
+    }
+
+    /** Restores the exact pre-override business day (flags, date, sales, earnings, EOD).
+     *  Sales are REPLACED (not merged) so any sales recorded during the test —
+     *  dated to the override date — are purged on clear, with no test data
+     *  leaking into real records (web v2.34 captureDevSnapshot parity). */
+    private fun restoreDevDaySnapshot() {
+        val snap = devDaySnapshot ?: return
+        devDaySnapshot = null
+        _specificSales.value = snap.sales.toList()
+        dayOpen = snap.dayOpen
+        dayDate = snap.dayDate
+        dayArchived = snap.dayArchived
+        _dailyEntry.value = snap.dailyEntry
+        _endOfDayData.value = snap.endOfDayData
+        persistDayState()
+    }
 
     // ── Computed helpers ────────────────────────────────────────────────
     val totalOutstandingDebts: Double
@@ -131,11 +250,60 @@ class AppViewModel : ViewModel() {
     /** Whether today's sales data has been archived to history */
     var dayArchived: Boolean by mutableStateOf(false)
 
-    /** Start the business day — sets dayOpen, dayDate, clears archive flag */
+    /** Start the business day — sets dayOpen, dayDate, clears archive flag.
+     *  Also clears the manual daily entry so a fresh day starts clean
+     *  (web parity: startDay() resets todayExpenses/todayEarnings to 0).
+     *  Prevents a stale DailyEntry.earnings from a previous session (e.g. a
+     *  previously entered 1,250,000) from leaking into the Closing page's
+     *  Actual Sales input or the Day mode stat.
+     */
     fun openDay() {
         dayOpen = true
         dayDate = today
         dayArchived = false
+        _dailyEntry.value = null
+        persistDayState()
+    }
+
+    // ── Overdue store workflow (web v2.35 parity) ──────────────────────
+    // A store left open across business days is now SURFACED on the Morning
+    // page (amber banner + "Review Last Day's Sales" modal) instead of being
+    // silently auto-archived. Archiving only happens on explicit user action
+    // via closeStaleDayAndStartToday().
+
+    /** True when the store is open but the business day it started on (dayDate)
+     *  is strictly BEFORE today. Uses `<` (not `!=`) so a device clock moved
+     *  backward never flags a "future" day as overdue (web isStaleOpenDay()). */
+    fun isStaleOpenDay(): Boolean =
+        dayOpen && dayDate.isNotBlank() && dayDate < today
+
+    /** Whole calendar days the current open day has been open (0 = opened today).
+     *  Uses the dev-override-aware `today` so an override simulates the date
+     *  (web getDaysOpen()). */
+    fun getDaysOpen(): Int {
+        if (dayDate.isBlank()) return 0
+        return try {
+            val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val then = fmt.parse(dayDate) ?: return 0
+            val now = fmt.parse(today) ?: Date()
+            val days = ((now.time - then.time) / (1000L * 60 * 60 * 24)).toInt()
+            days.coerceAtLeast(0)
+        } catch (_: Exception) { 0 }
+    }
+
+    /** Close the previous (stale) day and start a fresh day for today.
+     *  Saves the previous day's sales into history — nothing is lost.
+     *  The UI shows a confirm dialog first when a dev date override is active
+     *  (archiving during an override writes to REAL persisted history). */
+    fun closeStaleDayAndStartToday() {
+        if (!isStaleOpenDay()) return
+        archiveDaySales()
+        // Clear the previous day's manual earnings so the fresh day starts clean
+        // (web parity: closeStaleDayAndStartToday resets expenses/earnings to 0).
+        _dailyEntry.value = null
+        dayDate = today
+        dayArchived = false
+        dayOpen = true
         persistDayState()
     }
 
@@ -295,6 +463,8 @@ class AppViewModel : ViewModel() {
                 seedSampleData()
                 persistAllToRepo(repo)
             }
+            // Stale open days are no longer auto-archived here — they are
+            // surfaced on the Morning page (overdue banner, web v2.35 parity).
         }
 
         // Phase 2: Auto-save every state change to Room
@@ -628,6 +798,9 @@ class AppViewModel : ViewModel() {
         dayOpen = false
         dayDate = ""
         dayArchived = false
+        devDateOverride = "" // factory reset also clears the temporary dev override
+        devDaySnapshot = null // and its pre-test snapshot
+        devTimeOverride = null // ...and the temporary dev time override
         persistDayState()
     }
 
@@ -744,26 +917,11 @@ class AppViewModel : ViewModel() {
             Product(9, "Shampoo Sachet (50pcs)", 30, 5.0, 7.0),
             Product(10, "Candy Jar (approx 50pcs)", 25, 20.0, 30.0)
         )
-        val now = System.currentTimeMillis()
-        val day = 86_400_000L
-        _debts.value = listOf(
-            CustomerDebt(1, "Aling Maria", 150.0, 150.0, now - day),
-            CustomerDebt(2, "Mang Jose", 75.0, 40.0, now - 3 * day),
-            CustomerDebt(3, "Kathryn", 200.0, 200.0, now),
-            CustomerDebt(4, "Bryan", 50.0, 0.0, now - 7 * day)
-        )
-        // Record a payment for Bryan (who is settled)
-        _payments.value = listOf(
-            DebtPayment(1, 4, 50.0, now - 7 * day + 3600_000, "Fully paid")
-        )
-        _paymentIdCounter = 1
-        // Record today's daily entry + specific sales for demo
-        _dailyEntry.value = DailyEntry(today, 850.0, 1250.0)
-        _specificSales.value = listOf(
-            SpecificSale(1, today, "Instant Noodles (10 pcs)", 120.0, 10, null, 40.0),
-            SpecificSale(2, today, "Cigarettes (5 packs)", 75.0, 5, "Kathryn", 15.0),
-            SpecificSale(3, today, "Cooking Oil", 42.0, 1, null, 12.0)
-        )
+        // WEB PARITY: a fresh day / clean slate starts with NO financial data.
+        // Only sample products are seeded — no fake sales, debts, payments, or
+        // daily entries — so Day Mode / Closing show P0.00 / 0 items until real
+        // sales are recorded. (Fake transactions used to be auto-seeded here,
+        // causing phantom P120 / 10-item sales to appear on a clean launch.)
     }
 
     // ── Dev Panel Actions (Phase 1, adaptation_plan2) ────────────────────
@@ -1020,6 +1178,25 @@ class AppViewModel : ViewModel() {
     init {
         // Don't seed data here anymore — it's now done in initPersistence()
         // if no persisted data exists.
+
+        // Observable-date ticker: fires at each midnight so any UI depending on
+        // `today` (overdue banner, day guards, headers) recomposes in real time
+        // even while the app process stays alive across calendar days.
+        viewModelScope.launch {
+            while (true) {
+                val now = Calendar.getInstance()
+                val nextMidnight = Calendar.getInstance().apply {
+                    timeInMillis = now.timeInMillis
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                    add(Calendar.DAY_OF_YEAR, 1)
+                }
+                delay((nextMidnight.timeInMillis - now.timeInMillis).coerceAtLeast(1000L))
+                _currentDate.value = dateNow()
+            }
+        }
     }
 
     // ── CSV Export ────────────────────────────────────────────────────

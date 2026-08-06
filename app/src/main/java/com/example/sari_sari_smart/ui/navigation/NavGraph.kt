@@ -5,12 +5,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.sari_sari_smart.SariSariApp
 import com.example.sari_sari_smart.data.AppRepository
+import com.example.sari_sari_smart.data.LocalSnackbarHost
+import com.example.sari_sari_smart.data.LocalSnackbarScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.example.sari_sari_smart.ui.MainScaffold
 import com.example.sari_sari_smart.ui.SupportScaffold
 import com.example.sari_sari_smart.ui.components.*
@@ -70,6 +75,14 @@ fun NavGraph(
         appViewModel.initAppSettings(appSettings)
     }
 
+    // Keep the observable current date in sync whenever the app returns to the
+    // foreground — so the Morning overdue banner / Day & Closing guards recompute
+    // after a real calendar day passes while the process stays alive (web parity).
+    LifecycleResumeEffect(Unit) {
+        appViewModel.refreshCurrentDate()
+        onPauseOrDispose { }
+    }
+
     // Dev Panel state
     var devPanelVisible by remember { mutableStateOf(false) }
     val showDevPanel: () -> Unit = { devPanelVisible = true }
@@ -85,7 +98,10 @@ fun NavGraph(
     var tutorialReplay by remember { mutableStateOf(false) }
     var pageTutorial by remember { mutableStateOf<PageTutorial?>(null) }
 
-    // Session guard: tutorial only fires on fresh app launch, not every navigation to MORNING
+    // Session guard: tutorial only fires on fresh app launch, not every navigation to MORNING.
+    // Set true by ANY tutorial launch (auto, onboarding, manual replay, page tutorial) so the
+    // MORNING auto-launch guard can never re-fire when navigation returns to Morning after a
+    // tutorial completes (duplicate-tutorial bug fix).
     var tutorialLaunchedThisSession by remember { mutableStateOf(false) }
 
     // Tutorial highlight state — tracks bounds of elements for highlight frames
@@ -99,37 +115,53 @@ fun NavGraph(
         } ?: tutorialSteps
     }
 
+    // Shared helpers: map between nav routes and tutorial page names.
+    // Used by advanceTutorial(), previousTutorial() and startPageTutorial()
+    // so the mapping never drifts between forward/backward/launch navigation.
+    fun pageForRoute(route: String): String = when (route) {
+        Routes.MORNING -> "morning"
+        Routes.DAY -> "day"
+        Routes.CLOSING -> "closing"
+        Routes.INVENTORY -> "inventory"
+        Routes.DEBTS -> "debts"
+        Routes.HELP -> "help"
+        Routes.SETTINGS -> "settings"
+        Routes.ADD_STOCK -> "add_stock"
+        Routes.NEW_DEBT -> "new_debt"
+        Routes.RESTOCK -> "restock"
+        else -> "morning"
+    }
+
+    fun routeForPage(page: String): String = when (page) {
+        "morning" -> Routes.MORNING; "day" -> Routes.DAY; "closing" -> Routes.CLOSING
+        "inventory" -> Routes.INVENTORY; "debts" -> Routes.DEBTS
+        "help" -> Routes.HELP; "settings" -> Routes.SETTINGS; "add_stock" -> Routes.addStock()
+        "new_debt" -> Routes.NEW_DEBT; "restock" -> Routes.RESTOCK
+        else -> Routes.MORNING
+    }
+
     fun advanceTutorial() {
         val steps = getCurrentTutorialSteps()
         val next = tutorialStep + 1
         if (next >= steps.size) {
+            val wasMainTutorial = pageTutorial == null
             tutorialActive = false; tutorialReplay = false; pageTutorial = null
             appSettings.hasCompletedTutorial = true
+            // Web v2.40 parity: completing the main tutorial returns to Morning,
+            // where the tutorial originally began. Page tutorials finish in place.
+            if (wasMainTutorial) {
+                navController.navigate(Routes.MORNING) {
+                    popUpTo(Routes.MORNING) { saveState = true }
+                    launchSingleTop = true
+                }
+            }
             return
         }
         val nextStep = steps[next]
         val currentRoute = navController.currentDestination?.route ?: ""
-        val stepPage = when (currentRoute) {
-            Routes.MORNING -> "morning"
-            Routes.DAY -> "day"
-            Routes.CLOSING -> "closing"
-            Routes.INVENTORY -> "inventory"
-            Routes.DEBTS -> "debts"
-            Routes.HELP -> "help"
-            Routes.SETTINGS -> "settings"
-            Routes.ADD_STOCK -> "add_stock"
-            Routes.NEW_DEBT -> "new_debt"
-            Routes.RESTOCK -> "restock"
-            else -> "morning"
-        }
+        val stepPage = pageForRoute(currentRoute)
         if (nextStep.page != stepPage) {
-            val route = when (nextStep.page) {
-                "morning" -> Routes.MORNING; "day" -> Routes.DAY; "closing" -> Routes.CLOSING
-                "inventory" -> Routes.INVENTORY; "debts" -> Routes.DEBTS
-                "help" -> Routes.HELP; "settings" -> Routes.SETTINGS; "add_stock" -> Routes.addStock()
-                "new_debt" -> Routes.NEW_DEBT; "restock" -> Routes.RESTOCK
-                else -> Routes.MORNING
-            }
+            val route = routeForPage(nextStep.page)
             tutorialStep = next
             navController.navigate(route) {
                 popUpTo(Routes.MORNING) { saveState = true }
@@ -140,32 +172,74 @@ fun NavGraph(
         }
     }
 
-    fun startPageTutorial(tutorialId: String) {
-        val tut = pageTutorials.find { it.id == tutorialId }
-        if (tut != null) {
-            pageTutorial = tut; tutorialActive = true; tutorialStep = 0; tutorialReplay = true
-            val route = when (tut.page) {
-                "morning" -> Routes.MORNING; "day" -> Routes.DAY; "closing" -> Routes.CLOSING
-                "inventory" -> Routes.INVENTORY; "debts" -> Routes.DEBTS
-                "help" -> Routes.HELP; "settings" -> Routes.SETTINGS; "add_stock" -> Routes.addStock()
-                "new_debt" -> Routes.NEW_DEBT; "restock" -> Routes.RESTOCK
-                else -> Routes.MORNING
-            }
+    fun previousTutorial() {
+        val steps = getCurrentTutorialSteps()
+        val prev = tutorialStep - 1
+        if (prev < 0) return
+        val prevStep = steps[prev]
+        val currentRoute = navController.currentDestination?.route ?: ""
+        val stepPage = pageForRoute(currentRoute)
+        if (prevStep.page != stepPage) {
+            val route = routeForPage(prevStep.page)
+            tutorialStep = prev
             navController.navigate(route) {
-                popUpTo(Routes.MORNING) { saveState = true }; launchSingleTop = true
+                popUpTo(Routes.MORNING) { saveState = true }
+                launchSingleTop = true
             }
+        } else {
+            tutorialStep = prev
         }
     }
 
     fun startTutorial(replay: Boolean = false) {
         pageTutorial = null; tutorialActive = true; tutorialStep = 0; tutorialReplay = replay
+        // Mark the tutorial as launched this session the moment it starts, so the MORNING
+        // auto-launch guard can't re-trigger when we navigate back to Morning afterwards.
+        tutorialLaunchedThisSession = true
         highlightState.clear()
     }
 
-    fun endTutorial() {
+    fun endTutorial(returnToMorning: Boolean = false) {
+        val wasMainTutorial = pageTutorial == null
         tutorialActive = false; tutorialReplay = false; pageTutorial = null
         appSettings.hasCompletedTutorial = true
         highlightState.clear()
+        // Web v2.40 parity: finishing the main tutorial returns to Morning.
+        // Skip stays in place; page tutorials finish in place.
+        if (returnToMorning && wasMainTutorial) {
+            navController.navigate(Routes.MORNING) {
+                popUpTo(Routes.MORNING) { saveState = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    fun startPageTutorial(tutorialId: String) {
+        // Web parity fix: the "main" tutorial is the full multi-page 14-step
+        // flow (real page transitions + highlights). Route it through
+        // startTutorial() so a manual launch from Settings/Help behaves
+        // identically to the auto-launched main tutorial — instead of the
+        // page-tutorial generator, which would pin every step to one page
+        // with no highlight targets (static overlay bug).
+        if (tutorialId == "main") {
+            startTutorial(replay = true)
+            navController.navigate(Routes.MORNING) {
+                popUpTo(Routes.MORNING) { saveState = true }
+                launchSingleTop = true
+            }
+            return
+        }
+        val tut = pageTutorials.find { it.id == tutorialId }
+        if (tut != null) {
+            pageTutorial = tut; tutorialActive = true; tutorialStep = 0; tutorialReplay = true
+            // Page tutorials must also mark the session guard — otherwise returning to
+            // Morning after one finishes would auto-start the main tutorial.
+            tutorialLaunchedThisSession = true
+            val route = routeForPage(tut.page)
+            navController.navigate(route) {
+                popUpTo(Routes.MORNING) { saveState = true }; launchSingleTop = true
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -186,6 +260,12 @@ fun NavGraph(
                     },
                     onTutorialReady = {
                         navController.navigate(Routes.DAY) { popUpTo(Routes.SETUP) { inclusive = true } }
+                        // Count the onboarding tutorial as launch #1 so the no-skip (mandatory)
+                        // tutorial only appears on a clean-slate install; the NEXT relaunch is
+                        // then launch #2 and shows the skip button (replay=true). Without this,
+                        // launchCount stayed 0 after onboarding and the first relaunch was
+                        // misdetected as first-ever (no skip shown again).
+                        appSettings.launchCount++
                         startTutorial(false)
                     }
                 )
@@ -207,7 +287,7 @@ fun NavGraph(
                 }
                 val lang = LocalLanguage.current.value
                 val ownerName = appSettings.ownerName
-                val greetingText = "greeting".t(lang) + " " + ownerName + " \uD83D\uDC4B"
+                val greetingText = "pageMorning".t(lang)
                 MainScaffold(
                     navController = navController,
                     currentRoute = Routes.MORNING,
@@ -217,8 +297,11 @@ fun NavGraph(
                     onTutorialClick = { startPageTutorial("home") },
                     onInventoryClick = { navController.navigate(Routes.INVENTORY) }
                 ) {
+                    val snackbarHost = LocalSnackbarHost.current
+                    val snackbarScope = LocalSnackbarScope.current
                     MorningCheckScreen(
                         viewModel = appViewModel,
+                        ownerName = ownerName,
                         onStartDay = {
                             appViewModel.archiveDaySales()
                             appViewModel.openDay()
@@ -234,6 +317,19 @@ fun NavGraph(
                             appViewModel.reopenClosing()
                             navController.navigate(Routes.CLOSING)
                         },
+                        onCloseStaleDayAndStartToday = {
+                            // Close the previous (stale) day, show the confirmation
+                            // toast, then enter Day Mode (web: toast + 900ms delay).
+                            appViewModel.closeStaleDayAndStartToday()
+                            snackbarScope.launch {
+                                snackbarHost.showSnackbar("overdueArchivedToast".t(lang))
+                                delay(900)
+                                navController.navigate(Routes.DAY) {
+                                    popUpTo(Routes.MORNING) { saveState = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        },
                         onNavigateToInventory = { navController.navigate(Routes.INVENTORY) },
                         onNavigateToDebts = { navController.navigate(Routes.DEBTS) },
                         onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
@@ -244,15 +340,11 @@ fun NavGraph(
             }
 
             composable(Routes.DAY) {
-                // DAY guard: silently block if day is not open
-                // (BottomNavBar now prevents navigation, this is a safety net)
-                if (!appViewModel.dayOpen) {
-                    Box(modifier = Modifier.fillMaxSize())
-                    return@composable
-                }
                 val lang = LocalLanguage.current.value
-                val ownerName = appSettings.ownerName
-                val greetingText = "greeting".t(lang) + " " + ownerName + " \uD83D\uDC4B"
+                val greetingText = "pageDay".t(lang)
+                // Re-key the entry guard on the observable date so a midnight rollover
+                // while the user is on Day Mode re-runs the stale-day check.
+                val currentDate by appViewModel.currentDate.collectAsState()
                 MainScaffold(
                     navController = navController,
                     currentRoute = Routes.DAY,
@@ -263,9 +355,33 @@ fun NavGraph(
                     onTutorialClick = { startPageTutorial("sales") },
                     onInventoryClick = { navController.navigate(Routes.INVENTORY) }
                 ) {
+                    val snackbarHost = LocalSnackbarHost.current
+                    val snackbarScope = LocalSnackbarScope.current
+                    // Entry guard (web navigateToDayMode parity): Day Mode requires
+                    // an open, non-stale day. Skipped during the tutorial flow, which
+                    // visits Day Mode before the day is started.
+                    LaunchedEffect(currentDate) {
+                        if (!tutorialActive && (!appViewModel.dayOpen || appViewModel.isStaleOpenDay())) {
+                            val msg = if (appViewModel.isStaleOpenDay())
+                                "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                            snackbarScope.launch { snackbarHost.showSnackbar(msg) }
+                            navController.navigate(Routes.MORNING) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
                     DayModeScreen(
                         viewModel = appViewModel,
-                        onCloseStore = { navController.navigate(Routes.CLOSING) },
+                        onCloseStore = {
+                            // Guard at source (web showClosingScreen parity).
+                            if (appViewModel.dayOpen && !appViewModel.isStaleOpenDay()) {
+                                navController.navigate(Routes.CLOSING)
+                            } else {
+                                val msg = if (appViewModel.isStaleOpenDay())
+                                    "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                                snackbarScope.launch { snackbarHost.showSnackbar(msg) }
+                            }
+                        },
                         onNavigateToInventory = { navController.navigate(Routes.INVENTORY) },
                         onOpenSaleSheet = openSaleSheet,
                         onLaunchTutorial = { startPageTutorial("sales") }
@@ -274,15 +390,10 @@ fun NavGraph(
             }
 
             composable(Routes.CLOSING) {
-                // CLOSING guard: silently block if day is not open
-                // (BottomNavBar now prevents navigation, this is a safety net)
-                if (!appViewModel.dayOpen) {
-                    Box(modifier = Modifier.fillMaxSize())
-                    return@composable
-                }
                 val lang = LocalLanguage.current.value
-                val ownerName = appSettings.ownerName
-                val greetingText = "greeting".t(lang) + " " + ownerName + " \uD83D\uDC4B"
+                val greetingText = "pageClosing".t(lang)
+                // Re-key the entry guard on the observable date (midnight rollover).
+                val currentDate by appViewModel.currentDate.collectAsState()
                 MainScaffold(
                     navController = navController,
                     currentRoute = Routes.CLOSING,
@@ -292,6 +403,20 @@ fun NavGraph(
                     onTutorialClick = { startPageTutorial("eod") },
                     onInventoryClick = { navController.navigate(Routes.INVENTORY) }
                 ) {
+                    val snackbarHost = LocalSnackbarHost.current
+                    val snackbarScope = LocalSnackbarScope.current
+                    // Entry guard (web closing-page parity): Closing requires an open,
+                    // non-stale day. Skipped during the tutorial flow.
+                    LaunchedEffect(currentDate) {
+                        if (!tutorialActive && (!appViewModel.dayOpen || appViewModel.isStaleOpenDay())) {
+                            val msg = if (appViewModel.isStaleOpenDay())
+                                "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                            snackbarScope.launch { snackbarHost.showSnackbar(msg) }
+                            navController.navigate(Routes.MORNING) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
                     EveningClosingScreen(
                         viewModel = appViewModel,
                         onComplete = {
@@ -405,7 +530,10 @@ fun NavGraph(
 
             composable(Routes.HELP) {
                 HelpScreen(
-                    onReplayTutorial = { startTutorial(true) },
+                    // Replay the MAIN tutorial through startPageTutorial("main") so
+                    // it behaves identically to the auto-launch (navigates to Morning
+                    // first, real 14-step flow, highlights). Web v2.40 parity.
+                    onReplayTutorial = { startPageTutorial("main") },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onLaunchPageTutorial = { tutId -> startPageTutorial(tutId) }
                 )
@@ -464,8 +592,9 @@ fun NavGraph(
                 step = step,
                 highlightState = highlightState,
                 onNext = { advanceTutorial() },
+                onPrev = { previousTutorial() },
                 onSkip = { endTutorial() },
-                onFinish = { endTutorial() }
+                onFinish = { endTutorial(returnToMorning = true) }
             )
         }
 

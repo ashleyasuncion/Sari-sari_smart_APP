@@ -46,9 +46,11 @@ fun ReportsScreen(
 
     var selectedPeriod by remember { mutableStateOf(reportPeriod) }
 
-    // Filter sales by period
-    val now = Date()
-    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+    // Filter sales by period — anchored to the (possibly overridden) app date
+    val todayStr = viewModel.today
+    val now = try {
+        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(todayStr) ?: Date()
+    } catch (e: Exception) { Date() }
     val weekAgo = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         .format(Date(now.time - 7L * 24 * 60 * 60 * 1000))
     val monthAgo = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())

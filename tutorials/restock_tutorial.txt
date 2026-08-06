@@ -1,0 +1,64 @@
+SARI-SARI SMART (ANDROID) — RESTOCK TUTORIAL (8 STEPS)
+======================================================
+Config: TutorialOverlay.kt -> pageTutorials ("restock", prefix "restockTutorial")
+Page: restock (all steps)
+Launch: Restock Day page -> Tutorial selector / Help selector (startPageTutorial("restock"))
+
+NOTE ON TRANSLATION: The `restockTutorial1..8` keys exist ONLY in the English
+(en) dictionary of Strings.kt — there is NO Filipino (fil) translation. When
+the app language is Filipino, the `get()` helper falls back to English
+(dict[key] ?: en[key] ?: key). All 8 steps therefore show the English text
+below in both languages. This matches the web app's documented behavior.
+
+NOTE ON HIGHLIGHTS: Android page tutorials generate steps with NO highlight
+targets, so the box stays at bottom center and no highlight frame is drawn.
+
+----------------------------------------------------------------------
+STEP 1 — Intro
+  Key      : restockTutorial1
+  Text EN : "This is the Restock Day page - a guided 2-step workflow to update inventory."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : read text, tap Next
+----------------------------------------------------------------------
+STEP 2 — Step 1: shelf check
+  Key      : restockTutorial2
+  Text EN : "Step 1: Check your shelves. Update the actual count for each product."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : look at step 1, tap Next
+----------------------------------------------------------------------
+STEP 3 — Search / actual count
+  Key      : restockTutorial3
+  Text EN : "Enter the real count you see on your shelf next to what the app thinks."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : look at the count entry, tap Next
+----------------------------------------------------------------------
+STEP 4 — Product list
+  Key      : restockTutorial4
+  Text EN : "Green check = count matches. Red = unrecorded sales were found."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : look at the product list, tap Next
+----------------------------------------------------------------------
+STEP 5 — Continue to Purchases
+  Key      : restockTutorial5
+  Text EN : "After checking, tap Continue to Purchases to record what you bought."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : see the Continue button, tap Next
+----------------------------------------------------------------------
+STEP 6 — Step 2: purchases
+  Key      : restockTutorial6
+  Text EN : "Step 2: Search for a product, enter cost per unit and quantity, tap Add Item."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : look at the product entry, tap Next
+----------------------------------------------------------------------
+STEP 7 — Purchase list
+  Key      : restockTutorial7
+  Text EN : "Review your purchases. Total cost is shown at the bottom."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : look at the purchase list, tap Next
+----------------------------------------------------------------------
+STEP 8 — Done
+  Key      : restockTutorial8
+  Text EN : "Tap Done to save. Your inventory is updated. Find the reminder on Morning page."
+  Text FIL: (none — falls back to English, see note above)
+  Interaction : read text, tap Finish (page tutorial finishes in place)
+----------------------------------------------------------------------

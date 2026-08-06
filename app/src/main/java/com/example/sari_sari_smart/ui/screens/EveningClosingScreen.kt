@@ -43,7 +43,6 @@ fun EveningClosingScreen(
     val scrollState = rememberScrollState()
     val highlightState = LocalTutorialHighlightState.current
 
-    val dailyEntry by viewModel.dailyEntry.collectAsState()
     val specificSales by viewModel.specificSales.collectAsState()
     val products by viewModel.products.collectAsState()
     val debts by viewModel.debts.collectAsState()
@@ -58,16 +57,28 @@ fun EveningClosingScreen(
     // Form inputs (matching webapp closing.html inputs)
     // Use endOfDayData costOfGoods if available, otherwise start empty
     val eodDataForForm by viewModel.endOfDayData.collectAsState()
-    var costOfGoods by remember { mutableStateOf(eodDataForForm?.costOfGoods?.let { if (it > 0) it.toString() else "" } ?: "") }
-    // Initialize actualSales from EOD data first (for reopen/edit), fall back to dailyEntry
-    var actualSales by remember {
-        val savedActual = eodDataForForm?.actualSales?.let { if (it > 0) it.toString() else "" }
-        val dailyEarnings = dailyEntry?.earnings?.toString() ?: ""
-        mutableStateOf(savedActual?.takeIf { it.isNotEmpty() } ?: dailyEarnings)
-    }
 
-    // Detect edit mode — check if we're reopening from history
+    // Detect edit mode — check if we're reopening today's finished closing
     val isEditMode = eodDataForForm?.date == today && eodDataForForm?.finished == true && !viewModel.dayArchived
+
+    // Cost of Goods input — pre-filled only when editing today's closing
+    var costOfGoods by remember {
+        mutableStateOf(
+            if (isEditMode) eodDataForForm?.costOfGoods?.let { if (it > 0) it.toString() else "" } ?: ""
+            else ""
+        )
+    }
+    // Actual Sales Today input — pre-filled only when editing today's closing.
+    // On a fresh day it starts EMPTY (web parity: closing.html begins blank);
+    // the legacy fallback to dailyEntry.earnings is removed so a stale
+    // persisted value (e.g. a previously entered 1,250,000) can never leak
+    // into the Actual Sales field or the closing calculations.
+    var actualSales by remember {
+        mutableStateOf(
+            if (isEditMode) eodDataForForm?.actualSales?.let { if (it > 0) it.toString() else "" } ?: ""
+            else ""
+        )
+    }
 
     val cogVal = costOfGoods.toDoubleOrNull() ?: 0.0
     val asVal = actualSales.toDoubleOrNull() ?: 0.0
@@ -155,7 +166,7 @@ fun EveningClosingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Recorded Sales Today",
+                            "closingRecordedSales".t(lang),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Gray500
                         )
@@ -215,7 +226,7 @@ fun EveningClosingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Sales Difference",
+                            "closingSalesDiff".t(lang),
                             style = MaterialTheme.typography.bodySmall,
                             color = Gray500
                         )
@@ -242,7 +253,7 @@ fun EveningClosingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Profit from Items Sold",
+                            "closingProfitLabel".t(lang),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = Gray800
@@ -291,7 +302,7 @@ fun EveningClosingScreen(
                 )
                 if (todaySales.isEmpty()) {
                     Text(
-                        "Walang naitalang benta ngayong araw.",
+                        "noSales".t(lang),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Gray400,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -334,7 +345,7 @@ fun EveningClosingScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "Mga Kulang sa Stock",
+                    "closingSectionLowStock".t(lang),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = Gray700,
@@ -343,7 +354,7 @@ fun EveningClosingScreen(
                 val lowItems = products.filter { it.status != StockStatus.PLENTY }.sortedBy { it.quantity }
                 if (lowItems.isEmpty()) {
                     Text(
-                        "\u2705 Lahat ng stock ay okay.",
+                        "closingLowStockOk".t(lang),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Green600,
                         modifier = Modifier.padding(vertical = 4.dp)
@@ -378,7 +389,7 @@ fun EveningClosingScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "Utang Hindi Pa Bayad",
+                    "closingSectionDebts".t(lang),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = Gray700,
@@ -387,7 +398,7 @@ fun EveningClosingScreen(
                 val activeDebts = debts.filter { it.remainingBalance > 0 }
                 if (activeDebts.isEmpty()) {
                     Text(
-                        "\u2705 Walang utang na natitira.",
+                        "closingNoDebts".t(lang),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Green600,
                         modifier = Modifier.padding(vertical = 4.dp)
@@ -422,7 +433,7 @@ fun EveningClosingScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "Ngayong Linggo",
+                    "closingSectionWeekly".t(lang),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = Gray700,
@@ -433,7 +444,7 @@ fun EveningClosingScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Kabuuang benta", style = MaterialTheme.typography.bodyMedium, color = Gray500)
+                    Text("closingWeeklyLabel".t(lang), style = MaterialTheme.typography.bodyMedium, color = Gray500)
                     Text(
                         "\u20B1${String.format("%,.2f", weekSales)}",
                         style = MaterialTheme.typography.bodyLarge,
@@ -447,7 +458,7 @@ fun EveningClosingScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Pinakamabenta", style = MaterialTheme.typography.bodyMedium, color = Gray500)
+                    Text("closingTopSellerLabel".t(lang), style = MaterialTheme.typography.bodyMedium, color = Gray500)
                     Text(
                         topSeller,
                         style = MaterialTheme.typography.bodyMedium,
@@ -488,7 +499,7 @@ fun EveningClosingScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("← Bumalik sa Araw")
+            Text("← ${"backToDayBtn".t(lang)}")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -528,14 +539,14 @@ private fun EveningCompleteOverlay(
                 Text("\uD83C\uDF19", fontSize = 48.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Tapos Na ang Araw!",
+                    "dayCompleteTitle".t(lang),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = Gray800
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Magpahinga na. Bukas ulit!",
+                    "closingRestNote".t(lang),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Gray500
                 )
@@ -548,15 +559,15 @@ private fun EveningCompleteOverlay(
                     colors = CardDefaults.cardColors(containerColor = Green50)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        OverlayRow("Recorded Sales", "\u20B1${String.format("%,.2f", recordedSales)}", Gray600)
-                        OverlayRow("Actual Sales", "\u20B1${String.format("%,.2f", actualSales)}", Green600)
+                        OverlayRow("closingRecordedSales".t(lang), "\u20B1${String.format("%,.2f", recordedSales)}", Gray600)
+                        OverlayRow("closingActualSales".t(lang), "\u20B1${String.format("%,.2f", actualSales)}", Green600)
                         if (salesDiff != 0.0) {
                             val diffColor = if (salesDiff > 0) Green600 else Red500
                             val diffSign = if (salesDiff > 0) "+" else ""
-                            OverlayRow("Sales Difference", "$diffSign\u20B1${String.format("%,.2f", salesDiff)}", diffColor)
+                            OverlayRow("closingSalesDiff".t(lang), "$diffSign\u20B1${String.format("%,.2f", salesDiff)}", diffColor)
                         }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        OverlayRow("Profit from Items Sold", "\u20B1${String.format("%,.2f", profit)}", Green600, bold = true)
+                        OverlayRow("closingProfitLabel".t(lang), "\u20B1${String.format("%,.2f", profit)}", Green600, bold = true)
                     }
                 }
 
@@ -566,9 +577,9 @@ private fun EveningCompleteOverlay(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    MiniStat(icon = "\uD83D\uDCE6", value = "${itemsSoldCount}", label = "Sold")
-                    MiniStat(icon = "\u26A0\uFE0F", value = "${lowStockCount}", label = "Low Stock")
-                    MiniStat(icon = "\uD83D\uDCB0", value = "\u20B1${String.format("%,.0f", totalDebts)}", label = "Debts")
+                    MiniStat(icon = "\uD83D\uDCE6", value = "${itemsSoldCount}", label = "soldLabel".t(lang))
+                    MiniStat(icon = "\u26A0\uFE0F", value = "${lowStockCount}", label = "lowStockLabel".t(lang))
+                    MiniStat(icon = "\uD83D\uDCB0", value = "\u20B1${String.format("%,.0f", totalDebts)}", label = "debtsLabel".t(lang))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))                    // Edit Closing button — wired to reopenClosing()

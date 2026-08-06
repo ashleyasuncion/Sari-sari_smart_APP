@@ -296,6 +296,97 @@ fun DeveloperPanel(
                         Toast.makeText(context, "Sales archived.", Toast.LENGTH_SHORT).show()
                     }
                 )
+
+                // ── Dev Date Override (temporary, in-memory only) ──
+                // Simulates a different date for testing time-dependent features.
+                // NOT persisted — resets on app restart, never affects real data.
+                var overrideInput by remember { mutableStateOf(viewModel.devDateOverride) }
+                Text(
+                    text = "Dev Date Override (temporary)",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+                OutlinedTextField(
+                    value = overrideInput,
+                    onValueChange = { overrideInput = it },
+                    placeholder = { Text("YYYY-MM-DD (e.g. 2026-07-30)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            if (viewModel.setDevDateOverride(overrideInput)) {
+                                val msg = if (viewModel.devDateOverride.isBlank())
+                                    "Dev date override cleared."
+                                else
+                                    "Dev date override set to ${viewModel.devDateOverride} (temporary)."
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Invalid date. Use YYYY-MM-DD.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Set Override") }
+                    OutlinedButton(
+                        onClick = {
+                            overrideInput = ""
+                            viewModel.clearDevDateOverride()
+                            Toast.makeText(context, "Dev date override cleared.", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Clear") }
+                }
+
+                // ── Dev Time Override (temporary, in-memory only) ──
+                // Simulates an hour (0-23) to test the time-based greeting (v2.37).
+                // NOT persisted — resets on app restart, never affects real data.
+                var timeOverrideInput by remember { mutableStateOf(viewModel.devTimeOverride?.toString() ?: "") }
+                Text(
+                    text = "Dev Time Override (temporary)",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+                OutlinedTextField(
+                    value = timeOverrideInput,
+                    onValueChange = { timeOverrideInput = it },
+                    placeholder = { Text("Hour 0-23 (e.g. 21 = evening)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            if (viewModel.setDevTimeOverride(timeOverrideInput)) {
+                                val msg = if (viewModel.devTimeOverride == null)
+                                    "Dev time override cleared."
+                                else
+                                    "Dev time override set to ${viewModel.devTimeOverride}:00 (temporary)."
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Invalid hour. Use 0-23.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Set Override") }
+                    OutlinedButton(
+                        onClick = {
+                            timeOverrideInput = ""
+                            viewModel.clearDevTimeOverride()
+                            Toast.makeText(context, "Dev time override cleared.", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Clear") }
+                }
+
                 DevActionItem(
                     icon = Icons.Default.Refresh,
                     label = "Reset Tutorial State",

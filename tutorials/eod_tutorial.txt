@@ -1,0 +1,39 @@
+SARI-SARI SMART (ANDROID) — END OF DAY TUTORIAL (6 STEPS)
+=========================================================
+Config: TutorialOverlay.kt -> pageTutorials ("eod", prefix "eodTutorial")
+Page: closing (all steps)
+Launch: Closing header (?) button -> End of Day Tutorial (startPageTutorial("eod"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn.
+
+STEP 1 — Closing page intro
+  Key      : eodTutorial1
+  Text EN : "This is the End-of-Day Closing page where you finalize your daily store operations."
+  Text FIL: "Ito ang End-of-Day Closing page kung saan mo tatapusin ang iyong pang-araw-araw na operasyon sa tindahan."
+  Interaction : read text, tap Next
+STEP 2 — Summary
+  Key      : eodTutorial2
+  Text EN : "The summary shows today's total revenue, expenses, gross profit, and net profit at a glance."
+  Text FIL: "Ang summary ay nagpapakita ng kabuuang revenue, expenses, gross profit, at net profit para sa araw na ito."
+  Interaction : look at the summary, tap Next
+STEP 3 — Utang Breakdown
+  Key      : eodTutorial3
+  Text EN : "The Utang Breakdown section shows sales made on credit, pending profit from credit sales, and your actual cash profit for the day."
+  Text FIL: "Ang Utang Breakdown section ay nagpapakita ng mga credit sales, pending profit, at ang iyong aktwal na cash profit."
+  Interaction : read text, tap Next
+STEP 4 — Checklist
+  Key      : eodTutorial4
+  Text EN : "Use the checklist to confirm you've counted your cash, checked your stock, and recorded any customer payments."
+  Text FIL: "Gamitin ang checklist para kumpirmahin na binilang mo ang iyong pera, sinuri ang stock, at nagtala ng mga bayad ng kostumer."
+  Interaction : look at the checklist, tap Next
+STEP 5 — Mark checklist items
+  Key      : eodTutorial5
+  Text EN : "Tap the checklist items to mark them as complete. The system tracks your progress."
+  Text FIL: "I-tap ang checklist items para markahan silang kumpleto. Sinusubaybayan ng system ang iyong progreso."
+  Interaction : read text, tap Next
+STEP 6 — Complete Day
+  Key      : eodTutorial6
+  Text EN : "When you're ready, tap \"Complete Day\" to finalize. This saves your end-of-day data and prepares for the next day."
+  Text FIL: "I-tap ang \"Complete Day\" para tapusin. Ine-save nito ang iyong end-of-day data para sa susunod na araw."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

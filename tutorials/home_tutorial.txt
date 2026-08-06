@@ -1,0 +1,60 @@
+SARI-SARI SMART (ANDROID) — HOME TUTORIAL (10 STEPS)
+====================================================
+Config: TutorialOverlay.kt -> pageTutorials ("home", prefix "homeTutorial")
+Page: morning (all steps)
+Launch: Morning header (?) button -> Home Tutorial (startPageTutorial("home"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn (differs
+from the web app, which highlights each element).
+
+STEP 1 — Home dashboard
+  Key      : homeTutorial1
+  Text EN : "This is your Home dashboard — your store's command center. Get a complete snapshot of your business at a glance."
+  Text FIL: "Ito ang iyong Home dashboard — ang command center ng iyong tindahan. Makita ang kumpletong snapshot ng iyong negosyo."
+  Interaction : read text, tap Next
+STEP 2 — Today's Earnings
+  Key      : homeTutorial2
+  Text EN : "Today's Earnings shows your total cash sales and profit (credit/utang sales excluded). Tap it to go to the Sales page."
+  Text FIL: "Ang Kita Ngayon ay nagpapakita ng iyong kabuuang benta at kita. I-tap ito para pumunta sa Sales page."
+  Interaction : look at the earnings card, tap Next
+STEP 3 — Stock Alert
+  Key      : homeTutorial3
+  Text EN : "Stock Alert tells you how many items are running low. Tap it to go to the Stocks page."
+  Text FIL: "Ang Stock Alert ay nagsasabi kung ilang item ang nauubos na. I-tap ito para pumunta sa Stocks page."
+  Interaction : look at the stock alert, tap Next
+STEP 4 — Outstanding Debts
+  Key      : homeTutorial4
+  Text EN : "Outstanding Debts shows the total amount customers owe you. Tap it to go to the Utang page."
+  Text FIL: "Ang Outstanding Debts ay nagpapakita ng kabuuang halaga ng utang ng mga kostumer. I-tap ito para pumunta sa Utang page."
+  Interaction : look at the debts card, tap Next
+STEP 5 — End-of-Day Closing
+  Key      : homeTutorial5
+  Text EN : "End-of-Day Closing helps you complete your daily store routine: count cash, check stock, record customer payments, and finalize the day's summary with revenue, profit, expenses, and cash profit breakdown."
+  Text FIL: "Ang End-of-Day Closing ay tumutulong sa iyong kumpletuhin ang araw-araw na routine: bilangin ang cash, suriin ang stock, at itala ang mga bayad."
+  Interaction : read text, tap Next
+STEP 6 — Closing page intro
+  Key      : homeTutorial6
+  Text EN : "This is the End-of-Day Closing page where you finalize your daily store operations. Complete three steps: count your cash drawer, check your stock levels, and record any customer payments received today."
+  Text FIL: "Ito ang End-of-Day Closing page kung saan mo tatapusin ang iyong araw-araw na operasyon. Kumpletuhin ang tatlong hakbang: bilangin ang cash sa drawer, suriin ang stock, at itala ang mga bayad ng kostumer ngayong araw."
+  Interaction : read text, tap Next
+STEP 7 — Step 1: cash drawer
+  Key      : homeTutorial7
+  Text EN : "Step 1: Enter how much cash is in your drawer right now. This helps you verify that your actual cash-on-hand matches what the system recorded from today's sales."
+  Text FIL: "Hakbang 1: Ilagay ang halaga ng cash sa iyong drawer ngayon. Makakatulong ito upang matiyak na ang iyong aktwal na cash ay tugma sa naitala ng system."
+  Interaction : read text, tap Next
+STEP 8 — Step 2: stock levels
+  Key      : homeTutorial8
+  Text EN : "Step 2: Check your stock levels. Review items in inventory to identify any items running low that need restocking before the next business day."
+  Text FIL: "Hakbang 2: Suriin ang iyong stock levels. Tingnan ang inventory para sa mga item na nauubos na at kailangang i-restock bago ang susunod na araw."
+  Interaction : read text, tap Next
+STEP 9 — Step 3: customer payments
+  Key      : homeTutorial9
+  Text EN : "Step 3: Record any customer payments received today. This ensures your debt records stay accurate and up-to-date for each customer."
+  Text FIL: "Hakbang 3: Itala ang mga bayad ng kostumer na natanggap ngayong araw. Tinitiyak nito na ang iyong debt records ay mananatiling tama at napapanahon."
+  Interaction : read text, tap Next
+STEP 10 — Complete Closing
+  Key      : homeTutorial10
+  Text EN : "When all steps are complete, tap \"Complete Closing\" to finalize your day. This saves your end-of-day summary and prepares your store for tomorrow."
+  Text FIL: "Kapag kumpleto na ang lahat ng hakbang, i-tap ang \"Complete Closing\" para tapusin ang araw. Ine-save nito ang iyong end-of-day summary at inihahanda ang tindahan para sa bukas."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

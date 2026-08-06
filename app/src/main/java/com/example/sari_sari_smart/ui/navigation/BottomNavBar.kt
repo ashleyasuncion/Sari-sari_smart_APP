@@ -22,15 +22,16 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.sari_sari_smart.data.LocalSnackbarHost
+import com.example.sari_sari_smart.data.LocalSnackbarScope
 import com.example.sari_sari_smart.data.StockStatus
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
 import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
 import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.screens.AppViewModel
 import com.example.sari_sari_smart.ui.theme.*
+import kotlinx.coroutines.launch
 
 // ── Three Moment bottom nav items ──────────────────────────────────────────
 enum class MomentNavItem(val route: String) {
@@ -65,7 +66,8 @@ fun BottomNavBar(
     val currentRoute = navBackStackEntry?.destination?.route ?: ""
     val langState = LocalLanguage.current
     val lang = langState.value
-    val context = LocalContext.current
+    val snackbarHost = LocalSnackbarHost.current
+    val snackbarScope = LocalSnackbarScope.current
 
     val isMomentScreen = currentRoute in momentRoutes
     val isSupportScreen = currentRoute in supportRoutes
@@ -85,12 +87,27 @@ fun BottomNavBar(
     var lastMorningTapTime by remember { mutableLongStateOf(0L) }
 
     fun handleMomentTap(item: MomentNavItem) {
-        // Guard: Don't navigate to DAY or CLOSING if day is not open
-        if ((item == MomentNavItem.DAY || item == MomentNavItem.CLOSING) && appViewModel?.dayOpen != true) {
-            Toast.makeText(context, "Please start the day first.", Toast.LENGTH_SHORT).show()
-            return
-        }
         if (item == MomentNavItem.MORNING) {
+            val now = System.currentTimeMillis()
+            if (lastMorningTapTime > 0 && now - lastMorningTapTime < DOUBLE_TAP_MS) {
+                lastMorningTapTime = 0L
+                onDevPanelTriggered()
+                return
+            }
+            lastMorningTapTime = now
+        }
+        // Overdue guard (web v2.35 parity): Day Mode and Closing require an open,
+        // non-stale day. Block at the source — no navigation round-trip.
+        if ((item == MomentNavItem.DAY || item == MomentNavItem.CLOSING) && appViewModel != null) {
+            val vm = appViewModel
+            if (!vm.dayOpen || vm.isStaleOpenDay()) {
+                val msg = if (vm.isStaleOpenDay())
+                    "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                snackbarScope.launch { snackbarHost.showSnackbar(msg) }
+                return
+            }
+        }
+        if (item == MomentNavItem.DAY) {
             val now = System.currentTimeMillis()
             if (lastMorningTapTime > 0 && now - lastMorningTapTime < DOUBLE_TAP_MS) {
                 lastMorningTapTime = 0L

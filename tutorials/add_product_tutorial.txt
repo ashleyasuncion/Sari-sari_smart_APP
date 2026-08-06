@@ -1,0 +1,34 @@
+SARI-SARI SMART (ANDROID) — ADD PRODUCT TUTORIAL (5 STEPS)
+==========================================================
+Config: TutorialOverlay.kt -> pageTutorials ("addProduct", prefix "addProductTutorial")
+Page: add_stock (all steps)
+Launch: Add Stock page -> Tutorial selector / Help selector (startPageTutorial("addProduct"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn.
+
+STEP 1 — Add Stock page intro
+  Key      : addProductTutorial1
+  Text EN : "This page lets you add a new product or restock an existing one."
+  Text FIL: "Ang page na ito ay para magdagdag ng bagong produkto o mag-restock ng existing."
+  Interaction : read text, tap Next
+STEP 2 — Item name
+  Key      : addProductTutorial2
+  Text EN : "Enter the item name — suggestions will appear if the product already exists in your inventory."
+  Text FIL: "Ilagay ang pangalan ng item — may lalabas na suggestions kung ang produkto ay nasa inventory na."
+  Interaction : look at the name field, tap Next
+STEP 3 — Pricing
+  Key      : addProductTutorial3
+  Text EN : "Set the cost per unit, markup percentage, and selling price. The markup helper automatically suggests the right selling price."
+  Text FIL: "Itakda ang cost per unit, markup percentage, at selling price. Ang markup helper ay awtomatikong nagmumungkahi ng tamang selling price."
+  Interaction : look at the pricing fields, tap Next
+STEP 4 — Quantity
+  Key      : addProductTutorial4
+  Text EN : "Enter the quantity being added. This will be added to your existing stock."
+  Text FIL: "Ilagay ang quantity na idadagdag. Ito ay idadagdag sa iyong existing stock."
+  Interaction : look at the quantity field, tap Next
+STEP 5 — Save
+  Key      : addProductTutorial5
+  Text EN : "Tap \"Save\" to add the product to your inventory. You can edit it later from the Stocks page."
+  Text FIL: "I-tap \"Save\" para idagdag ang produkto sa iyong inventory. Maaari mo itong i-edit mamaya mula sa Stocks page."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

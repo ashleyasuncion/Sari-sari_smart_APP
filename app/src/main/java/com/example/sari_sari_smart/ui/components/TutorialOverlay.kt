@@ -81,6 +81,7 @@ fun TutorialOverlay(
     step: TutorialStep,
     highlightState: TutorialHighlightState = LocalTutorialHighlightState.current,
     onNext: () -> Unit,
+    onPrev: () -> Unit = {},
     onSkip: () -> Unit,
     onFinish: () -> Unit,
     tutorialColor: Color = Green600
@@ -140,19 +141,19 @@ fun TutorialOverlay(
                 }
         ) {
             // ── Backdrop (semi-transparent) ──
+            // Always consumes touches so the underlying UI can't be interacted with while the
+            // tutorial is active (mandatory-tutorial interaction-blocking fix). Tapping the
+            // backdrop only dismisses the tutorial on replay (isReplay); mandatory tutorials
+            // simply swallow the tap.
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f))
-                    .then(
-                        if (isReplay) {
-                            Modifier.clickable(
-                                indication = null,
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-                            ) { onFinish() }
-                        } else Modifier
-                    )
-            )
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        ) { if (isReplay) onSkip() }
+                )
 
             // ── Highlight frame around target element ──
             if (targetBounds != null && !targetBounds.isEmpty) {
@@ -294,34 +295,45 @@ fun TutorialOverlay(
                     )
                     Spacer(modifier = Modifier.height(20.dp))
                     // Buttons row
+                    // Skip sits on the LEFT; Previous + Next/Finish stay grouped on the RIGHT.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isReplay) {
                             TextButton(
-                                onClick = onSkip,
-                                modifier = Modifier.padding(end = 8.dp)
+                                onClick = onSkip
                             ) {
                                 Text("skip".t(lang), color = Gray500)
                             }
+                        } else {
+                            Spacer(modifier = Modifier)
                         }
-                        Button(
-                            onClick = {
-                                if (isLastStep) onFinish()
-                                else onNext()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = tutorialColor,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                if (isLastStep) "getStarted".t(lang) else "next".t(lang),
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (currentStep > 0) {
+                                TextButton(
+                                    onClick = onPrev
+                                ) {
+                                    Text("prev".t(lang), color = Gray600)
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    if (isLastStep) onFinish()
+                                    else onNext()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = tutorialColor,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    if (isLastStep) "getStarted".t(lang) else "next".t(lang),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }

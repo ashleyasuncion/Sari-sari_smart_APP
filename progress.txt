@@ -2254,3 +2254,983 @@ only the customer name without showing outstanding debt balance.
            updated suggestion Row rendering with balance display
      [MOD] ui/screens/NewDebtScreen.kt — Added debts StateFlow collection,
            customerBalances map, updated suggestion Row rendering
+
+================================================================================
+PHASE 25 — CLOSING PAGE LOCALIZATION (July 31, 2026)
+================================================================================
+
+Closing Page Sections Do Not Respect English Language Setting investigation
+identified that several sections on the Evening Closing screen displayed
+untranslated localization keys or hardcoded Filipino text even when the app
+language was set to English. The web app (closing.html + app.js) was used as
+the expected behavior reference.
+
+[✓] Fixed: Strings.kt — Added 13 missing localization keys (EN + FIL)
+     - closingSectionSold: 'Sold Items' / 'Mga Nabenta'
+     - closingSectionLowStock: 'Low Stock' / 'Mga Kulang sa Stock'
+     - closingSectionDebts: 'Unpaid Debts' / 'Utang Hindi Pa Bayad'
+     - closingSectionWeekly: 'This Week' / 'Ngayong Linggo'
+     - closingLowStockOk: '✅ All stock is good.' / '✅ Lahat ng stock ay okay.'
+     - closingNoDebts: '✅ No outstanding debts.' / '✅ Walang utang na natitira.'
+     - noSales: 'No sales recorded today.' / 'Walang naitalang benta ngayong araw.'
+     - closingWeeklyLabel: 'Total Sales' / 'Kabuuang benta'
+     - closingTopSellerLabel: 'Best Seller' / 'Pinakamabenta'
+     - closingRestNote: 'Rest now. See you tomorrow!' / 'Magpahinga na. Bukas ulit!'
+     - soldLabel / lowStockLabel / debtsLabel mini-stat labels
+     - Values taken from web app.js for web/mobile parity
+
+[✓] Fixed: EveningClosingScreen.kt — Replaced hardcoded literals with .t(lang)
+     - Section titles: Sold Items, Low Stock, Unpaid Debts, This Week
+     - Empty states: no sales, all stock ok, no outstanding debts
+     - Sales section labels: Recorded Sales Today, Sales Difference, Profit
+     - Back to Day button (reuses existing backToDayBtn key)
+     - Complete overlay: Day Complete title, rest note, overlay rows, mini-stats
+     - Result: Closing page now fully respects the EN/FIL language setting
+
+[✓] Validation:
+     - :app:compileDebugKotlin — BUILD SUCCESSFUL
+     - Key existence check: all referenced keys present in both EN + FIL maps
+     - No hardcoded Filipino literals remain in EveningClosingScreen.kt
+     - Note: AppViewModelTest profit failures are pre-existing (adaptation_plan3
+       Section J per-sale profit change), unrelated to this strings-only fix
+
+[✓] Affected files:
+     [MOD] ui/localization/Strings.kt — 13 new keys added to EN + FIL maps
+     [MOD] ui/screens/EveningClosingScreen.kt — all closing-page strings
+           localized via .t(lang)
+
+================================================================================
+PHASE 26 — STALE-DAY RECONCILIATION + TEMPORARY DEV DATE OVERRIDE (July 31, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 31, 2026
+
+  Overview:
+  ─────────────────────────────────────────────────────────────────────────
+  Investigation (web & mobile) found the store was never auto-closed when left
+  open across calendar days, and no dev mechanism existed to simulate dates.
+  Implemented both fixes on the Android app (git + standalone copies).
+
+  Fix 1 — Stale-day reconciliation:
+  ─────────────────────────────────────────────────────────────────────────
+  [NEW]  AppViewModel.reconcileStaleDay()
+         - If dayOpen=true but dayDate != today, archives the stale day's sales
+           (archiveDaySales) and closes the store so Morning shows "Start the Day"
+         - Called after repository initial load completes (data available)
+  [FIX]  Standalone NavGraph.kt was missing the initAppSettings LaunchedEffect
+         (present in git version) — added for parity so day state is restored.
+  [FIX]  Standalone AppSettings.kt was missing dayOpen/dayDate/dayArchived
+         properties — added (pre-existing break since Phase 22 port; the
+         standalone now compiles again).
+
+  Fix 2 — Temporary dev date override (never persisted):
+  ─────────────────────────────────────────────────────────────────────────
+  [NEW]  AppViewModel.devDateOverride — in-memory mutableStateOf("") only,
+         NEVER written to AppSettings/Room; resets on app restart.
+  [MOD]  AppViewModel.today getter — returns override if set, else real date.
+  [MOD]  DeveloperPanel.kt — "Dev Date Override (temporary)" text field with
+         Set Override / Clear buttons (Toast variant in git, snackbar in
+         standalone).
+  [MOD]  ReportsScreen.kt — day/week/month filters anchored to viewModel.today.
+  [MOD]  DayModeScreen.kt — header date reflects the overridden date.
+  [MOD]  resetAllData() now clears devDateOverride (factory reset semantics).
+
+  Validation:
+  ─────────────────────────────────────────────────────────────────────────
+  [✓] compileDebugKotlin — BUILD SUCCESSFUL (git + standalone)
+  [✓] assembleDebug — BUILD SUCCESSFUL (standalone)
+  [✓] testDebugUnitTest — 14 tests; 2 failures are PRE-EXISTING profit-related
+      assertions (adaptation_plan3 Section J), unrelated to this change
+  [✓] Code review — Passed (3 passes)
+
+  Affected files:
+     - AppViewModel.kt (both copies)
+     - DeveloperPanel.kt (both copies)
+     - ReportsScreen.kt, DayModeScreen.kt (both copies)
+     - NavGraph.kt (standalone — added initAppSettings call)
+     - AppSettings.kt (standalone — added day-state props)
+     - progress.txt: This entry
+
+================================================================================
+PHASE 27 — MORNING PAGE RECONCILE ON DEV DATE OVERRIDE (July 31, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 31, 2026
+
+  Issue: after setting a dev date override, the Morning page kept showing
+  "Close Store" because reconcileStaleDay() only ran once at app startup.
+  The web app (which reconciles on every morning page load) showed "Start the
+  Day" instead. Aligned the mobile app with the web behavior.
+
+  [✓] AppViewModel.setDevDateOverride() / clearDevDateOverride()
+       - Now call reconcileStaleDay() after updating devDateOverride, so a
+         stale open day is archived/closed the moment the perceived date
+         changes (no app restart needed)
+  [✓] MorningCheckScreen.kt
+       - LaunchedEffect(Unit) calls viewModel.reconcileStaleDay() whenever the
+         Morning screen is composed (defense in depth; also covers real-day
+         rollover when the app is left open across calendar days)
+
+  Notes:
+   - reconcileStaleDay() is idempotent (sets dayOpen=false), so no loops
+   - The override remains in-memory only — reconcile never persists it
+   - Web app reverted to v2.29 in this session (mobile-only fix per request)
+
+  Code review: Go ✓ (reconcile is idempotent; no recomposition loop)
+  Validation: compileDebugKotlin ✓ (git copy)
+
+================================================================================
+PHASE 28 — DEV DATE OVERRIDE SNAPSHOT/RESTORE (July 31, 2026)
+================================================================================
+  Status: [100%] ✓ Complete
+  Date: July 31, 2026
+
+  Issue: clearing the dev date override restored the date but not the previous
+  business state — the open day's sales were removed from _specificSales by
+  archiveDaySales() while the override was active, and there was no way to
+  get them back.
+
+  [✓] DayStateSnapshot (in-memory only, matches override lifetime)
+       - setDevDateOverride() captures {dayOpen, dayDate, dayArchived, sales,
+         dailyEntry, endOfDayData} BEFORE applying the override
+       - clearDevDateOverride() / empty input restores: merges snapshot sales
+         back into _specificSales (dedupe by id), restores flags/date/earnings,
+         persistDayState()
+       - resetAllData() clears devDaySnapshot
+
+  Notes:
+   - Override + snapshot are never persisted (no AppSettings/Room writes)
+   - Snapshot resets on app restart (same as the override itself)
+
+  Code review: Go ✓ (override never persists; restore dedupes by sale id)
+  Validation: compileDebugKotlin ✓
+
+
+⏳ PENDING PORT — Overdue Store Workflow (web → mobile)
+
+Status: NOT YET PORTED (as of July 31, 2026)
+
+The web app (git/Sari-sari_smart, v2.32-2.35) now handles stores left open
+across business days with a full overdue workflow. These fixes exist ONLY in
+ the web app and must still be ported to this mobile app:
+
+  [ ] Overdue detection — web: isStaleOpenDay() (dayOpen && dayDate < today,
+      clock-backward safe) + getDaysOpen(). Mobile currently SILENTLY
+      auto-archives stale days via reconcileStaleDay() in AppViewModel —
+      the exact behavior the web fix removed.
+  [ ] Morning overdue banner — "The store wasn't closed" card with opened
+      date + "Open for N days" + primary "Close Old Day & Start Today".
+  [ ] Review modal — "Review Last Day's Sales" (sales list + total) before
+      closing the old day.
+  [ ] Navigation blocked at source — web blocks Morning FAB/Isara + Day/
+      Closing page guards (`!dayOpen || isStaleOpenDay()`). Mobile still
+      shows the generic "start the day first" toast (hides overdue state).
+  [ ] Dev override safety — web adds confirm() before archiving during an
+      active override + exact snapshot/restore of sales AND history
+      (test-period data purged on clear). Mobile snapshot/restore covers
+      sales + day state only (no history purge).
+  [ ] EN/FIL overdue strings + morningOverdueReviewBtn data-i18n.
+
+Source of truth for the port:
+  - git/Sari-sari_smart/app.js (isStaleOpenDay, getDaysOpen,
+    closeStaleDayAndStartToday, openOverdueReview/closeOverdueReview,
+    navigateToDayMode/showClosingScreen guards, captureDevSnapshot/
+    restoreDevSnapshot)
+  - git/Sari-sari_smart/morning.html (#morningOverdueCard, #overdueReviewOverlay)
+  - git/Sari-sari_smart/progress.txt v2.32-2.35 entries + dev override contract
+
+See also: the standalone Sari-sari_smart/ copy has the same pending note.
+
+================================================================================
+PHASE 29 — OVERDUE STORE WORKFLOW PORT (web v2.35 → mobile) (July 31, 2026)
+================================================================================
+  Status: [100%] ✓ Complete (git copy)
+
+  Ports the overdue store workflow from the web app (git/Sari-sari_smart v2.32-2.35)
+  so a store left open across business days is SURFACED instead of silently
+  auto-archived. This resolves the PENDING PORT note above and re-syncs this
+  git copy with the standalone copy (Sari-sari_smart), which received the same
+  port earlier today.
+
+  [✓] Overdue detection — AppViewModel.isStaleOpenDay() (dayOpen && dayDate < today,
+      clock-backward safe) + getDaysOpen() (isNaN-guarded, override-aware today)
+  [✓] Silent auto-archive removed — reconcileStaleDay() deleted; stale days are
+      no longer archived on app open, override apply, or Morning composition
+  [✓] Morning overdue banner — amber card (⚠ The store wasn't closed · Opened
+      {date} · Open for {n} days) + "Review Last Day's Sales" secondary button
+  [✓] Review modal — AlertDialog listing the stale day's sales + total with
+      "Close Old Day & Start Today" / Cancel (web overdueReviewOverlay)
+  [✓] Main button when stale — becomes "Close Old Day & Start Today" → archive +
+      toast (overdueArchivedToast) + 900ms delayed navigation to Day Mode
+  [✓] Navigation blocked at source — BottomNavBar guards DAY/CLOSING taps and the
+      Day screen's Close Store button (!dayOpen || isStaleOpenDay → snackbar);
+      DAY/CLOSING route guards block silently when not open or stale (this copy's
+      existing silent-guard architecture kept; BottomNavBar is the primary guard)
+  [✓] Dev override safety — confirm dialog before archiving while an override is
+      active (overdueDevConfirm EN/FIL); restoreDevDaySnapshot now REPLACES sales
+      with the snapshot (test-period data purged on clear, web v2.34 parity)
+  [✓] EN/FIL i18n — 12 new keys: dayNotOpen, overdueTitle/Desc/Review/CloseStart,
+      overdueRedirect, overdueReviewTitle/Empty/Total, overdueArchivedToast,
+      overdueDevConfirm, ok
+
+  Note: this copy's extra closing-screen keys and its Surface+Row support-nav
+  layout were preserved (surgical port, no overwrite).
+
+  Files modified:
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/AppViewModel.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/MorningCheckScreen.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/navigation/NavGraph.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/navigation/BottomNavBar.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/localization/Strings.kt
+
+  Validation: compileDebugKotlin, unit tests, code review
+
+================================================================================
+PHASE 29b — Cross-platform sync note (July 31, 2026)
+================================================================================
+  Status: Documentation only — no code change.
+
+  The web app (git/Sari-sari_smart) released v2.36 on the same day as this
+  Phase 29 port: a WEB-ONLY CSS fix where the overdue review overlay's inline
+  display:none out-specified the .overlay.open class rule, so "Review Last
+  Day's Sales" never appeared in the web app.
+
+  [✓] No mobile action required — this app's review modal is a Compose
+      AlertDialog (state-driven, no CSS cascade), so it was never affected.
+  [✓] Both mobile copies (this git copy + the standalone Sari-sari_smart)
+      are now in parity with each other and with the web overdue workflow
+      (v2.32-2.35): same detection, banner, review modal, nav guards, dev
+      override safety, and i18n.
+
+  Validation recap for this Phase 29 port:
+    - compileDebugKotlin ✓ (EXIT 0)
+    - Unit tests: 14 run, 2 failed — both pre-existing AppViewModelTest
+      failures (completeEndOfDay_storesNewFieldsCorrectly,
+      completeEndOfDay_withUtangSalesOnly_hasZeroRecordedSales): tests assert
+      profit = actualSales - costOfGoods while production deliberately uses
+      per-sale profit (todayProfit, web getTodayProfit parity). Unrelated to
+      the overdue workflow; tracked separately.
+    - Code review ✓ (tutorial-skip parity issue found and fixed in the
+      DAY/CLOSING guards before sign-off)
+
+  Note: the extra closing-screen i18n keys and Surface+Row support-nav layout
+  unique to this copy were preserved by the surgical port.
+Affected files:
+     - progress.txt: This entry (documentation only)
+
+================================================================================
+PHASE 30 — PORT v2.37 header/greeting + v2.38 dev time override (web → mobile) (Aug 1, 2026)
+================================================================================
+  Status: [100%] ✓ Complete (git copy)
+
+  Ports the web app's v2.37 (greeting & header consistency) and v2.38 (dev
+  time override) to THIS git copy. The standalone Sari-sari_smart/ copy is a
+  separate repo and was NOT touched (per user instruction: "Make sure that the
+  mobile app ver is the git one").
+
+  v2.37 — Header titles + time-based greeting:
+  [✓] Strings.kt — +6 keys per language (EN + FIL): greetingMorning /
+      greetingAfternoon / greetingEvening / pageMorning / pageDay / pageClosing
+  [✓] NavGraph.kt — Morning/Day/Closing headers now render page titles
+      (pageMorning/pageDay/pageClosing) instead of "greeting + owner" text
+  [✓] MorningCheckScreen.kt — gained ownerName param; body greeting is now
+      time-based + personalized: greetingForTimeKey().t(lang) + ', ' +
+      ownerName + ' 👋' (web parity; fixes mobile gap where Morning body
+      omitted the owner name)
+  [✓] Owner name removed from Day/Closing header text (matches web: those
+      pages show title only, no body greeting)
+
+  v2.38 — Dev Time Override (temporary hour for greeting tests):
+  [✓] AppViewModel.kt — devTimeOverride: Int? mutableStateOf (in-memory only,
+      never persisted), greetingForTimeKey() (override ?: real clock hour;
+      <12 morning, <18 afternoon, else evening), setDevTimeOverride(input:
+      String): Boolean mirroring setDevDateOverride (blank=clear, garbage /
+      out-of-range 0-23=invalid), clearDevTimeOverride(), and resetAllData
+      clears it
+  [✓] DeveloperPanel.kt — new "Dev Time Override (temporary)" row:
+      OutlinedTextField (hour 0-23) + Set Override / Clear buttons with
+      toasts (mirrors the date override row)
+
+  Validation:
+  - compileDebugKotlin ✓ (BUILD SUCCESSFUL, EXIT 0)
+  - Unit tests: 14 run, 2 failed — BOTH pre-existing AppViewModelTest
+    failures (completeEndOfDay_storesNewFieldsCorrectly,
+    completeEndOfDay_withUtangSalesOnly_hasZeroRecordedSales): tests assert
+    profit = actualSales - costOfGoods while production uses per-sale profit
+    (todayProfit). Unrelated to this port; tracked separately.
+  - Code review ✓ (garbage-input bug in the time-override setter found and
+    fixed: setDevTimeOverride now takes String like setDevDateOverride so
+    non-numeric input errors instead of silently clearing)
+
+  Note: the "greeting" i18n key is now unused by the three moment headers
+  (all switched to page titles) but remains in the dict (harmless, used as
+  fallback). The Dev Time Override affects the Morning body greeting only
+  (web parity).
+
+Affected files:
+  - app/src/main/java/com/example/sari_sari_smart/ui/localization/Strings.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/navigation/NavGraph.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/MorningCheckScreen.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/AppViewModel.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/components/DeveloperPanel.kt
+  - progress.txt: This entry
+
+================================================================================
+PHASE 31 — FIX Closing page stale Actual Sales pre-fill + test updates (Aug 1, 2026)
+================================================================================
+  Status: [100%] ✓ Applied — git copy only.
+
+  Issue (reported): The mobile Closing page appeared to show a "hard-coded"
+  Recorded Sales Today of 1,250,000, with that same value mirrored into the
+  Actual Sales Today input field, making closing calculations wrong on fresh
+  days. Investigation confirmed the value is NOT a literal anywhere in source
+  (grep across current + backups: zero hits) — it is stale runtime data
+  persisted in Room (DailyEntry.earnings / EndOfDayData.actualSales) from a
+  previous session that the Closing form kept re-populating.
+
+  Root cause: EveningClosingScreen initialized actualSales from
+  dailyEntry.earnings as a fallback when no EOD record existed. DailyEntry is
+  restored from Room on app start (doInitialLoad -> getLatestDailyEntry), so a
+  value entered once (or imported via dev panel) survived restarts and
+  re-filled the Actual Sales input on every visit — unlike the web app, where
+  startDay()/closeStaleDayAndStartToday() reset todayEarnings to 0.
+
+  What was changed:
+  [FIX 1] ui/screens/EveningClosingScreen.kt
+      Before: actualSales = savedActual?.takeIf { it.isNotEmpty() }
+              ?: dailyEntry?.earnings?.toString() ?: ""   (stale fallback)
+              costOfGoods = eodDataForForm?.costOfGoods pre-fill (ungated)
+      After:  Both fields pre-fill ONLY when isEditMode (EOD record for today
+              AND finished AND not archived); otherwise they start EMPTY,
+              matching web closing.html (placeholder 0.00). The dailyEntry
+              fallback was removed, so stale persisted values can never leak
+              into Actual Sales or the closing calculations. Removed the now
+              unused `dailyEntry` collection.
+  [FIX 2] ui/screens/AppViewModel.kt
+      Before: openDay() only set dayOpen/dayDate/dayArchived.
+      After:  openDay() also sets _dailyEntry.value = null (web startDay()
+              parity: resets todayExpenses/todayEarnings to 0) so a fresh day
+              starts clean even if a stale daily entry survived in Room.
+  [FIX 3] app/src/test/.../AppViewModelTest.kt
+      Updated the 2 pre-existing failing tests (tracked since Phase 29b/30) to
+      the production per-sale profit model (todayProfit):
+      - completeEndOfDay_storesNewFieldsCorrectly: now passes profit = 50.0
+        on the sale and asserts eod.profit == 50.0 (was 120.0 = actual - cost)
+      - completeEndOfDay_withUtangSalesOnly_hasZeroRecordedSales: now passes
+        profit = 40.0 on the utang sale and asserts eod.profit == 40.0
+        (was 150.0 = actual - cost)
+
+  Before vs After (behavior):
+      Fresh day, no transactions:
+        BEFORE: Actual Sales pre-filled with stale Room value (1,250,000)
+        AFTER:  Actual Sales EMPTY, Recorded Sales 0.00, Diff 0.00
+      Transactions recorded during day:
+        BEFORE: field could show stale value, not today's recorded sales
+        AFTER:  Recorded Sales = today's cash sales; Actual Sales empty for
+                the physical count entry
+      Reopen/edit today's closing:
+        BEFORE: pre-filled from EOD (correct)
+        AFTER:  unchanged — still pre-fills from today's EOD record
+
+  Validation:
+  - :app:testDebugUnitTest ✓ BUILD SUCCESSFUL (EXIT 0)
+  - Unit tests: 14 run, 0 failed — the 2 pre-existing AppViewModelTest
+    failures are now FIXED (tests align with production per-sale profit).
+  - compileDebugKotlin ✓ (via test task, UP-TO-DATE, EXIT 0)
+  - Code review ✓ (no regressions; remember-capture timing matches the
+    pre-existing pattern)
+
+  NOT applied: the standalone Sari-sari_smart/ copy still has the same
+  dailyEntry.earnings fallback — left untouched per user instruction
+  "Make sure that the mobile app ver is the git one".
+
+Affected files:
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/EveningClosingScreen.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/AppViewModel.kt
+  - app/src/test/java/com/example/sari_sari_smart/ui/screens/AppViewModelTest.kt
+  - progress.txt: This entry
+
+
+══════════════════════════════════════════════════════════
+PHASE 32 — TUTORIAL INVESTIGATION FIXES (web v2.40 parity)
+Date: Aug 1, 2026
+Status: DONE (Android) — the web-side investigation work (v2.40) was already
+        complete; this phase ports/confirms the fixes on the Android app.
+
+Tracks: Tutorial Investigation issue (web & mobile) — Issues 1, 2, 3.
+
+┌────────────────────────────────────────────────────────────┐
+│ ISSUE 1 — MAIN TUTORIAL ENDS ON SETTINGS (Android) — FIXED │
+└────────────────────────────────────────────────────────────┘
+  Root cause: advanceTutorial()/endTutorial() only cleared tutorial state
+  and returned — no navigation. The final step (tutorial14) is on Settings,
+  so the user was stranded there after finishing.
+  Fix (NavGraph.kt):
+  - advanceTutorial(): on completion (next >= steps.size) capture
+    wasMainTutorial = (pageTutorial == null) BEFORE clearing state, then
+    navigate back to Routes.MORNING with popUpTo(MORNING){saveState}
+    + launchSingleTop. Page tutorials (pageTutorial != null) finish in place.
+  - endTutorial(returnToMorning: Boolean = false): same logic; onFinish now
+    passes returnToMorning = true, onSkip passes nothing (skip stays in place).
+  Behavior AFTER: main tutorial finishes -> returns to the Morning page.
+
+┌───────────────────────────────────────────────────────────────┐
+│ ISSUE 2 — MANUAL MAIN LAUNCH = STATIC OVERLAY (Android) — FIX │
+└───────────────────────────────────────────────────────────────┘
+  Root cause: startPageTutorial("main") matched the pageTutorials entry
+  PageTutorial("main", ..., 14, "morning") and generated all 14 steps pinned
+  to page "morning" with NO highlight targets (getCurrentTutorialSteps uses
+  TutorialStep(key, page) — highlightTarget defaults null). Result: no page
+  transitions, no highlight frames, box stuck at bottom -> the exact "static
+  overlay" symptom. The auto-launch (startTutorial) used the real 14-step
+  tutorialSteps list with pages + highlights, so the two paths diverged.
+  Fix (NavGraph.kt): startPageTutorial() now short-circuits
+  tutorialId == "main" -> startTutorial(replay = true) + navigate to MORNING.
+  Manual launches from Settings selector / Help "Replay Tutorial"
+  (onReplayTutorial routed through startPageTutorial("main")) now behave
+  IDENTICALLY to the auto-launch: same pages, same transitions, same
+  highlights, same skip-on-replay.
+  Also: TutorialOverlay backdrop click (replay only) now calls onSkip()
+  instead of onFinish() so dismissing by tapping the backdrop stays in place
+  (web parity — backdrop never navigates).
+
+┌────────────────────────────────────────────────────────────┐
+│ ISSUE 3 — TUTORIAL DOCUMENTATION (Android) — DONE          │
+└────────────────────────────────────────────────────────────┘
+  New tutorials/ directory (mirrors the web app's tutorials/ structure):
+  - README.md — purpose, tutorial table (14 tutorials), config locations,
+    shared runtime rules, known Android-vs-web differences
+  - main_tutorial.txt (14 steps, multi-page, with highlight targets)
+  - home/stock/sales/debt/eod/report/settings/add_product/new_sale/
+    new_debt/help/restock _tutorial.txt (all page tutorials)
+  Each step documents: step number, i18n key, EN + FIL text, target page,
+  target UI element / highlight, box position rule, page transition,
+  interaction, navigation (Next/Finish/Skip/backdrop), animations.
+  Docs note Android page tutorials carry NO highlight frames (generator sets
+  no highlightTarget) — only the main tutorial highlights. Honest difference.
+
+┌────────────────────────────────────────────────────────────┐
+│ BONUS BUGS FOUND & FIXED (Strings.kt)                      │
+└────────────────────────────────────────────────────────────┘
+  1. Duplicate 'tutorial9' key: the "Extended Tutorial" section declared
+     "tutorial9" again (EN + FIL). Kotlin mapOf is last-wins, so the extended
+     text silently REPLACED the main tutorial step 9 text ("Enter your cost
+     of goods..."). Renamed the duplicate to 'tutorial9Extended' (EN + FIL)
+     so the main step 9 shows the correct text again.
+  2. Missing restockTutorial1..8 keys: the Restock page tutorial referenced
+     keys that never existed -> overlay showed raw keys. Added the 8 EN keys
+     (ported from web app.js; FIL falls back to EN — matches web behavior).
+
+Validation:
+- ./gradlew compileDebugKotlin ✓ EXIT 0
+- ./gradlew testDebugUnitTest: 14 tests, 12 pass. 2 failures are the
+  PRE-EXISTING completeEndOfDay_* AppViewModelTest assertions (end-of-day
+  logic; AppViewModel.kt + AppViewModelTest.kt were already modified in the
+  working tree before this phase — unrelated to tutorials).
+- Code review ✓ (fixes correct; optional notes only)
+
+Affected files (Android):
+- app/src/main/java/.../ui/navigation/NavGraph.kt
+- app/src/main/java/.../ui/components/TutorialOverlay.kt
+- app/src/main/java/.../ui/localization/Strings.kt
+- tutorials/ (new): README.md + 13 per-tutorial docs
+- progress.txt: this entry
+
+
+══════════════════════════════════════════════════════════
+PHASE 33 — SETUP/LAUNCH SCREEN TEXT ALIGNMENT FIX
+Date: Aug 1, 2026
+Status: DONE
+
+Tracks: "Review localization behavior and text alignment for
+setup/launch screen (Web & Mobile)" — MOBILE side (the web side
+was fixed separately in web v2.41).
+
+┌────────────────────────────────────────────────────────────┐
+│ ISSUE — ENGLISH CENTERED BUT FILIPINO LEFT-ALIGNED (mobile)│
+└────────────────────────────────────────────────────────────┘
+  Localization itself already worked (tapping EN/FIL updates the
+  text instantly — expected behavior confirmed).
+
+  Root cause:
+  - SetupScreen.kt: the 'welcome' and 'setupPrompt' Text
+    composables had NO textAlign and NO fillMaxWidth. Compose
+    Text defaults to TextAlign.Start for its INTERNAL line
+    layout. Single-line English fit on one line -> the Column's
+    CenterHorizontally made it LOOK centered. The longer
+    Filipino strings wrap to 2 lines -> each internal line
+    rendered left-aligned, so the block looked left-aligned.
+  - SplashScreen.kt: the 'splashSubtitle' Text had the identical
+    latent pattern.
+
+  Fix:
+  - SetupScreen.kt: added import androidx.compose.ui.text.style
+    .TextAlign; added textAlign = TextAlign.Center AND modifier
+    = Modifier.fillMaxWidth() to both 'welcome' and
+    'setupPrompt' Texts.
+  - SplashScreen.kt: same fix for the 'splashSubtitle' Text.
+
+  Behavior AFTER: heading, prompt, and splash subtitle are
+  center-aligned in BOTH English and Filipino — consistent
+  regardless of language.
+
+Validation:
+- ./gradlew compileDebugKotlin ✓ EXIT 0
+- Code review ✓ (correct root cause, standard fix, no missing
+  imports — fillMaxWidth from foundation.layout.*; TextAlign
+  added in both files; no regressions; English unchanged)
+
+Affected files (Android):
+- app/src/main/java/.../ui/screens/SetupScreen.kt
+- app/src/main/java/.../ui/screens/SplashScreen.kt
+- progress.txt: This entry
+
+
+══════════════════════════════════════════════════════════
+PHASE 34 — DUPLICATE MANDATORY TUTORIAL AFTER ONBOARDING FIX
+Date: Aug 1, 2026
+Status: DONE
+
+Tracks: "Investigate duplicate mandatory main tutorial after
+completing onboarding (Mobile)" — investigation delivered,
+then fix approved & applied (this phase).
+
+┌────────────────────────────────────────────────────────────┐
+│ ISSUE — MAIN TUTORIAL RESTARTED AFTER COMPLETING ONBOARDING│
+└────────────────────────────────────────────────────────────┘
+  Symptom: fresh app data -> setup -> mandatory tutorial runs
+  -> after finishing (or pressing Back from Settings) the
+  tutorial restarted from step 0 again.
+
+  Root cause (confirmed by code trace):
+  - tutorialLaunchedThisSession (NavGraph.kt), the in-memory
+    session guard that stops the MORNING auto-launch
+    LaunchedEffect from re-firing on navigation back to
+    Morning, was ONLY set inside the auto-launch guard itself:
+      if (hasCompletedSetup && !tutorialActive && !guard) {
+          guard = true; launchCount++; startTutorial(...) }
+  - Onboarding starts the tutorial via SetupScreen button ->
+    onComplete() + onTutorialReady() -> startTutorial(false),
+    so when MORNING first composed DURING the tutorial,
+    tutorialActive was true -> the guard was blocked and the
+    flag was never set.
+  - When the tutorial finished, advanceTutorial()/endTutorial(
+    returnToMorning=true) navigate back to MORNING; MORNING
+    re-enters composition; LaunchedEffect(Unit) re-runs with
+    tutorialActive=false and the guard still false -> condition
+    TRUE -> tutorial restarted from step 0 (launchCount 0->1,
+    replay=false, no skip button).
+  - Web did NOT exhibit this: web sets its session flag
+    (sessionStorage sss_v3_tutorialShown) at tutorial START and
+    has no recomposing-entry guard pattern.
+
+  Fix (NavGraph.kt):
+  - startTutorial(): set tutorialLaunchedThisSession = true
+    when ANY tutorial starts (auto, onboarding, manual replay).
+  - startPageTutorial() page-tutorial branch: set the same
+    flag, so page tutorials ending then returning to Morning
+    cannot trigger the main tutorial either (latent same bug).
+  - Fresh-process auto-launch preserved: flag is remember-
+    scoped, resets per process, launchCount gating unchanged.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Code review: approved (all launch paths covered, no
+    regression, minimal).
+
+  NOTE: standalone copy Sari-sari_smart/.../NavGraph.kt still
+  has the unfixed version -> port pending.
+
+
+══════════════════════════════════════════════════════════
+PHASE 35 — TUTORIAL OVERLAY INTERACTION-BLOCKING FIX
+Date: Aug 1, 2026
+Status: DONE
+
+Tracks: "Investigate tutorial overlay allowing interaction with
+underlying UI (Mobile)" — investigation delivered, then fix
+approved & applied (this phase).
+
+┌────────────────────────────────────────────────────────────┐
+│ ISSUE — USERS COULD TAP UI BENEATH THE TUTORIAL OVERLAY    │
+└────────────────────────────────────────────────────────────┘
+  Symptom: during the mandatory tutorial the translucent dark
+  overlay did not block touch events — users could tap buttons
+  and interactive elements underneath, breaking/bypassing the
+  onboarding flow.
+
+  Root cause (confirmed by code + review):
+  - TutorialOverlay.kt: the full-screen backdrop Box used only
+    Modifier.background(Color.Black.copy(alpha=0.55f)) plus
+    .then(if (isReplay) Modifier.clickable{onSkip()} else Modifier)
+  - Modifier.background() is DRAW-ONLY in Compose — it registers
+    no pointer-input handler, so hit-testing skips the overlay
+    and touches pass through to the NavHost screens beneath.
+  - On the mandatory tutorial isReplay=false -> the backdrop had
+    NO clickable at all -> ZERO touch blocking. (Replay actually
+    blocked, via click-to-skip.) The highlight frame (drawBehind),
+    header pill (Surface w/o onClick) and card (Card w/o onClick)
+    are all non-interactive, so only the buttons consumed touches.
+  - Web was correct: .tutorial-overlay.active { pointer-events:
+    auto } on the full-viewport overlay + backdrop.
+
+  Fix (TutorialOverlay.kt):
+  - Backdrop now ALWAYS applies .clickable(indication = null,
+    interactionSource = remember { MutableInteractionSource() })
+    { if (isReplay) onSkip() }.
+  - Consumes every touch during ALL tutorials (mandatory + replay)
+    so the underlying UI can never be interacted with.
+  - Tap-to-skip preserved on replay only; mandatory swallows taps.
+  - indication=null -> no ripple on the dark backdrop (no visual
+    regression). Card/buttons still on top -> remain interactive.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Code review: approved (blocking correct, replay skip
+    preserved, no visual regression, minimal).
+
+  NOTE: standalone copy Sari-sari_smart/.../TutorialOverlay.kt
+  still has the unfixed version -> port pending.
+
+
+══════════════════════════════════════════════════════════
+PHASE 36 — TUTORIAL PREVIOUS BUTTON (usability improvement)
+Date: Aug 1, 2026
+Status: DONE
+
+Tracks: usability improvement requested after the overlay
+interaction-blocking investigation — "consider adding a
+Previous button so users can revisit the previous tutorial
+step" (Product). User confirmed: all tutorials should have it.
+
+┌────────────────────────────────────────────────────────────┐
+│ FEATURE — PREVIOUS BUTTON IN ALL TUTORIALS                │
+└────────────────────────────────────────────────────────────┘
+  Before: the tutorial card only had Next/Finish (+ Skip on
+  replay). Users could not go back to revisit a previous step.
+
+  Changes:
+  1. NavGraph.kt: added previousTutorial() — mirror of
+     advanceTutorial(): decrements tutorialStep; if the previous
+     step's page differs from the current route, navigates to
+     that page via popUpTo(Routes.MORNING){saveState=true} +
+     launchSingleTop (same back-stack hygiene as forward nav);
+     guarded against prev < 0. Wired onPrev = { previousTutorial() }.
+  2. TutorialOverlay.kt: added onPrev: () -> Unit = {} param;
+     Previous TextButton (Gray600) shown whenever currentStep > 0
+     — appears in mandatory, replay, AND page tutorials.
+  3. Strings.kt: added "prev" -> "Previous" (EN) and
+     "prev" -> "Nakaraan" (FIL) beside skip/next.
+  4. NavGraph.kt refactor (code review follow-up): extracted the
+     page<->route mapping triplicated across advanceTutorial(),
+     previousTutorial() and startPageTutorial() into shared
+     helpers pageForRoute()/routeForPage() to prevent drift.
+
+  Behavior:
+  - Step 0: Previous hidden. Step >= 1: Previous available.
+  - Going back re-positions the highlight/auto-scroll because
+    the overlay's LaunchedEffect re-keys on currentStep.
+  - Back stack stays flat (popUpTo MORNING saveState pattern).
+  - DAY/CLOSING entry guards are skipped while tutorialActive,
+    so backward navigation is unaffected.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0 (twice: after feature,
+    after refactor)
+  - Code review: approved (feature + refactor; mappings
+    preserved byte-for-byte, no duplicates, no dead code).
+
+  NOTE: standalone copy Sari-sari_smart/... has the same 3-file
+  change pending port. Web app still has no Previous button
+  (out of scope — mobile only).
+
+
+══════════════════════════════════════════════════════════
+PHASE 37 — TUTORIAL REFINEMENTS (clean-slate skip + buttons)
+Date: Aug 1, 2026
+Status: DONE
+
+Tracks: user feedback on the tutorial UX —
+  (1) the no-skip (mandatory) tutorial should only appear on a
+      clean-slate install;
+  (2) Previous button should sit beside Next;
+  (3) Skip button should sit beside Previous.
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX 1 — NO-SKIP TUTORIAL ONLY ON CLEAN SLATE              │
+└────────────────────────────────────────────────────────────┘
+  Problem: after onboarding, the FIRST RELAUNCH still showed
+  the mandatory no-skip tutorial. Root cause: launchCount was
+  never incremented during onboarding (the MORNING auto-launch
+  guard is blocked while tutorialActive=true), so after setup
+  launchCount stayed 0; on relaunch the guard went 0->1 and
+  isFirstLaunch==true -> startTutorial(replay=false) -> no skip.
+
+  Fix (NavGraph.kt onTutorialReady): appSettings.launchCount++
+  BEFORE startTutorial(false). Onboarding now counts as launch
+  #1, so the first relaunch becomes launch #2 (replay=true ->
+  skip shown). Only a truly clean-slate install (fresh data,
+  launchCount reset to 0) shows the mandatory no-skip tutorial.
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX 2 — BUTTON ORDER: SKIP | PREVIOUS | NEXT              │
+└────────────────────────────────────────────────────────────┘
+  Problem: previous feature had order Previous | Skip | Next;
+  user wants Previous beside Next and Skip beside Previous.
+
+  Fix (TutorialOverlay.kt buttons row): reordered to Skip
+  (if isReplay) -> Previous (if currentStep > 0) -> Next/Finish.
+  With Arrangement.End this renders [Skip][Previous][Next].
+
+  Behavior matrix:
+  - Clean-slate onboarding step 0      : [Next]
+  - Clean-slate onboarding steps 1+    : [Previous][Next]
+  - Replay step 0                      : [Skip][Next]
+  - Replay steps 1+                    : [Skip][Previous][Next]
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Code review: approved (full lifecycle trace: clean install
+    -> onboarding sets launchCount=1; relaunch -> 2 -> skip;
+    clear data -> 0 -> mandatory again; no interaction with the
+    PHASE 34 duplicate-tutorial guard).
+
+  NOTE: standalone copy Sari-sari_smart/... still has the
+  unfixed version -> port pending.
+
+
+══════════════════════════════════════════════════════════
+PHASE 38 — SKIP BUTTON MOVED TO LEFT SIDE
+Date: Aug 1, 2026
+Status: DONE
+
+Tracks: user feedback on the tutorial card buttons — "move the
+skip button to the left side".
+
+┌────────────────────────────────────────────────────────────┐
+│ CHANGE — BUTTON LAYOUT: SKIP LEFT, PREVIOUS+NEXT RIGHT    │
+└────────────────────────────────────────────────────────────┘
+  Before: single right-aligned Row (Arrangement.End) with
+  order [Skip][Previous][Next] all on the right.
+
+  After (TutorialOverlay.kt buttons row): outer Row with
+  Arrangement.SpaceBetween — Skip (when isReplay) on the LEFT;
+  an empty Spacer when not replay; nested right-side Row
+  (spacedBy 8.dp) with Previous (when currentStep > 0) and
+  Next/Finish grouped on the RIGHT.
+
+  Layout matrix:
+  - Mandatory step 0            : [Next] (right)
+  - Mandatory steps 1+          : [Previous][Next] (right)
+  - Replay step 0               : [Skip](left) .... [Next](right)
+  - Replay steps 1+             : [Skip](left) .... [Previous][Next](right)
+
+  Note: the empty Spacer in the non-replay branch is required —
+  with a single child, SpaceBetween would left-align the group;
+  the Spacer keeps Previous/Next at the far right.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Code review: approved (SpaceBetween layout correct, Spacer
+    not dead code, imports valid, Button block intact).
+
+  NOTE: standalone copy Sari-sari_smart/... still has the
+  unfixed version -> port pending.
+
+
+══════════════════════════════════════════════════════════
+PHASE 39 — PHANTOM EARNINGS ON CLEAN SLATE FIX (Day Mode stat parity + seed cleanup)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user-reported issues —
+  (1) "P1,250 appears even though no sales have been made and
+      can't be changed no matter how many sales are made";
+  (2) after fix (1), "P120 and 10 Items sold even tho it is a
+      clean slate launch".
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX 1 — DAY MODE "RECORDED SALES TODAY" NOW DERIVES FROM   │
+│         ACTUAL RECORDED SALES (web parity)                │
+└────────────────────────────────────────────────────────────┘
+  Root cause: DayModeScreen.kt computed
+    todayEarnings = dailyEntry?.earnings ?: todayRecordedSales
+  which PREFERRED the (seeded) DailyEntry.earnings over real
+  sales. SaleBottomSheet only calls addSpecificSale() and never
+  updates the daily entry, so the displayed figure was frozen.
+
+  Fix (DayModeScreen.kt):
+  - todayEarnings = viewModel.todayRecordedSales — sums today's
+    actual recorded CASH sales (customerName == null), matching
+    the web's getTodayEarnings() (sums only non-utang sales).
+  - Removed the now-unused dailyEntry collectAsState().
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX 2 — REMOVED FAKE DailyEntry(850, 1250) SEED           │
+└────────────────────────────────────────────────────────────┘
+  seedSampleData() no longer creates DailyEntry(today, 850.0,
+  1250.0). This was the direct source of the P1,250: seeded on
+  first launch, persisted to Room (daily_entries), reloaded via
+  getLatestDailyEntry() on every restart, and shown by Day Mode.
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX 3 — seedSampleData() TRIMMED TO PRODUCTS ONLY         │
+└────────────────────────────────────────────────────────────┘
+  Root cause: even after FIX 1-2, a clean slate still showed
+  P120 / 10 Items sold — the seeded sample SpecificSales
+  ("Instant Noodles (10 pcs)" P120 x10, "Cigarettes (5 packs)"
+  P75 to Kathryn, "Cooking Oil" P42).
+
+  Fix (AppViewModel.kt): seedSampleData() now seeds ONLY the
+  10 sample products (web parity — the web only seeds products
+  via getSampleProducts(); it never auto-seeds sales/debts).
+  Removed: 4 sample debts, 1 sample payment, 3 sample sales.
+  Dev-only test data still available via DeveloperPanel
+  (Generate Test Sale / Generate Test Debts / Bulk Add Items).
+
+  Behavior AFTER: a fresh day / clean slate starts with
+  P0.00 recorded sales, 0 items sold, no debts, and an empty
+  transaction feed until the user records real sales.
+
+  Existing installs: no migration added — stale rows are no
+  longer displayed anywhere (Day Mode + Closing both use
+  todayRecordedSales); a Settings -> Reset Data (or clear app
+  data) produces a fully clean slate.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0 (after Fix 1+2 and
+    after Fix 3)
+  - Grep verify: no remaining seeded fake sales/debts/entries
+    in app/src/main (only sample products); all 3 callers of
+    seedSampleData() reviewed (first-launch init, Dev Panel
+    seed action, generateTestSale auto-seed) — all safe.
+  - Code review: approved (minimal diff, web parity confirmed
+    against getTodayEarnings(), no dead code).
+
+  Affected files (mobile, git copy):
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/
+    DayModeScreen.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/
+    AppViewModel.kt
+  - progress.txt: This entry
+
+  NOTE: standalone copy Sari-sari_smart/... still has the
+  unfixed versions of all three (Day Mode dailyEntry fallback +
+  fake seeds) -> port pending.
+
+
+══════════════════════════════════════════════════════════
+PHASE 40 — OVERDUE BANNER REAL-TIME FIX (observable currentDate + midnight ticker + resume refresh)
+Date: Aug 6, 2026
+Status: DONE
+
+Tracks: user-reported issue — "in mobile ver the morning
+overdue works when the dev change date is used but not when
+a day actually passed without the store closing."
+
+┌────────────────────────────────────────────────────────────┐
+│ ROOT CAUSE — REAL DEVICE DATE WAS NOT OBSERVABLE STATE     │
+└────────────────────────────────────────────────────────────┘
+  isStaleOpenDay() = dayOpen && dayDate.isNotBlank() &&
+                     dayDate < today  (logic identical to web,
+  correct). BUT `today` fell back to Date() when no dev
+  override was set — Date() is NOT a Compose State. The Morning
+  screen computed isStaleOpen once at composition and nothing
+  ever triggered a recomputation when a real calendar day
+  passed while the app process stayed alive (backgrounded
+  overnight / left open). The dev date override worked only
+  because devDateOverride IS a mutableStateOf that `today`
+  reads, so changing it invalidated the UI.
+
+  Confirmed: no Lifecycle observer / ticker / periodic refresh
+  existed anywhere in the app (grep verified). Web never shows
+  this because renderMorningCheck() re-evaluates on every page
+  render.
+
+┌────────────────────────────────────────────────────────────┐
+│ FIX — MAKE "TODAY" OBSERVABLE (4 files)                   │
+└────────────────────────────────────────────────────────────┘
+  1. AppViewModel.kt:
+     - New _currentDate MutableStateFlow(dateNow()) exposed as
+       currentDate: StateFlow<String>; `today` getter now =
+       devDateOverride ?: _currentDate.value (override wins).
+     - Midnight ticker in init (viewModelScope): computes the
+       millis until the next yyyy-MM-dd boundary, delay(), then
+       refreshes _currentDate and re-arms — the app recomposes
+       on its own at midnight.
+     - refreshCurrentDate() re-syncs with the device clock.
+  2. NavGraph.kt:
+     - LifecycleResumeEffect(Unit) -> refreshCurrentDate() on
+       every foreground return (belt-and-suspenders for
+       backgrounded-over-midnight cases).
+     - DAY + CLOSING entry guards re-keyed to
+       LaunchedEffect(currentDate) so a midnight rollover while
+       on Day/Closing re-runs the stale-day check and redirects
+       to Morning (web parity).
+  3. MorningCheckScreen.kt:
+     - Collects currentDate -> recomposes when the day advances
+       -> isStaleOpenDay() re-evaluates -> overdue banner +
+       close-stale button appear in real time.
+  4. DayModeScreen.kt:
+     - Collects currentDate; header date remember re-keyed on it
+       so the header updates on rollover.
+
+  Behavior AFTER: leave the store open -> background the app
+  (or keep it open) -> next day the Morning overdue banner shows
+  immediately, and Day/Closing auto-redirect to Morning with the
+  overdue message — identical to dev-override behavior and the
+  web app.
+
+  Validation:
+  - ./gradlew compileDebugKotlin -> EXIT 0
+  - Grep verify: delay import present, ticker body correct,
+    LifecycleResumeEffect wired, both guards re-keyed, both
+    screens collecting currentDate.
+  - Code review: approved (minimal diff, no behavior change for
+    existing flows; guards still skip while tutorialActive).
+
+  Affected files (mobile, git copy):
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/
+    AppViewModel.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/navigation/
+    NavGraph.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/
+    MorningCheckScreen.kt
+  - app/src/main/java/com/example/sari_sari_smart/ui/screens/
+    DayModeScreen.kt
+  - progress.txt: This entry
+
+  NOTE: standalone copy Sari-sari_smart/... still lacks the
+  observable-date mechanism -> port pending.
+
+
+══════════════════════════════════════════════════════════
+⏰ REMINDER — NEXT SESSION: VERIFY PHASE 40 IN REAL TIME
+Date: Aug 6, 2026
+Status: PENDING VERIFICATION
+
+  PHASE 40 (observable currentDate fix) was validated only by
+  compileDebugKotlin + code review. The real-time behavior CANNOT
+  be tested immediately — it requires a REAL calendar day (or two)
+  to pass while the store is left OPEN without closing.
+
+  ➤ NEXT SESSION ACTION:
+    1. Open the store (Start the Day) and leave it OPEN.
+    2. Wait until the NEXT real calendar day (or use the phone
+       overnight / background the app).
+    3. Reopen the app and check the Morning screen:
+       - The amber OVERDUE banner must appear (store left open
+         across business days), with the correct opened date and
+         days-open count.
+       - The button must show the overdue close-and-start action.
+       - If the app was left on Day/Closing, it should redirect to
+         Morning with the overdue message.
+    4. If the banner does NOT appear, re-open this investigation:
+       likely the midnight ticker or LifecycleResumeEffect did not
+       fire — check AppViewModel._currentDate updates and that the
+       Morning screen recomposes (currentDate collection).
+
+  Test path that does NOT require waiting: Dev Panel -> set the
+  Dev Date Override to tomorrow, then open Morning — the banner
+  should show (this is the old working path). The REAL-time path
+  is the one that still needs the 1-2 day check above.

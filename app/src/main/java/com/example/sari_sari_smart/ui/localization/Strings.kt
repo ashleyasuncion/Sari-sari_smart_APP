@@ -216,6 +216,7 @@ object Strings {
         "tutorial13" to "The Debts page tracks all customer debts. The total outstanding amount is shown at the top.",
         "tutorial14" to "Visit Settings anytime to change language, text size, store name, or owner name.",
         "skip" to "Skip",
+        "prev" to "Previous",
         "next" to "Next",
 
         // Sale Bottom Sheet
@@ -225,6 +226,12 @@ object Strings {
 
         // ── Header / Greeting ──
         "greeting" to "Good day!",
+        "greetingMorning" to "Good morning!",
+        "greetingAfternoon" to "Good afternoon!",
+        "greetingEvening" to "Good evening!",
+        "pageMorning" to "Morning",
+        "pageDay" to "Day",
+        "pageClosing" to "Close",
 
         // ── Three Moment Nav Labels ──
         "morning" to "Morning",
@@ -259,6 +266,19 @@ object Strings {
         "closingTitle" to "Close the Store",
         "closingSubtitle" to "Finish this day",
         "closingSectionSales" to "Sales",
+        "closingSectionSold" to "Sold Items",
+        "closingSectionLowStock" to "Low Stock",
+        "closingSectionDebts" to "Unpaid Debts",
+        "closingSectionWeekly" to "This Week",
+        "closingLowStockOk" to "✅ All stock is good.",
+        "closingNoDebts" to "✅ No outstanding debts.",
+        "noSales" to "No sales recorded today.",
+        "closingWeeklyLabel" to "Total Sales",
+        "closingTopSellerLabel" to "Best Seller",
+        "closingRestNote" to "Rest now. See you tomorrow!",
+        "soldLabel" to "Sold",
+        "lowStockLabel" to "Low Stock",
+        "debtsLabel" to "Debts",
         "closingRecordedSales" to "Recorded Sales Today",
         "closingActualSales" to "Actual Sales Today",
         "closingSalesDiff" to "Sales Difference",
@@ -352,7 +372,10 @@ object Strings {
         "tutLaunch" to "Launch",
 
         // Extended Tutorial
-        "tutorial9" to "Need more detailed guidance? You can access step-by-step tutorials for each page from the Help section — just go to Help and pick the tutorial you want. Or look for the (?) Help button at the top of any page — tap it to launch a page-specific tutorial whenever you need extra guidance!",
+        // Renamed from "tutorial9" (v3.0 tutorial fix): the old key collided with
+        // the main tutorial's step 9 and, because Kotlin maps are last-wins,
+        // silently replaced the "Enter your cost of goods" step text.
+        "tutorial9Extended" to "Need more detailed guidance? You can access step-by-step tutorials for each page from the Help section — just go to Help and pick the tutorial you want. Or look for the (?) Help button at the top of any page — tap it to launch a page-specific tutorial whenever you need extra guidance!",
 
         // Tutorial Labels
         "tutMain" to "Main Tutorial",
@@ -472,9 +495,35 @@ object Strings {
         "updateClosing" to "Update Closing",
         "closeStoreBtn" to "Close Store 🌙",
 
+        // ── Overdue Store Workflow (left open across business days) ──
+        "dayNotOpen" to "Please start the day first.",
+        "overdueTitle" to "The store wasn't closed",
+        "overdueDesc" to "Opened {date} · Open for {n} days",
+        "overdueReview" to "Review Last Day's Sales",
+        "overdueCloseStart" to "Close Old Day & Start Today",
+        "overdueRedirect" to "Please close the previous day on the Morning page.",
+        "overdueReviewTitle" to "Last Day's Sales",
+        "overdueReviewEmpty" to "No sales recorded for that day.",
+        "overdueReviewTotal" to "Total",
+        "overdueArchivedToast" to "Previous day closed. New day started!",
+        "overdueDevConfirm" to "A developer date override is active. This archives the previous day's sales into real history — permanent if the app is closed before clearing the override. Continue?",
+        "ok" to "OK",
+
         // ── Restock Day ──
         "restockScreenTitle" to "Restock Day 🚚",
         "tutRestock" to "Restock Day Tutorial",
+        // Restock tutorial step text (added v3.0 tutorial fix — the Restock page
+        // tutorial referenced restockTutorial1..8 but the keys never existed, so
+        // the overlay showed raw keys). EN only: Filipino falls back to English,
+        // matching the web app's documented behavior.
+        "restockTutorial1" to "This is the Restock Day page - a guided 2-step workflow to update inventory.",
+        "restockTutorial2" to "Step 1: Check your shelves. Update the actual count for each product.",
+        "restockTutorial3" to "Enter the real count you see on your shelf next to what the app thinks.",
+        "restockTutorial4" to "Green check = count matches. Red = unrecorded sales were found.",
+        "restockTutorial5" to "After checking, tap Continue to Purchases to record what you bought.",
+        "restockTutorial6" to "Step 2: Search for a product, enter cost per unit and quantity, tap Add Item.",
+        "restockTutorial7" to "Review your purchases. Total cost is shown at the bottom.",
+        "restockTutorial8" to "Tap Done to save. Your inventory is updated. Find the reminder on Morning page.",
         "restockStep1Label" to "Step 1: Check Shelves",
         "restockStep2Label" to "Step 2: Record Purchases",
         "restockAppSays" to "App says",
@@ -720,6 +769,7 @@ object Strings {
         "tutorial13" to "Ang Debts page ay sumusubaybay sa lahat ng utang ng kostumer. Ang kabuuang halaga ay nasa itaas.",
         "tutorial14" to "Pumunta sa Settings anumang oras para baguhin ang wika, laki ng teksto, o pangalan ng tindahan.",
         "skip" to "Laktawan",
+        "prev" to "Nakaraan",
         "next" to "Susunod",
 
         // Sale Bottom Sheet
@@ -729,6 +779,12 @@ object Strings {
 
         // ── Header / Greeting ──
         "greeting" to "Magandang araw!",
+        "greetingMorning" to "Magandang umaga!",
+        "greetingAfternoon" to "Magandang hapon!",
+        "greetingEvening" to "Magandang gabi!",
+        "pageMorning" to "Umaga",
+        "pageDay" to "Araw",
+        "pageClosing" to "Isara",
 
         // ── Three Moment Nav Labels ──
         "morning" to "Umaga",
@@ -763,6 +819,19 @@ object Strings {
         "closingTitle" to "Isara ang Tindahan",
         "closingSubtitle" to "Tapusin na ang araw na ito",
         "closingSectionSales" to "Benta",
+        "closingSectionSold" to "Mga Nabenta",
+        "closingSectionLowStock" to "Mga Kulang sa Stock",
+        "closingSectionDebts" to "Utang Hindi Pa Bayad",
+        "closingSectionWeekly" to "Ngayong Linggo",
+        "closingLowStockOk" to "✅ Lahat ng stock ay okay.",
+        "closingNoDebts" to "✅ Walang utang na natitira.",
+        "noSales" to "Walang naitalang benta ngayong araw.",
+        "closingWeeklyLabel" to "Kabuuang benta",
+        "closingTopSellerLabel" to "Pinakamabenta",
+        "closingRestNote" to "Magpahinga na. Bukas ulit!",
+        "soldLabel" to "Nabenta",
+        "lowStockLabel" to "Kulang sa Stock",
+        "debtsLabel" to "Utang",
         "closingRecordedSales" to "Naitalang Benta Ngayon",
         "closingActualSales" to "Aktwal na Benta Ngayon",
         "closingSalesDiff" to "Pagkakaiba sa Benta",
@@ -856,7 +925,7 @@ object Strings {
         "tutLaunch" to "Simulan",
 
         // Extended Tutorial
-        "tutorial9" to "Kailangan mo ng mas detalyadong gabay? Maaari kang pumunta sa Help section para sa step-by-step na tutorial ng bawat page — pumunta lang sa Help at piliin ang tutorial na gusto mo. O hanapin ang (?) Help button sa itaas ng kahit anong page — i-tap ito para simulan ang tutorial para sa page na iyon!",
+        "tutorial9Extended" to "Kailangan mo ng mas detalyadong gabay? Maaari kang pumunta sa Help section para sa step-by-step na tutorial ng bawat page — pumunta lang sa Help at piliin ang tutorial na gusto mo. O hanapin ang (?) Help button sa itaas ng kahit anong page — i-tap ito para simulan ang tutorial para sa page na iyon!",
 
         // Tutorial Labels
         "tutMain" to "Main na Tutorial",
@@ -975,6 +1044,20 @@ object Strings {
         "editClosing" to "Baguhin ang Closing",
         "updateClosing" to "I-update ang Closing",
         "closeStoreBtn" to "Isara ang Tindahan 🌙",
+
+        // ── Overdue Store Workflow (FIL) ──
+        "dayNotOpen" to "Pakiusap, simulan muna ang araw.",
+        "overdueTitle" to "Hindi pa isinara ang tindahan",
+        "overdueDesc" to "Binuksan noong {date} · Bukas na sa loob ng {n} na araw",
+        "overdueReview" to "Tingnan ang Benta ng Nakaraang Araw",
+        "overdueCloseStart" to "Isara ang dating araw at simulan ang bago",
+        "overdueRedirect" to "Pakiusap, isara muna ang nakaraang araw sa pahina ng Umaga.",
+        "overdueReviewTitle" to "Benta ng Nakaraang Araw",
+        "overdueReviewEmpty" to "Walang naitalang benta sa araw na iyon.",
+        "overdueReviewTotal" to "Kabuuan",
+        "overdueArchivedToast" to "Naisara ang nakaraang araw. Nagsimula na ang bagong araw!",
+        "overdueDevConfirm" to "Aktibo ang developer date override. Aarkibuhin nito ang benta ng nakaraang araw sa totoong history — permanente ito kung isasara ang app bago i-clear ang override. Magpatuloy?",
+        "ok" to "OK",
 
         // ── Restock Day (FIL) ──
         "restockScreenTitle" to "Restock Day 🚚",

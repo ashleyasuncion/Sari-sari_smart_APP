@@ -1,0 +1,59 @@
+SARI-SARI SMART (ANDROID) — DEBT TUTORIAL (10 STEPS)
+====================================================
+Config: TutorialOverlay.kt -> pageTutorials ("debt", prefix "debtTutorial")
+Page: debts (all steps)
+Launch: Debts header (?) button -> Debt Tutorial (startPageTutorial("debt"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn.
+
+STEP 1 — Utang page intro
+  Key      : debtTutorial1
+  Text EN : "This is the Utang page where you track all customer debts."
+  Text FIL: "Ito ang Utang page kung saan mo sinusubaybayan ang lahat ng utang ng kostumer."
+  Interaction : read text, tap Next
+STEP 2 — Total Outstanding card
+  Key      : debtTutorial2
+  Text EN : "The Total Outstanding card shows the total amount all customers owe you. It updates automatically as payments are recorded."
+  Text FIL: "Ang Total Outstanding card ay nagpapakita ng kabuuang halaga ng utang ng lahat ng kostumer. Awtomatiko itong nag-a-update habang nagtatala ng bayad."
+  Interaction : look at the total card, tap Next
+STEP 3 — New Debt
+  Key      : debtTutorial3
+  Text EN : "Tap \"New Debt\" to manually add a new debt entry for a customer who borrowed on credit."
+  Text FIL: "I-tap ang \"New Debt\" para magdagdag ng bagong utang para sa isang kostumer na umutang sa iyo."
+  Interaction : see the New Debt button, tap Next
+STEP 4 — Customer list
+  Key      : debtTutorial4
+  Text EN : "Customer debts are listed here. Each card shows the customer name, last activity date, and current balance."
+  Text FIL: "Nakalista dito ang mga utang ng kostumer. Ang bawat card ay nagpapakita ng pangalan, huling aktibidad, at kasalukuyang balanse."
+  Interaction : look at the list, tap Next
+STEP 5 — Customer debt detail
+  Key      : debtTutorial5
+  Text EN : "Tap any customer card to view their full debt history - a complete ledger showing individual debt transactions and payments with dates and running balance."
+  Text FIL: "I-tap ang kahit anong customer card para makita ang buong kasaysayan ng utang na may petsa at halaga, kasama ang kasalukuyang balanse."
+  Interaction : read text, tap Next
+STEP 6 — Record Payment
+  Key      : debtTutorial6
+  Text EN : "Tap \"Record Payment\" to log a payment. Enter the amount and an optional note to keep track of partial payments."
+  Text FIL: "I-tap ang \"Record Payment\" para magtala ng bayad. Ilagay ang halaga at isang opsyonal na tala para sa bahagyang bayad."
+  Interaction : read text, tap Next
+STEP 7 — New Debt page
+  Key      : debtTutorial7
+  Text EN : "The New Debt page lets you manually record a debt. Enter the customer name — new customers are added automatically. Then enter the debt amount to add to their balance."
+  Text FIL: "Ang New Debt page ay para manu-manong magtala ng utang. Ilagay ang pangalan ng customer — awtomatikong idadagdag ang bagong customer. Pagkatapos ilagay ang halaga ng utang."
+  Interaction : read text, tap Next
+STEP 8 — Customer Debt ledger
+  Key      : debtTutorial8
+  Text EN : "The Customer Debt page shows a customer's full ledger — individual debt entries, payments made, and their current balance. Each transaction shows the date and amount clearly."
+  Text FIL: "Ang Customer Debt page ay nagpapakita ng buong ledger ng isang customer — mga utang, bayad, at kasalukuyang balance. Ang bawat transaksyon ay may petsa at halaga."
+  Interaction : read text, tap Next
+STEP 9 — Record Payment page
+  Key      : debtTutorial9
+  Text EN : "The Record Payment page lets you log a payment from a customer. Enter the payment amount and an optional note (e.g. \"Partial payment\" or \"Fully settled\")."
+  Text FIL: "Ang Record Payment page ay nagbibigay-daan sa iyo na magtala ng bayad mula sa isang customer. Ilagay ang halaga at isang opsyonal na tala (hal. \"Partial na bayad\")."
+  Interaction : read text, tap Next
+STEP 10 — Save Payment
+  Key      : debtTutorial10
+  Text EN : "The remaining balance preview updates as you type the payment amount. Tap \"Save Payment\" to record it — the customer's balance updates automatically."
+  Text FIL: "Ang preview ng natitirang balance ay nag-a-update habang nagta-type ka ng halaga. I-tap ang \"Save Payment\" para itala — awtomatikong mag-a-update ang balance ng customer."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

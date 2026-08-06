@@ -104,9 +104,9 @@ class AppViewModelTest {
     @Test
     fun completeEndOfDay_storesNewFieldsCorrectly() {
         val today = viewModel.today
-        // Add a cash sale = recorded sales
+        // Add a cash sale = recorded sales (per-sale profit 50)
         viewModel.addSpecificSale(
-            SpecificSale(id = 0, date = today, description = "Item", amount = 150.0, quantity = 1, customerName = null)
+            SpecificSale(id = 0, date = today, description = "Item", amount = 150.0, quantity = 1, customerName = null, profit = 50.0)
         )
         // Complete day with actual sales = 200, cost of goods = 80
         viewModel.completeEndOfDay(actualSales = 200.0, costOfGoods = 80.0)
@@ -119,7 +119,7 @@ class AppViewModelTest {
             assertEquals(200.0, it.actualSales, 0.001)
             assertEquals(50.0, it.salesDiff, 0.001)       // 200 - 150
             assertEquals(80.0, it.costOfGoods, 0.001)
-            assertEquals(120.0, it.profit, 0.001)         // 200 - 80
+            assertEquals(50.0, it.profit, 0.001)          // per-sale profit (todayProfit parity)
             assertTrue(it.finished)
         }
     }
@@ -141,9 +141,9 @@ class AppViewModelTest {
     @Test
     fun completeEndOfDay_withUtangSalesOnly_hasZeroRecordedSales() {
         val today = viewModel.today
-        // Add only utang sales
+        // Add only utang sales (per-sale profit 40)
         viewModel.addSpecificSale(
-            SpecificSale(id = 0, date = today, description = "Utang Item", amount = 200.0, quantity = 1, customerName = "Pedro")
+            SpecificSale(id = 0, date = today, description = "Utang Item", amount = 200.0, quantity = 1, customerName = "Pedro", profit = 40.0)
         )
         // recorded = 0 (no cash sales), actual = 250, cost = 100
         viewModel.completeEndOfDay(actualSales = 250.0, costOfGoods = 100.0)
@@ -154,7 +154,7 @@ class AppViewModelTest {
         assertEquals(250.0, eod.actualSales, 0.001)
         assertEquals(250.0, eod.salesDiff, 0.001)          // 250 - 0
         assertEquals(100.0, eod.costOfGoods, 0.001)
-        assertEquals(150.0, eod.profit, 0.001)              // 250 - 100
+        assertEquals(40.0, eod.profit, 0.001)              // per-sale profit (todayProfit parity)
     }
 
     @Test

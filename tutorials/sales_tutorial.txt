@@ -1,0 +1,59 @@
+SARI-SARI SMART (ANDROID) — SALES TUTORIAL (10 STEPS)
+=====================================================
+Config: TutorialOverlay.kt -> pageTutorials ("sales", prefix "salesTutorial")
+Page: day (all steps)
+Launch: Day header (?) button -> Sales Tutorial (startPageTutorial("sales"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn.
+
+STEP 1 — Sales page intro
+  Key      : salesTutorial1
+  Text EN : "This is the Sales page where you record your daily store earnings and track specific sales transactions."
+  Text FIL: "Ito ang Sales page kung saan mo itinatala ang iyong araw-araw na kita."
+  Interaction : read text, tap Next
+STEP 2 — Gastos sa Paninda
+  Key      : salesTutorial2
+  Text EN : "Enter your Gastos sa Paninda — how much you spent buying stock today from the palengke or supplier."
+  Text FIL: "Ilagay ang iyong Gastos sa Paninda — magkano ang ginastos mo sa pagbili ng stock ngayon mula sa palengke o supplier."
+  Interaction : look at the input, tap Next
+STEP 3 — Kinikita Ngayon
+  Key      : salesTutorial3
+  Text EN : "Enter your Kinikita Ngayon — the total cash you received from sales today."
+  Text FIL: "Ilagay ang iyong Kinikita Ngayon — ang kabuuang cash na natanggap mo mula sa benta ngayong araw."
+  Interaction : look at the input, tap Next
+STEP 4 — Automatic calculations
+  Key      : salesTutorial4
+  Text EN : "As you fill in the amounts, the app automatically calculates your Gross Profit, Estimated Net Profit, and Revolving Fund. The Utang Breakdown section also shows pending profit from credit sales."
+  Text FIL: "Habang pinupunan mo ang mga halaga, awtomatikong kukuwentahin ng app ang iyong Gross Profit, Estimated Net Profit, at Revolving Fund."
+  Interaction : read text, tap Next
+STEP 5 — Save Today's Sales
+  Key      : salesTutorial5
+  Text EN : "Tap \"Save Today's Sales\" to record your daily entry. You can only record once per day, but you can edit the entry anytime before closing the day."
+  Text FIL: "I-tap ang \"Save Today's Sales\" para itala ang iyong araw-araw na entry. Minsan ka lang makapag-record bawat araw."
+  Interaction : see the Save button, tap Next
+STEP 6 — Daily summary
+  Key      : salesTutorial6
+  Text EN : "Once recorded, your daily summary stays visible showing gross profit, net profit, revolving fund, and utang breakdown. Below, you will find today's sold items and recent transactions in collapsible sections."
+  Text FIL: "Kapag naitala na, mananatiling visible ang iyong daily summary na nagpapakita ng gross profit, net profit, at revolving fund."
+  Interaction : read text, tap Next
+STEP 7 — Add a Specific Sale
+  Key      : salesTutorial7
+  Text EN : "Use \"Add a Specific Sale\" for notable items like large purchases or sales made on utang (credit). Enter a customer name to automatically record it as both a sale and a debt."
+  Text FIL: "Gamitin ang \"Add a Specific Sale\" para sa mga notable na item tulad ng malaking benta o mga sale na ginawa sa utang."
+  Interaction : read text, tap Next
+STEP 8 — Recent Transactions
+  Key      : salesTutorial8
+  Text EN : "Recent specific sales appear in the \"Recent Transactions\" collapsible section, showing the item name, amount, customer tag (if on utang), and time. The \"Today's Sold Items\" section groups items with quantities and profit totals."
+  Text FIL: "Lilitaw dito ang mga kamakailang specific sale na may pangalan ng produkto, halaga, at kostumer kung naitala sa utang."
+  Interaction : read text, tap Next
+STEP 9 — New Sale page
+  Key      : salesTutorial9
+  Text EN : "The New Sale page lets you record a specific item sale. Start typing a product name — the app suggests matching items from your inventory for quick selection."
+  Text FIL: "Ang New Sale page ay para magtala ng specific item sale. Simulan ang pag-type ng pangalan ng produkto — ang app ay magmumungkahi ng mga item mula sa iyong inventory."
+  Interaction : read text, tap Next
+STEP 10 — Save Sale
+  Key      : salesTutorial10
+  Text EN : "Enter the quantity sold — the total is calculated automatically. If the sale is on credit (utang), enter a customer name to create a debt record. Tap \"Save Sale\" to finish."
+  Text FIL: "Ilagay ang quantity na naibenta — awtomatikong kakalkulahin ang total. Kung ang benta ay on credit (utang), ilagay ang pangalan ng customer para awtomatikong lumikha ng debt record. I-tap ang \"Save Sale\" para matapos."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

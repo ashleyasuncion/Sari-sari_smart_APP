@@ -1,0 +1,39 @@
+SARI-SARI SMART (ANDROID) — REPORTS TUTORIAL (6 STEPS)
+======================================================
+Config: TutorialOverlay.kt -> pageTutorials ("report", prefix "reportTutorial")
+Page: morning (all steps — the Reports screen is opened from Home)
+Launch: Help page -> Tutorial selector -> Reports Tutorial (startPageTutorial("report"))
+
+NOTE: Android page tutorials generate steps with NO highlight targets, so
+the box stays at bottom center and no highlight frame is drawn.
+
+STEP 1 — Reports intro
+  Key      : reportTutorial1
+  Text EN : "The Reports page shows your store's sales performance over time."
+  Text FIL: "Ang Reports page ay nagpapakita ng performance ng iyong tindahan sa paglipas ng panahon."
+  Interaction : read text, tap Next
+STEP 2 — Period toggle
+  Key      : reportTutorial2
+  Text EN : "Use the toggle buttons to switch between Daily, Weekly, and Monthly views."
+  Text FIL: "Gamitin ang toggle buttons para lumipat sa Daily, Weekly, o Monthly views."
+  Interaction : look at the toggles, tap Next
+STEP 3 — Summary cards
+  Key      : reportTutorial3
+  Text EN : "The summary cards show total sales and profit for the selected period."
+  Text FIL: "Ang summary cards ay nagpapakita ng total sales at profit para sa napiling panahon."
+  Interaction : look at the cards, tap Next
+STEP 4 — Recent transactions
+  Key      : reportTutorial4
+  Text EN : "Recent transactions appear here with details on each sale. Scroll to see more."
+  Text FIL: "Ang mga recent transactions ay lumalabas dito na may detalye ng bawat benta."
+  Interaction : read text, tap Next
+STEP 5 — Best-Selling Products
+  Key      : reportTutorial5
+  Text EN : "The Best-Selling Products section shows your top-performing items."
+  Text FIL: "Ang Best-Selling Products section ay nagpapakita ng iyong mga top-performing items."
+  Interaction : read text, tap Next
+STEP 6 — Low-stock items
+  Key      : reportTutorial6
+  Text EN : "Low-stock items are listed here so you know what needs restocking."
+  Text FIL: "Ang low-stock items ay nakalista dito para malaman mo kung ano ang kailangan i-restock."
+  Interaction : read text, tap Finish (page tutorial finishes in place)

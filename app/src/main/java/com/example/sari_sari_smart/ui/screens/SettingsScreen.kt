@@ -35,7 +35,6 @@ fun SettingsScreen(
     appSettings: AppSettings? = null,
     viewModel: AppViewModel? = null,
     onBack: () -> Unit,
-    onResetComplete: () -> Unit = {},
     onLaunchTutorial: (String) -> Unit = {},
     onTutorialClick: (() -> Unit)? = null,
     onOpenReports: () -> Unit = {},
@@ -52,7 +51,6 @@ fun SettingsScreen(
     var ownerName by remember { mutableStateOf(settings.ownerName) }
     var language by remember { mutableStateOf(settings.language) }
     var selectedSize by remember { mutableStateOf(settings.textSize) }
-    var showResetConfirm by remember { mutableStateOf(false) }
 
     // Snackbar for save feedback
     val snackbarHostState = remember { SnackbarHostState() }
@@ -307,37 +305,7 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("importData".t(settings.language)) }
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = { showResetConfirm = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Red600)
-            ) { Text("resetData".t(settings.language)) }
         }
-    }
-
-    if (showResetConfirm) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirm = false },
-            title = { Text("areYouSure".t(settings.language)) },
-            text = { Text("confirmReset".t(settings.language)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        settings.clearAll()
-                        showResetConfirm = false
-                        // Reset global state
-                        langState.value = "en"
-                        scaleState.value = 1f
-                        onResetComplete()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Red600)
-                ) { Text("confirm".t(settings.language)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetConfirm = false }) { Text("cancel".t(settings.language)) }
-            }
-        )
     }
 }
 

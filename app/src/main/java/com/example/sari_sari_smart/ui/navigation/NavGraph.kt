@@ -559,7 +559,7 @@ fun NavGraph(
                     // it behaves identically to the auto-launch (navigates to Morning
                     // first, real 14-step flow, highlights). Web v2.40 parity.
                     onReplayTutorial = { startPageTutorial("main") },
-                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onBack = { navController.popBackStack() },
                     onLaunchPageTutorial = { tutId -> startPageTutorial(tutId) },
                     onTutorialClick = { startPageTutorial("help") }
                 )
@@ -570,11 +570,6 @@ fun NavGraph(
                     appSettings = appSettings,
                     viewModel = appViewModel,
                     onBack = { navController.popBackStack() },
-                    onResetComplete = {
-                        navController.navigate(Routes.SPLASH) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
                     onLaunchTutorial = { tutId -> startPageTutorial(tutId) },
                     onTutorialClick = { startPageTutorial("settings") },
                     onOpenReports = { navController.navigate(Routes.REPORTS) },

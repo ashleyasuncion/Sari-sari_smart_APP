@@ -3723,3 +3723,192 @@ Validation:
 
 Affected files (mobile, git copy): ReportsScreen.kt,
 progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 50 — HELP SCREEN: BACK BUTTON ADDED + SETTINGS REDIRECT REMOVED
+Date: Aug 7, 2026
+Status: DONE
+
+Tracks: user reported the mobile Help screen has no back button
+while also carrying a Settings redirect button (the mobile twin
+of the web help buttons removed in web v2.50). User chose: add
+the standard back button AND remove the Settings button.
+
+Changes:
+- HelpScreen.kt: added onBack: () -> Unit param; the header Row
+  now starts with the standard IconButton + Icons.Default.ArrowBack
+  (explicit tint = Color.White — HelpScreen uses a custom
+  Surface/Row, not a TopAppBar, so there is no
+  navigationIconContentColor to inherit). Row start padding 16dp
+  -> 4dp so the icon sits like a TopAppBar nav icon. Removed the
+  bottom Settings OutlinedButton + its onOpenSettings param.
+  @Preview updated.
+- NavGraph.kt: Routes.HELP now passes onBack = popBackStack()
+  (previously no back wiring existed at all); the onOpenSettings
+  navigation was removed.
+
+Safety:
+- Help tutorial (6 steps) highlights only helpTutSelector /
+  helpHowTo / helpContact / helpAbout — no conflict with the new
+  header back button or the removed Settings button.
+- Settings remains reachable via Morning + Inventory/Debts header
+  gear icons.
+
+Validation:
+- ./gradlew compileDebugKotlin -> exit 0
+- grep: zero leftover onOpenSettings references.
+
+Affected files (mobile, git copy): HelpScreen.kt, NavGraph.kt,
+progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 51 — REPORTS BACK BUTTON COLOR FIX (BLACK -> WHITE)
+Date: Aug 7, 2026
+Status: DONE
+
+Tracks: user reported the Reports page back arrow renders black
+while every other back button in the app is white.
+
+Root cause:
+- ReportsScreen's TopAppBar set only containerColor = Green600 and
+  titleContentColor = Color.White — navigationIconContentColor was
+  MISSING. Material 3 defaults it to LocalContentColor.current
+  (dark), so the ArrowBack inherited black. The Phase 49 rewrite
+  (text "← Back" -> IconButton + ArrowBack) dropped the icon color
+  in the process.
+- Audit of all 10 TopAppBar usages: every other green header sets
+  it explicitly (SupportAppHeader, Settings, AddStock, NewDebt,
+  ProductDetail, CustomerDebtDetail, RecordPayment = Color.White /
+  onPrimary; HelpScreen tints its icon directly). RestockScreen is
+  the one intentional exception — white bar (containerColor =
+  surface), so its dark icon is correct there.
+
+Fix:
+- ReportsScreen.kt: added navigationIconContentColor = Color.White
+  to TopAppBarDefaults.topAppBarColors(...).
+
+Validation:
+- ./gradlew compileDebugKotlin -> exit 0
+
+Affected files (mobile, git copy): ReportsScreen.kt,
+progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 52 — "RESET SAMPLE DATA" BUTTON REMOVED (SETTINGS)
+Date: Aug 7, 2026
+Status: DONE
+
+Tracks: user asked what Settings -> "Reset Sample Data" does.
+Investigation revealed a label/behavior mismatch; user chose to
+remove the button.
+
+Investigation findings:
+- The label, confirm text ("Reset all sample data? This cannot be
+  undone."), and docs (adaptation_plan2 C3; web resetData() parity)
+  promise a factory reset to demo state: wipe all data + restore
+  the sample product set.
+- ACTUAL behavior: the confirm handler only called
+  settings.clearAll() (SharedPreferences), reset lang to EN /
+  text scale to 1f, then onResetComplete() navigated to Splash ->
+  Setup -> re-onboarding. The Room database (products, sales,
+  debts, ledger, restock logs, EOD) was NEVER cleared and sample
+  data never re-seeded. The dataReset toast ("Sample data has been
+  reset.") was defined in Strings.kt but never shown.
+- AppViewModel already had resetAllData() + seedSampleData(), but
+  they were wired only to the Developer Panel, not this button.
+
+Changes (per user choice: remove it):
+- SettingsScreen.kt: removed the red reset Button, its confirm
+  AlertDialog, the showResetConfirm state, and the onResetComplete
+  parameter. Data Management now contains only Export + Import.
+- NavGraph.kt: removed the onResetComplete argument (Splash nav)
+  from the SettingsScreen call.
+- Strings.kt: removed the orphaned resetData / confirmReset /
+  dataReset keys from EN + FIL dictionaries. areYouSure / confirm /
+  cancel kept (still used by ProductDetail, Debts, MorningCheck,
+  Help and DeveloperPanel dialogs).
+
+Validation:
+- ./gradlew compileDebugKotlin -> exit 0
+- grep: zero leftover references (onResetComplete, resetData,
+  confirmReset, dataReset, showResetConfirm).
+- Settings tutorial (5 steps) never referenced the button; docs
+  clean.
+
+Affected files (mobile, git copy): SettingsScreen.kt, NavGraph.kt,
+Strings.kt, progress.txt: This entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 53 — BACK BUTTON NAVIGATION: VERIFIED CORRECT (NO CHANGE)
+Date: Aug 7, 2026
+Status: DONE
+
+Tracks: cross-platform back-button issue. The web app's in-app
+back arrows looped (New Debt <-> Debts) because of mixed
+navigation strategies — hardcoded forward back-links on 8
+subpages vs historyBack() on 3 — while the issue report noted
+the mobile app behaves correctly. This phase logs the mobile
+verification result.
+
+Investigation result:
+- Mobile was confirmed correct: EVERY screen's back arrow calls
+  the same onBack = { navController.popBackStack() } wired in
+  NavGraph.kt — a uniform, true back-stack pop. There is no
+  equivalent of the web's hardcoded forward back-links, so
+  history always follows the visited sequence (New Debt -> Debts
+  -> Inventory -> ...).
+- Prior mobile back-button work already logged: Phase 49 (Reports
+  back button matched the app pattern) and Phase 50 (Help screen
+  back button added + Settings redirect removed) — both adopted
+  the standard IconButton + ArrowBack + popBackStack pattern.
+- No mobile code change was needed for this issue.
+
+Web mirror:
+- git/Sari-sari_smart progress v2.51 — unified all 11 back-arrow
+  pages on historyBack() and switched post-save redirects to
+  location.replace() to eliminate the loop.
+
+Validation:
+- No mobile files changed this phase (verification only).
+
+Affected files (mobile, git copy): none; progress.txt: This
+entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 54 — DEBTSScreen: UNUSED innerPadding PARAMETER REMOVED
+Date: Aug 7, 2026
+Status: DONE
+
+Tracks: a progress-audit found DebtsScreen.kt was modified today
+at 15:51 — AFTER Phase 53 was written (14:16, which logged "No
+mobile files changed"). The edit was undocumented work.
+
+Root cause:
+- DebtsScreen declared an innerPadding: PaddingValues = 
+  PaddingValues(0.dp) parameter that was never passed by its call
+  site. NavGraph.kt calls DebtsScreen(...) with only viewModel /
+  onNewDebt / onDebtClick / onNavigateToReports / onLaunchTutorial
+  — innerPadding always fell back to its default (0.dp), so the
+  .padding(innerPadding) modifier on the debts LazyColumn was a
+  no-op (the screen already applies its own 16dp start/end/top
+  padding inside MainScaffold's content area).
+
+Changes:
+- DebtsScreen.kt: removed the unused innerPadding parameter from
+  the signature and dropped the .padding(innerPadding) modifier
+  on the LazyColumn. No visual or behavioral change.
+- NavGraph.kt NOT modified for this cleanup (it never passed the
+  argument); its pending changes remain those of Phase 50 (Help
+  back button) and Phase 52 (Reset Sample Data removal).
+
+Validation:
+- grep innerPadding in app/src -> no remaining references.
+- Cleanup only; no runtime behavior affected.
+
+Affected files (mobile, git copy): DebtsScreen.kt,
+progress.txt: This entry.

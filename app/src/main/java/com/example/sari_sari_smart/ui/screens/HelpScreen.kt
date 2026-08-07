@@ -48,7 +48,7 @@ private val howToItems = listOf(
 @Composable
 fun HelpScreen(
     onReplayTutorial: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onBack: () -> Unit,
     onLaunchPageTutorial: ((String) -> Unit)? = null,
     onTutorialClick: (() -> Unit)? = null
 ) {
@@ -67,9 +67,21 @@ fun HelpScreen(
             modifier = Modifier.fillMaxWidth().statusBarsPadding()
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
+                // Back arrow sits like a standard TopAppBar nav icon (4dp leading)
+                // matching Settings/Reports/ProductDetail, then the title, then the
+                // tutorial (?) button on the right.
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        // Match every other green header's white nav icon — the custom
+                        // Surface/Row (unlike TopAppBar) has no icon content color.
+                        tint = Color.White
+                    )
+                }
                 Text(
                     "help".t(lang),
                     style = MaterialTheme.typography.titleLarge,
@@ -184,18 +196,7 @@ fun HelpScreen(
             highlightState = highlightState
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedButton(
-            onClick = onOpenSettings,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("settings".t(lang))
-        }
-
-            Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -295,7 +296,7 @@ private fun HelpMenuItem(
 fun HelpScreenPreview() {
     SariSariSmartTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            HelpScreen(onReplayTutorial = {}, onOpenSettings = {})
+            HelpScreen(onReplayTutorial = {}, onBack = {})
         }
     }
 }

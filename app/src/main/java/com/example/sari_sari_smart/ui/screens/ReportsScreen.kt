@@ -107,7 +107,11 @@ fun ReportsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Green600,
-                    titleContentColor = Color.White
+                    titleContentColor = Color.White,
+                    // Must be set explicitly — otherwise the back arrow inherits
+                    // LocalContentColor (dark) instead of white, unlike every other
+                    // screen's header (Settings/Inventory/Debts/Help all set it).
+                    navigationIconContentColor = Color.White
                 )
             )
         }

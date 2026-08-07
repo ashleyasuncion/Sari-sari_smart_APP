@@ -36,8 +36,7 @@ fun DebtsScreen(
     onNewDebt: () -> Unit,
     onNavigateToReports: () -> Unit = {},
     onDebtClick: (Int) -> Unit = {},
-    onLaunchTutorial: (() -> Unit)? = null,
-    innerPadding: PaddingValues = PaddingValues(0.dp)
+    onLaunchTutorial: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
@@ -60,7 +59,6 @@ fun DebtsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
             .padding(start = 16.dp, end = 16.dp, top = 16.dp)
             .tutorialHighlight("debtList", highlightState),
         verticalArrangement = Arrangement.spacedBy(8.dp)

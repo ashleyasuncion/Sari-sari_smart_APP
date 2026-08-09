@@ -33,6 +33,7 @@ fun AddStockScreen(
     viewModel: AppViewModel,
     productId: Int? = null,
     defaultMarkup: Int = 20,
+    defaultLowStockThreshold: Int = 5,
     onBack: () -> Unit,
     onSaved: () -> Unit = {},
     onTutorialClick: (() -> Unit)? = null
@@ -51,15 +52,40 @@ fun AddStockScreen(
     var quantity by remember { mutableStateOf("") }
     var costPrice by remember { mutableStateOf(existingProduct?.costPrice?.let { if (it > 0) it.toString() else "" } ?: "") }
     var sellPrice by remember { mutableStateOf(existingProduct?.sellingPrice?.let { if (it > 0) it.toString() else "" } ?: "") }
-    var markupPercent by remember { mutableStateOf(defaultMarkup.toString()) }
+    // Markup pre-fill: the product's ACTUAL markup when editing (so the helper
+    // reflects reality), otherwise the configured default from Settings.
+    var markupPercent by remember {
+        mutableStateOf(
+            if (isEditing && (existingProduct?.costPrice ?: 0.0) > 0) {
+                val actual = Math.round(((existingProduct!!.sellingPrice / existingProduct!!.costPrice) - 1) * 100)
+                if (actual >= 0) actual.toString() else defaultMarkup.toString()
+            } else defaultMarkup.toString()
+        )
+    }
     // Web parity: once the user types a selling price manually, stop
     // auto-filling it from the markup (mirrors web _userEditedPrice).
     var userEditedPrice by remember { mutableStateOf(false) }
-    var lowStockThreshold by remember { mutableStateOf((existingProduct?.lowStockThreshold ?: 5).toString()) }
+    // Low-stock alert threshold: the product's own value when editing, else the
+    // global Settings threshold as the default for new products.
+    var lowStockThreshold by remember {
+        mutableStateOf((existingProduct?.lowStockThreshold ?: defaultLowStockThreshold).toString())
+    }
 
     val cost = costPrice.toDoubleOrNull() ?: 0.0
     val markup = (markupPercent.toDoubleOrNull() ?: 20.0) / 100.0
     val suggestedPrice = if (cost > 0 && markup > 0) cost * (1 + markup) else 0.0
+
+    // Web parity auto-fill: compute the suggested selling price from cost +
+    // markup unless the user already typed a price manually. Shared by the cost
+    // and markup field handlers (mirrors the web productCost/productMarkup
+    // input listeners) so the two call sites can't drift apart.
+    fun autoFillSellPrice() {
+        val c = costPrice.toDoubleOrNull() ?: 0.0
+        val m = (markupPercent.toDoubleOrNull() ?: 20.0) / 100.0
+        if (c > 0 && m > 0 && !userEditedPrice) {
+            sellPrice = String.format("%.2f", c * (1 + m))
+        }
+    }
     val profitMargin = if (cost > 0 && sellPrice.toDoubleOrNull() ?: 0.0 > 0) {
         val sp = sellPrice.toDoubleOrNull() ?: 0.0
         ((sp - cost) / cost * 100)
@@ -145,7 +171,12 @@ fun AddStockScreen(
             // Cost price
             OutlinedTextField(
                 value = costPrice,
-                onValueChange = { costPrice = it.filter { c -> c.isDigit() || c == '.' } },
+                onValueChange = { value ->
+                    costPrice = value.filter { c -> c.isDigit() || c == '.' }
+                    // Web parity: entering the cost alone auto-suggests the
+                    // selling price (cost x (1 + markup)).
+                    autoFillSellPrice()
+                },
                 label = { Text("costPerUnit".t(lang)) },
                 placeholder = { Text("0.00") },
                 singleLine = true,
@@ -167,14 +198,10 @@ fun AddStockScreen(
                     OutlinedTextField(
                         value = markupPercent,
                         onValueChange = { value ->
-                            val filtered = value.filter { c -> c.isDigit() }
-                            markupPercent = filtered
+                            markupPercent = value.filter { c -> c.isDigit() }
                             // Auto-calculate selling price from markup, but only
                             // while the user hasn't typed a price manually
-                            val m = (filtered.toDoubleOrNull() ?: 20.0) / 100.0
-                            if (cost > 0 && m > 0 && !userEditedPrice) {
-                                sellPrice = String.format("%.2f", cost * (1 + m))
-                            }
+                            autoFillSellPrice()
                         },
                         label = { Text("markupPercent".t(lang)) },
                         placeholder = { Text("20") },
@@ -188,7 +215,11 @@ fun AddStockScreen(
                     if (suggestedPrice > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "markupHint".t(lang).replace("{percent}", "$markupPercent") + " ${fmt.format(suggestedPrice)}",
+                            "markupHint".t(lang)
+                                .replace("{cost}", fmt.format(cost))
+                                .replace("{percent}", "$markupPercent")
+                                .replace("{amount}", fmt.format(suggestedPrice - cost))
+                                .replace("{price}", fmt.format(suggestedPrice)),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Green700
                         )

@@ -216,9 +216,6 @@ class AppViewModel : ViewModel() {
     /** Difference between Actual Sales and Recorded Sales */
     fun getSalesDiff(actualSales: Double): Double = actualSales - todayRecordedSales
 
-    /** Profit = Actual Sales - Cost of Goods */
-    fun getClosingProfit(actualSales: Double, costOfGoods: Double): Double = actualSales - costOfGoods
-
     // ── EOD Editability State ──────────────────────────────────────────
     // ── AppSettings persistence for day state ───────────────────────────
     private var appSettings: AppSettings? = null
@@ -233,6 +230,7 @@ class AppViewModel : ViewModel() {
         dayOpen = settings.dayOpen
         dayDate = settings.dayDate
         dayArchived = settings.dayArchived
+        _reportPeriod.value = settings.reportPeriod
     }
 
     /** Save current day state to AppSettings so it survives app restart */
@@ -410,7 +408,12 @@ class AppViewModel : ViewModel() {
                     name = item.productName,
                     quantity = item.qtyAdded,
                     costPrice = item.costPerUnit,
-                    sellingPrice = item.costPerUnit * 1.2
+                    // New-product price uses the configured default markup from
+                    // Settings (falls back to 20% when unset), matching the
+                    // Add Stock markup helper.
+                    sellingPrice = item.costPerUnit * (1 + (appSettings?.defaultMarkup ?: 20) / 100.0),
+                    // Same for the low-stock alert threshold.
+                    lowStockThreshold = appSettings?.lowStockThreshold ?: 5
                 ))
             }
         }
@@ -652,6 +655,7 @@ class AppViewModel : ViewModel() {
     // ── Actions ─────────────────────────────────────────────────────────
     fun setReportPeriod(period: String) {
         _reportPeriod.value = period
+        appSettings?.reportPeriod = period
     }
 
     fun recordDailyEntry(stockExpenses: Double, earnings: Double) {
@@ -702,6 +706,81 @@ class AppViewModel : ViewModel() {
 
     fun getUsedCustomerNames(): List<String> = _debts.value.map { it.customerName }.distinct()
 
+    // ── Credit-limit engine (web v2.56/v2.57 parity) ────────────────────
+
+    /** Global default credit limit (₱). 0 = no limit. Falls back to 500. */
+    fun getDefaultCreditLimit(): Int = appSettings?.defaultCreditLimit ?: 500
+
+    /** The debt record for a customer name — active (balance > 0) first, else
+     *  a settled record, else null. Mirrors web getDebtForName(). */
+    fun getDebtForName(name: String): CustomerDebt? {
+        if (name.isBlank()) return null
+        val lower = name.trim().lowercase()
+        var settled: CustomerDebt? = null
+        _debts.value.forEach { d ->
+            if (d.customerName.trim().lowercase() == lower) {
+                if (d.remainingBalance > 0) return d
+                if (settled == null) settled = d
+            }
+        }
+        return settled
+    }
+
+    /** Effective limit for a customer: per-customer override wins, else global
+     *  default (0 = no limit). Mirrors web getEffectiveCreditLimit(). */
+    fun getEffectiveCreditLimit(name: String): Int {
+        val debt = getDebtForName(name)
+        val custom = debt?.creditLimit
+        return if (custom != null && custom >= 0) custom else getDefaultCreditLimit()
+    }
+
+    /** Credit status for a name given a prospective purchase. At-or-above the
+     *  limit blocks a credit sale; near-limit warns at >=80% (web v2.57: at-or-above
+     *  with a half-cent epsilon so float drift can't slip an at-limit sale through). */
+    fun getCreditStatus(name: String, prospective: Double): CreditStatus {
+        val limit = getEffectiveCreditLimit(name)
+        val lower = name.trim().lowercase()
+        val balance = _debts.value
+            .filter { it.customerName.trim().lowercase() == lower && it.remainingBalance > 0 }
+            .sumOf { it.remainingBalance }
+        val total = balance + prospective
+        val atLimit = limit > 0 && Math.abs(total - limit) < 0.005
+        val overLimit = limit > 0 && total >= limit - 0.005
+        val nearLimit = limit > 0 && !overLimit && total >= limit * 0.8
+        return CreditStatus(
+            limit = limit,
+            balance = balance,
+            total = total,
+            overLimit = overLimit,
+            atLimit = atLimit,
+            nearLimit = nearLimit
+        )
+    }
+
+    /** Set (or clear) a customer's per-customer credit limit. null = use default. */
+    fun updateDebtCreditLimit(debtId: Int, limit: Int?) {
+        val updated = _debts.value.toMutableList()
+        val index = updated.indexOfFirst { it.id == debtId }
+        if (index >= 0) {
+            updated[index] = updated[index].copy(creditLimit = limit)
+            _debts.value = updated
+        }
+    }
+
+    /** Number of customers whose TOTAL outstanding balance is at-or-above their
+     *  effective credit limit (name-grouped across multiple debt records, web
+     *  v2.56/v2.57 parity). 0 when a limit is 0 (no limit). */
+    fun getOverLimitDebtorCount(): Int {
+        val nameTotals = mutableMapOf<String, Double>()
+        _debts.value.filter { it.remainingBalance > 0 }.forEach { d ->
+            nameTotals[d.customerName] = (nameTotals[d.customerName] ?: 0.0) + d.remainingBalance
+        }
+        return nameTotals.count { (name, total) ->
+            val limit = getEffectiveCreditLimit(name)
+            limit > 0 && total >= limit - 0.005
+        }
+    }
+
     fun recordDebtPayment(debtId: Int, amount: Double, note: String? = null) {
         val updated = _debts.value.toMutableList()
         val index = updated.indexOfFirst { it.id == debtId }
@@ -746,8 +825,7 @@ class AppViewModel : ViewModel() {
      * Sets dayOpen = false but keeps dayArchived = false so data is still editable.
      * Overwrites today's history entry if one already exists.
      */
-    fun completeEndOfDay(actualSales: Double = _dailyEntry.value?.earnings ?: 0.0,
-                         costOfGoods: Double = _dailyEntry.value?.stockExpenses ?: 0.0) {
+    fun completeEndOfDay(actualSales: Double = _dailyEntry.value?.earnings ?: 0.0) {
         val recordedSales = todayRecordedSales
         val salesDiff = actualSales - recordedSales
         val profit = todayProfit // Use per-sale profit (matching web app getTodayProfit())
@@ -760,7 +838,6 @@ class AppViewModel : ViewModel() {
             recordedSales = recordedSales,
             actualSales = actualSales,
             salesDiff = salesDiff,
-            costOfGoods = costOfGoods,
             profit = profit
         )
         dayOpen = false
@@ -840,6 +917,7 @@ class AppViewModel : ViewModel() {
         _payments.value = emptyList()
         _debtTransactions.value = emptyList()
         _endOfDayData.value = null
+        _reportPeriod.value = "day" // web parity: resetData() also resets the persisted period
         _productIdCounter = 10
         _saleIdCounter = 3
         _debtIdCounter = 4
@@ -1005,6 +1083,7 @@ class AppViewModel : ViewModel() {
                     put("id", d.id); put("customerName", d.customerName)
                     put("amount", d.amount); put("remainingBalance", d.remainingBalance)
                     put("createdAt", d.createdAt)
+                    if (d.creditLimit != null) put("creditLimit", d.creditLimit)
                 }
             }))
             put("payments", org.json.JSONArray(_payments.value.map { p ->
@@ -1084,7 +1163,10 @@ class AppViewModel : ViewModel() {
                     customerName = d.optString("customerName", ""),
                     amount = d.optDouble("amount", 0.0),
                     remainingBalance = d.optDouble("remainingBalance", 0.0),
-                    createdAt = d.optLong("createdAt", System.currentTimeMillis())
+                    createdAt = d.optLong("createdAt", System.currentTimeMillis()),
+                    creditLimit = if (d.has("creditLimit") && !d.isNull("creditLimit")) {
+                        d.optInt("creditLimit", -1).takeIf { it >= 0 }
+                    } else null
                 ))
             }
             if (debts.isNotEmpty()) _debts.value = debts
@@ -1320,7 +1402,7 @@ class AppViewModel : ViewModel() {
 
         // Products section
         sb.appendLine("=== PRODUCTS ===")
-        sb.appendLine("ID,Name,Quantity,Cost Price,Selling Price,Profit Margin,Status")
+        sb.appendLine("ID,Name,Quantity,Cost Price,Selling Price,Markup,Status")
         _products.value.forEach { p ->
             val margin = if (p.costPrice > 0) String.format("%.1f%%", ((p.sellingPrice - p.costPrice) / p.costPrice) * 100) else "N/A"
             sb.appendLine("${p.id},${p.name},${p.quantity},${p.costPrice},${p.sellingPrice},$margin,${p.status}")
@@ -1395,4 +1477,122 @@ class AppViewModel : ViewModel() {
     fun getWeekProfit(): Double {
         return getWeekEarnings() * 0.15 // rough estimate: 15% margin on total
     }
+
+    // ── Reports engine (web v2.55 parity) ────────────────────────────────
+    /**
+     * Compute everything the Reports screen needs for a period: current-window
+     * sales, previous-window comparison totals, utang/receivables summary with
+     * aging buckets, and cash collected within the period. Anchored to the
+     * (possibly dev-overridden) [today].
+     */
+    fun computeReportStats(period: String): ReportStats {
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val todayDate = try { fmt.parse(today) ?: Date() } catch (_: Exception) { Date() }
+        val dayMs = 24L * 60 * 60 * 1000
+        val curLen = when (period) {
+            "week" -> 7
+            "month" -> 30
+            else -> 1
+        }
+        val curStart = fmt.format(Date(todayDate.time - (curLen - 1) * dayMs))
+        val prevEnd = fmt.format(Date(todayDate.time - curLen * dayMs))
+        val prevStart = fmt.format(Date(todayDate.time - (2 * curLen - 1) * dayMs))
+
+        val curSales = _specificSales.value.filter { it.date >= curStart && it.date <= today }
+        val prevSales = _specificSales.value.filter { it.date >= prevStart && it.date <= prevEnd }
+        val activeDebts = _debts.value.filter { it.remainingBalance > 0 }
+
+        // Cash collected within the period: any payment recorded at/after the period start
+        val curStartMs = fmt.parse(curStart)?.time ?: 0L
+        val collected = _payments.value.filter { it.timestamp >= curStartMs }.sumOf { it.amount }
+
+        // Aging buckets (0-30 / 31-60 / 60+ days) by debt creation date
+        val nowMs = System.currentTimeMillis()
+        val aging = MutableList(3) { AgingBucket(0.0, 0) }
+        activeDebts.forEach { d ->
+            val ageDays = ((nowMs - d.createdAt) / dayMs).toInt().coerceAtLeast(0)
+            val idx = if (ageDays >= 60) 2 else if (ageDays >= 30) 1 else 0
+            val b = aging[idx]
+            aging[idx] = AgingBucket(b.amount + d.remainingBalance, b.count + 1)
+        }
+
+        return ReportStats(
+            period = period,
+            sales = curSales,
+            prevSalesTotal = prevSales.sumOf { it.amount },
+            prevProfitTotal = prevSales.sumOf { it.profit },
+            outstandingUtang = activeDebts.sumOf { it.remainingBalance },
+            activeDebtors = activeDebts.size,
+            collectedThisPeriod = collected,
+            aging = aging
+        )
+    }
+
+    /** Period-scoped CSV report (web exportCurrentReport parity). */
+    fun exportReportCsv(period: String): String {
+        val st = computeReportStats(period)
+        val periodLabel = when (period) {
+            "week" -> "Week"
+            "month" -> "Month"
+            else -> "Day"
+        }
+        val sb = StringBuilder()
+        sb.appendLine("Sari-Sari Smart - Report ($periodLabel)")
+        sb.appendLine("Period,$today")
+        sb.appendLine("Total Sales,${String.format("%.2f", st.sales.sumOf { it.amount })}")
+        sb.appendLine("Total Profit,${String.format("%.2f", st.sales.sumOf { it.profit })}")
+        sb.appendLine("Items Sold,${st.sales.sumOf { it.quantity }}")
+        sb.appendLine("Transactions,${st.sales.size}")
+        sb.appendLine("Cash Sales,${String.format("%.2f", st.sales.filter { it.customerName == null }.sumOf { it.amount })}")
+        sb.appendLine("Utang Sales,${String.format("%.2f", st.sales.filter { it.customerName != null }.sumOf { it.amount })}")
+        sb.appendLine("vs Previous Sales,${String.format("%.2f", st.prevSalesTotal)}")
+        sb.appendLine("Outstanding Utang,${String.format("%.2f", st.outstandingUtang)}")
+        sb.appendLine("Active Debtors,${st.activeDebtors}")
+        sb.appendLine("Collected This Period,${String.format("%.2f", st.collectedThisPeriod)}")
+        sb.appendLine("Aging 0-30 days,${String.format("%.2f", st.aging[0].amount)} (${st.aging[0].count})")
+        sb.appendLine("Aging 31-60 days,${String.format("%.2f", st.aging[1].amount)} (${st.aging[1].count})")
+        sb.appendLine("Aging 60+ days,${String.format("%.2f", st.aging[2].amount)} (${st.aging[2].count})")
+        sb.appendLine()
+        sb.appendLine("=== TRANSACTIONS ===")
+        sb.appendLine("Date,Description,Quantity,Amount,Profit,Customer")
+        st.sales.sortedByDescending { it.timestamp }.forEach { s ->
+            sb.appendLine("${s.date},${s.description},${s.quantity},${String.format("%.2f", s.amount)},${String.format("%.2f", s.profit)},${s.customerName ?: "Cash"}")
+        }
+        sb.appendLine()
+        sb.appendLine("=== LOW STOCK ===")
+        sb.appendLine("Name,Quantity,Status")
+        _products.value.filter { it.status != StockStatus.PLENTY }.sortedBy { it.quantity }.forEach { p ->
+            val status = if (p.quantity <= 0) "Out of stock" else "Low"
+            sb.appendLine("${p.name},${p.quantity},$status")
+        }
+        return sb.toString()
+    }
 }
+
+/** Credit status for a customer given a prospective purchase (web getCreditStatus parity). */
+data class CreditStatus(
+    val limit: Int,
+    val balance: Double,
+    val total: Double,
+    val overLimit: Boolean,
+    val atLimit: Boolean,
+    val nearLimit: Boolean
+)
+
+/** Aggregated report stats for one period (web computeReportStats parity). */
+data class ReportStats(
+    val period: String,
+    val sales: List<SpecificSale>,
+    val prevSalesTotal: Double,
+    val prevProfitTotal: Double,
+    val outstandingUtang: Double,
+    val activeDebtors: Int,
+    val collectedThisPeriod: Double,
+    val aging: List<AgingBucket>
+)
+
+/** One aging bucket (0-30 / 31-60 / 60+ days) — amount outstanding + debtor count. */
+data class AgingBucket(
+    val amount: Double,
+    val count: Int
+)

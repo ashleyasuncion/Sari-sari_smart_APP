@@ -21,7 +21,7 @@ import com.example.sari_sari_smart.data.local.entity.*
         DebtPaymentEntity::class,
         DebtTransactionEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -46,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sari_sari_smart_db"
                 )
-                    .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
@@ -71,6 +71,48 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_debt_transactions_debtId` ON `debt_transactions` (`debtId`)"
                 )
+            }
+        }
+
+        /**
+         * v4 → v5: drop the obsolete `costOfGoods` column from `end_of_day_data`.
+         * Cost of Goods was removed from the Closing page with the web Restock Day
+         * feature (web progress.txt, July 8 2026) — mobile parity fix.
+         * ALTER TABLE DROP COLUMN needs SQLite >= 3.35 but minSdk 24 ships SQLite
+         * 3.9, so use the Room-recommended recreate-and-copy pattern.
+         * Non-destructive: existing rows carry over with costOfGoods dropped.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `end_of_day_data_new` (" +
+                        "`date` TEXT NOT NULL, `cashInDrawer` REAL NOT NULL, " +
+                        "`stockCheckDone` INTEGER NOT NULL, `debtPaymentsDone` INTEGER NOT NULL, " +
+                        "`finished` INTEGER NOT NULL, `recordedSales` REAL NOT NULL, " +
+                        "`actualSales` REAL NOT NULL, `salesDiff` REAL NOT NULL, " +
+                        "`profit` REAL NOT NULL, PRIMARY KEY(`date`))"
+                )
+                db.execSQL(
+                    "INSERT INTO `end_of_day_data_new` (`date`, `cashInDrawer`, `stockCheckDone`, " +
+                        "`debtPaymentsDone`, `finished`, `recordedSales`, `actualSales`, " +
+                        "`salesDiff`, `profit`) " +
+                        "SELECT `date`, `cashInDrawer`, `stockCheckDone`, `debtPaymentsDone`, " +
+                        "`finished`, `recordedSales`, `actualSales`, `salesDiff`, `profit` " +
+                        "FROM `end_of_day_data`"
+                )
+                db.execSQL("DROP TABLE `end_of_day_data`")
+                db.execSQL("ALTER TABLE `end_of_day_data_new` RENAME TO `end_of_day_data`")
+            }
+        }
+
+        /**
+         * v5 → v6: add the per-customer `creditLimit` column (web v2.56 parity).
+         * NULL = uses the global default; 0 = no limit for that customer.
+         * Non-destructive: existing debts keep their data, new column defaults NULL.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `customer_debts` ADD COLUMN `creditLimit` INTEGER")
             }
         }
     }

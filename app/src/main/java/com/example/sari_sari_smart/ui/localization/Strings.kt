@@ -82,7 +82,9 @@ object Strings {
         "costPerUnit" to "Cost per Unit (₱)",
         "sellPrice" to "Selling Price (₱)",
         "markupPercent" to "Markup (%)",
-        "markupHint" to "At {percent}% markup, sell this at",
+        "markupHint" to "Cost {cost} + {percent}% ({amount}) = Suggested {price}",
+        "defaultMarkupLabel" to "Default Markup (%)",
+        "defaultMarkupHint" to "Applied to new products",
         "suggestedPrice" to "Suggested",
         "save" to "Save",
         "cancel" to "Cancel",
@@ -155,6 +157,23 @@ object Strings {
         "day" to "Day",
         "week" to "Week",
         "month" to "Month",
+        "cashSales" to "Cash Sales",
+        "utangSales" to "Utang Sales",
+        "utangReport" to "Utang / Receivables",
+        "outstandingUtang" to "Outstanding Utang",
+        "activeDebtors" to "Active Debtors",
+        "collected" to "Collected",
+        "debtAging" to "Age of unpaid debts",
+        "debtAge30" to "0-30 days",
+        "debtAge60" to "31-60 days",
+        "debtAge60Plus" to "60+ days",
+        "exportReport" to "Export CSV",
+        "exportReportDone" to "Report exported.",
+        "exportReportError" to "Export failed.",
+        "reportSummaryLine" to "{period}: {sales} sales, {profit} profit{vs}{owed}",
+        "reportVsUp" to " \u25b2 +{pct}% vs previous",
+        "reportVsDown" to " \u25bc {pct}% vs previous",
+        "reportOwed" to " \u00b7 {owed} still owed to you",
 
         // Help
         "replayTutorial" to "Replay Tutorial",
@@ -209,7 +228,7 @@ object Strings {
         "tutorial6" to "The Today summary shows your earnings, items sold, and utang transactions at a glance.",
         "tutorial7" to "Tap the + button to open the sale sheet. Select a product, enter quantity, and save the sale.",
         "tutorial8" to "At the end of the day, the Closing screen shows a full summary of today's performance.",
-        "tutorial9" to "Enter your cost of goods and cash earnings for the day. The app calculates your profit automatically.",
+        "tutorial9" to "Enter your actual cash earnings for the day. The app calculates your profit automatically.",
         "tutorial10" to "Tap 'Day Complete' when you're ready to finalize. Your daily summary will be saved to history.",
         "tutorial11" to "The Inventory page lets you search, add, and manage all your stock items in one place.",
         "tutorial12" to "Tap 'Add Stock' to add new products or restock existing items with cost and selling price.",
@@ -292,7 +311,6 @@ object Strings {
         "weeklyEarnings" to "Week Earnings",
         "weeklyProfit" to "Week Profit",
         "closingItemsSold" to "Today's Items",
-        "closingExpensesLabel" to "Cost of Goods",
 
         // Common
         "peso" to "₱",
@@ -302,7 +320,7 @@ object Strings {
         "back" to "Back",
 
         // Profit Margin & Pricing
-        "profitMargin" to "Profit Margin",
+        "profitMargin" to "Markup",
         "eachLabel" to "each",
 
         // Sales Insights
@@ -365,6 +383,22 @@ object Strings {
         "enterCustomerNameDebt" to "Enter customer name",
         "debtNote" to "This will add the amount to the customer's outstanding balance. You can record payments from the Debts screen.",
         "usedCustomerHint" to "Suggestions from previous customers",
+
+        // Credit Limits (web v2.56/v2.57 parity)
+        "defaultCreditLimitLabel" to "Default Credit Limit (₱)",
+        "defaultCreditLimitHint" to "Applied to new customers. Set 0 for no limit.",
+        "creditLimitLabel" to "Credit Limit",
+        "creditLimitNone" to "No limit",
+        "creditLimitUsesDefault" to "Uses default",
+        "creditLimitEdit" to "Edit",
+        "creditLimitCancel" to "Cancel",
+        "creditLimitSave" to "Save",
+        "creditLimitSaved" to "Credit limit saved.",
+        "creditWarnNear" to "⚠ Getting close to their {limit} credit limit",
+        "creditWarnOver" to "⛔ This would put {name} at {total} — over their {limit} credit limit",
+        "creditWarnAtLimit" to "⛔ {name} is at their {limit} credit limit",
+        "creditAllowAnyway" to "Allow anyway",
+        "overLimitDebtors" to "Over-limit debtors",
 
         // Tutorial Selector
         "tutSelector" to "Select a tutorial...",
@@ -651,7 +685,9 @@ object Strings {
         "costPerUnit" to "Presyo ng Stock bawat Piraso (₱)",
         "sellPrice" to "Presyo ng Benta (₱)",
         "markupPercent" to "Markup (%)",
-        "markupHint" to "Sa {percent}% markup, ibenta ito sa",
+        "markupHint" to "Halaga {cost} + {percent}% ({amount}) = Mungkahing {price}",
+        "defaultMarkupLabel" to "Default na Markup (%)",
+        "defaultMarkupHint" to "Gagamitin sa mga bagong produkto",
         "suggestedPrice" to "Mungkahi",
         "save" to "I-save",
         "cancel" to "Kanselahin",
@@ -724,6 +760,23 @@ object Strings {
         "day" to "Araw",
         "week" to "Linggo",
         "month" to "Buwan",
+        "cashSales" to "Cash Benta",
+        "utangSales" to "Utang Benta",
+        "utangReport" to "Utang / Resibols",
+        "outstandingUtang" to "Natitirang Utang",
+        "activeDebtors" to "May Utang",
+        "collected" to "Nakolekta",
+        "debtAging" to "Edad ng hindi pa bayad na utang",
+        "debtAge30" to "0-30 araw",
+        "debtAge60" to "31-60 araw",
+        "debtAge60Plus" to "60+ araw",
+        "exportReport" to "I-export ang CSV",
+        "exportReportDone" to "Na-export ang report.",
+        "exportReportError" to "Nabigong i-export.",
+        "reportSummaryLine" to "{period}: {sales} benta, {profit} kita{vs}{owed}",
+        "reportVsUp" to " \u25b2 +{pct}% vs nakaraan",
+        "reportVsDown" to " \u25bc {pct}% vs nakaraan",
+        "reportOwed" to " \u00b7 {owed} pa ang utang sa iyo",
 
         // Help
         "replayTutorial" to "Balik-aral sa Tutorial",
@@ -778,7 +831,7 @@ object Strings {
         "tutorial6" to "Ang Today summary ay nagpapakita ng iyong kita, naibenta, at utang sa isang sulyap.",
         "tutorial7" to "I-tap ang + button para buksan ang sale sheet. Pumili ng produkto, ilagay ang dami, at i-save ang benta.",
         "tutorial8" to "Sa pagtatapos ng araw, ang Closing screen ay nagpapakita ng buong summary ng performance ngayong araw.",
-        "tutorial9" to "Ilagay ang iyong gastos sa paninda at kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita.",
+        "tutorial9" to "Ilagay ang iyong aktwal na kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita.",
         "tutorial10" to "I-tap ang 'Tapos Na ang Araw' para tapusin. Ang iyong daily summary ay mase-save sa history.",
         "tutorial11" to "Ang Inventory page ay nagbibigay-daan sa iyo na maghanap, magdagdag, at mamahala ng stock.",
         "tutorial12" to "I-tap ang 'Magdagdag ng Stock' para magdagdag ng bagong produkto o mag-restock.",
@@ -861,7 +914,6 @@ object Strings {
         "weeklyEarnings" to "Kita ng Linggo",
         "weeklyProfit" to "Kita sa Linggo",
         "closingItemsSold" to "Naibenta Ngayon",
-        "closingExpensesLabel" to "Gastos sa Paninda",
 
         // Common
         "peso" to "₱",
@@ -871,7 +923,7 @@ object Strings {
         "back" to "Bumalik",
 
         // Profit Margin & Pricing
-        "profitMargin" to "Profit Margin",
+        "profitMargin" to "Markup",
         "eachLabel" to "bawat",
 
         // Sales Insights
@@ -934,6 +986,22 @@ object Strings {
         "enterCustomerNameDebt" to "Ilagay ang pangalan ng kostumer",
         "debtNote" to "Idadagdag ang halagang ito sa balanse ng kostumer. Maaari kang magtala ng bayad mula sa Utang screen.",
         "usedCustomerHint" to "Mga mungkahi mula sa dating kostumer",
+
+        // Credit Limits (web v2.56/v2.57 parity)
+        "defaultCreditLimitLabel" to "Default na Limit ng Utang (₱)",
+        "defaultCreditLimitHint" to "Gagamitin sa mga bagong kostumer. Maglagay ng 0 kung walang limit.",
+        "creditLimitLabel" to "Limit ng Utang",
+        "creditLimitNone" to "Walang limit",
+        "creditLimitUsesDefault" to "Ginagamit ang default",
+        "creditLimitEdit" to "I-edit",
+        "creditLimitCancel" to "Kanselahin",
+        "creditLimitSave" to "I-save",
+        "creditLimitSaved" to "Na-save ang limit ng utang.",
+        "creditWarnNear" to "⚠ Malapit na sa kanyang {limit} limit ng utang",
+        "creditWarnOver" to "⛔ Ilalagay nito si {name} sa {total} — lampas sa kanyang {limit} limit",
+        "creditWarnAtLimit" to "⛔ Naabot na ni {name} ang kanyang {limit} limit ng utang",
+        "creditAllowAnyway" to "Payagan pa rin",
+        "overLimitDebtors" to "Lampas sa limit ng utang",
 
         // Tutorial Selector
         "tutSelector" to "Pumili ng tutorial...",

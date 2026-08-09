@@ -481,6 +481,7 @@ fun NavGraph(
                     viewModel = appViewModel,
                     productId = productId?.let { if (it >= 0) it else null },
                     defaultMarkup = appSettings.defaultMarkup,
+                    defaultLowStockThreshold = appSettings.lowStockThreshold,
                     onBack = { navController.popBackStack() },
                     onSaved = { },
                     onTutorialClick = { startPageTutorial("addProduct") }

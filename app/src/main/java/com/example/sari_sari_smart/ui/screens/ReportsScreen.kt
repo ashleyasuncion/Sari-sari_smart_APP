@@ -1,5 +1,8 @@
 package com.example.sari_sari_smart.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,8 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,8 +37,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * REPORTS SCREEN — Shows period-based sales summary with bar chart.
- * Replicates the web prototype's Reports page with Day/Week/Month toggles.
+ * REPORTS SCREEN — Shows period-based sales summary with bar chart, KPI grid
+ * with period-over-period comparison, utang/receivables summary with aging,
+ * and CSV export. Web v2.55 parity (summary line, vs badges, utang section).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,53 +52,58 @@ fun ReportsScreen(
     val lang = langState.value
     val scrollState = rememberScrollState()
     val highlightState = LocalTutorialHighlightState.current
+    val context = LocalContext.current
 
     val specificSales by viewModel.specificSales.collectAsState()
     val products by viewModel.products.collectAsState()
-    val debts by viewModel.debts.collectAsState()
     val reportPeriod by viewModel.reportPeriod.collectAsState()
 
     var selectedPeriod by remember { mutableStateOf(reportPeriod) }
 
-    // Filter sales by period — anchored to the (possibly overridden) app date
-    val todayStr = viewModel.today
-    val now = try {
-        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(todayStr) ?: Date()
-    } catch (e: Exception) { Date() }
-    val weekAgo = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        .format(Date(now.time - 7L * 24 * 60 * 60 * 1000))
-    val monthAgo = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        .format(Date(now.time - 30L * 24 * 60 * 60 * 1000))
-
-    val filteredSales = when (selectedPeriod) {
-        "day" -> specificSales.filter { it.date == todayStr }
-        "week" -> specificSales.filter { it.date >= weekAgo }
-        "month" -> specificSales.filter { it.date >= monthAgo }
-        else -> specificSales.filter { it.date == todayStr }
-    }
-
-    val totalSales = filteredSales.sumOf { it.amount }
-    val totalProfit = filteredSales.sumOf { it.profit }
-    val totalItems = filteredSales.sumOf { it.quantity }
+    // All report numbers come from the shared engine (dev-date aware)
+    val stats = viewModel.computeReportStats(selectedPeriod)
+    val totalSales = stats.sales.sumOf { it.amount }
+    val totalProfit = stats.sales.sumOf { it.profit }
+    val totalItems = stats.sales.sumOf { it.quantity }
+    val cashSales = stats.sales.filter { it.customerName == null }.sumOf { it.amount }
+    val utangSales = totalSales - cashSales
 
     // Best-selling products
-    val productSales = filteredSales.groupBy { it.description }
+    val productSales = stats.sales.groupBy { it.description }
         .mapValues { (_, sales) -> sales.sumOf { it.quantity } }
         .entries.sortedByDescending { it.value }.take(5)
 
     // Low stock items
     val lowItems = products.filter { it.status != StockStatus.PLENTY }
 
-    // Weekly chart data (last 7 days)
+    // Weekly chart data (last 7 days) — anchored to the (possibly overridden) app date
+    val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val todayDate = try { fmt.parse(viewModel.today) ?: Date() } catch (e: Exception) { Date() }
     val last7Days = (6 downTo 0).map { daysAgo ->
-        val d = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -daysAgo) }
-        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(d.time)
-        val dayLabel = SimpleDateFormat("E", Locale.getDefault()).format(d.time)
-        val dayTotal = specificSales.filter { it.date == dateStr }.sumOf { it.amount }
-        dayLabel to dayTotal
+        val d = Date(todayDate.time - daysAgo * 24L * 60 * 60 * 1000)
+        val dateStr = fmt.format(d)
+        val dayLabel = SimpleDateFormat("E", Locale.getDefault()).format(d)
+        dayLabel to specificSales.filter { it.date == dateStr }.sumOf { it.amount }
     }
 
     val maxChartValue = last7Days.maxOfOrNull { it.second } ?: 1.0
+
+    // CSV export (web Export CSV parity — writes the current period's report)
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val csv = viewModel.exportReportCsv(selectedPeriod)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(csv.toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, "exportReportDone".t(lang), Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "exportReportError".t(lang), Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -103,6 +115,13 @@ fun ReportsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { exportLauncher.launch("sari-sari-smart-report-$selectedPeriod.csv") }) {
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "exportReport".t(lang),
+                            tint = Color.White
+                        )
+                    }
                     if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -145,25 +164,93 @@ fun ReportsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Summary cards
+            // Auto plain-language summary line (zero interaction)
+            val periodLabel = when (selectedPeriod) {
+                "week" -> "week".t(lang)
+                "month" -> "month".t(lang)
+                else -> "day".t(lang)
+            }
+            val summaryText = fmt("reportSummaryLine", lang, mapOf(
+                "period" to periodLabel,
+                "sales" to peso(totalSales),
+                "profit" to peso(totalProfit),
+                "vs" to vsBadge(totalSales, stats.prevSalesTotal, lang),
+                "owed" to if (stats.outstandingUtang > 0) {
+                    fmt("reportOwed", lang, mapOf("owed" to peso(stats.outstandingUtang)))
+                } else ""
+            ))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Green50),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Text(
+                    summaryText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Green800,
+                    lineHeight = 20.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // KPI grid (2 rows × 3 tiles) — Sales & Profit carry vs-previous badges
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .tutorialHighlight("reportSummaryCards", highlightState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SummaryCard(
+                KpiTile(
                     title = "totalSales".t(lang),
-                    value = "₱${String.format("%,.2f", totalSales)}",
+                    value = peso(totalSales),
                     color = Green600,
                     bgColor = Green50,
+                    badge = vsBadge(totalSales, stats.prevSalesTotal, lang),
                     modifier = Modifier.weight(1f)
                 )
-                SummaryCard(
+                KpiTile(
                     title = "profit".t(lang),
-                    value = "₱${String.format("%,.2f", totalProfit)}",
+                    value = peso(totalProfit),
                     color = Blue600,
                     bgColor = Blue50,
+                    badge = vsBadge(totalProfit, stats.prevProfitTotal, lang),
+                    modifier = Modifier.weight(1f)
+                )
+                KpiTile(
+                    title = "itemsSold".t(lang),
+                    value = totalItems.toString(),
+                    color = Amber700,
+                    bgColor = Amber50,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                KpiTile(
+                    title = "transactions".t(lang),
+                    value = stats.sales.size.toString(),
+                    color = Gray700,
+                    bgColor = Gray100,
+                    modifier = Modifier.weight(1f)
+                )
+                KpiTile(
+                    title = "cashSales".t(lang),
+                    value = peso(cashSales),
+                    color = Green700,
+                    bgColor = Green100,
+                    modifier = Modifier.weight(1f)
+                )
+                KpiTile(
+                    title = "utangSales".t(lang),
+                    value = peso(utangSales),
+                    color = Red600,
+                    bgColor = Red50,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -236,6 +323,72 @@ fun ReportsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
             }
+
+            // Utang / receivables (collapsible) — outstanding, debtors, collected, aging
+            var showUtang by remember { mutableStateOf(true) }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "utangReport".t(lang),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Gray800
+                        )
+                        TextButton(onClick = { showUtang = !showUtang }) {
+                            Text(if (showUtang) "▲" else "▼", color = Gray500)
+                        }
+                    }
+                    if (showUtang) {
+                        ReportRow(
+                            "outstandingUtang".t(lang),
+                            peso(stats.outstandingUtang),
+                            if (stats.outstandingUtang > 0) Red600 else Green600
+                        )
+                        ReportRow("activeDebtors".t(lang), stats.activeDebtors.toString(), Gray800)
+                        ReportRow("collected".t(lang), peso(stats.collectedThisPeriod), Green600)
+                        // Over-limit debtors (web v2.56/v2.57 parity) — shown only when > 0
+                        val overLimitCount = viewModel.getOverLimitDebtorCount()
+                        if (overLimitCount > 0) {
+                            ReportRow("overLimitDebtors".t(lang), overLimitCount.toString(), Red600)
+                        }
+                        Text(
+                            "debtAging".t(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Gray400,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                        )
+                        ReportRow(
+                            "debtAge30".t(lang),
+                            bucketText(stats.aging[0], lang),
+                            if (stats.aging[0].amount > 0) Green600 else Gray400
+                        )
+                        ReportRow(
+                            "debtAge60".t(lang),
+                            bucketText(stats.aging[1], lang),
+                            if (stats.aging[1].amount > 0) Amber700 else Gray400
+                        )
+                        ReportRow(
+                            "debtAge60Plus".t(lang),
+                            bucketText(stats.aging[2], lang),
+                            if (stats.aging[2].amount > 0) Red600 else Gray400
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Best-selling products
             Card(
@@ -319,14 +472,14 @@ fun ReportsScreen(
                         }
                     }
                     if (showTransactions) {
-                        if (filteredSales.isEmpty()) {
+                        if (stats.sales.isEmpty()) {
                             Text(
                                 "noTransactions".t(lang),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Gray500
                             )
                         } else {
-                            filteredSales.take(15).forEach { sale ->
+                            stats.sales.sortedByDescending { it.timestamp }.take(15).forEach { sale ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -429,12 +582,13 @@ fun ReportsScreenPreview() {
 }
 
 @Composable
-private fun SummaryCard(
+private fun KpiTile(
     title: String,
     value: String,
     color: Color,
     bgColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    badge: String = ""
 ) {
     Card(
         modifier = modifier,
@@ -443,21 +597,81 @@ private fun SummaryCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Gray500
+                color = Gray500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 value,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = color
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 15.sp
             )
+            if (badge.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    badge,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 10.sp,
+                    color = color
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun ReportRow(label: String, value: String, color: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = Gray800)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = color
+        )
+    }
+}
+
+// ── Helpers (web v2.55 parity) ────────────────────────────────────────
+
+/** Translate a key and substitute {placeholders} (mirrors web t(key, reps)). */
+private fun fmt(key: String, lang: String, reps: Map<String, String>): String {
+    var s = key.t(lang)
+    reps.forEach { (k, v) -> s = s.replace("{$k}", v) }
+    return s
+}
+
+/** "▲ +{pct}% vs previous" / "▼ {pct}% vs previous" — empty when no previous data. */
+private fun vsBadge(cur: Double, prev: Double, lang: String): String {
+    if (prev <= 0) return ""
+    val p = Math.round(((cur - prev) / prev) * 100)
+    return if (p >= 0) {
+        fmt("reportVsUp", lang, mapOf("pct" to p.toString()))
+    } else {
+        fmt("reportVsDown", lang, mapOf("pct" to Math.abs(p).toString()))
+    }
+}
+
+private fun peso(v: Double): String = "₱${String.format("%,.2f", v)}"
+
+/** Aging bucket display: "₱amount (count)" or localized no-data text. */
+private fun bucketText(bucket: AgingBucket, lang: String): String =
+    if (bucket.amount > 0) "${peso(bucket.amount)} (${bucket.count})" else "noData".t(lang)

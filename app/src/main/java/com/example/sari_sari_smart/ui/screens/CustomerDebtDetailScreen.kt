@@ -2,6 +2,7 @@ package com.example.sari_sari_smart.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -10,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -17,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sari_sari_smart.data.CustomerDebt
 import com.example.sari_sari_smart.data.DebtPayment
+import com.example.sari_sari_smart.data.LocalSnackbarHost
+import com.example.sari_sari_smart.data.LocalSnackbarScope
 import com.example.sari_sari_smart.data.SpecificSale
 import com.example.sari_sari_smart.ui.components.LocalTutorialHighlightState
 import com.example.sari_sari_smart.ui.components.TutorialIconButton
@@ -24,6 +28,7 @@ import com.example.sari_sari_smart.ui.components.tutorialHighlight
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.theme.*
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -41,6 +46,8 @@ fun CustomerDebtDetailScreen(
     val lang = langState.value
     val highlightState = LocalTutorialHighlightState.current
     val fmt = remember { NumberFormat.getCurrencyInstance(Locale("en", "PH")) }
+    val snackbarHost = LocalSnackbarHost.current
+    val snackbarScope = LocalSnackbarScope.current
     val debts by viewModel.debts.collectAsState()
     val allPayments by viewModel.payments.collectAsState()
     val debtTransactions by viewModel.debtTransactions.collectAsState()
@@ -48,6 +55,10 @@ fun CustomerDebtDetailScreen(
     val debt = debts.find { it.id == debtId }
     val payments = allPayments.filter { it.debtId == debtId }.sortedBy { it.timestamp }
     val isSettled = debt?.remainingBalance != null && debt.remainingBalance <= 0
+
+    // Credit-limit edit state (web v2.56 parity)
+    var editingCreditLimit by remember { mutableStateOf(false) }
+    var creditLimitInput by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -176,6 +187,109 @@ fun CustomerDebtDetailScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = Gray500
                         )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Credit Limit Card (web v2.56 parity) ──────────────────────
+            val hasCustomLimit = debt.creditLimit != null
+            val effectiveLimit = if (hasCustomLimit) debt.creditLimit!! else viewModel.getDefaultCreditLimit()
+            Card(
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("cddCreditLimit", highlightState),
+                colors = CardDefaults.cardColors(containerColor = Surface),
+                shape = MaterialTheme.shapes.medium,
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "creditLimitLabel".t(lang),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Gray400
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            if (effectiveLimit > 0) {
+                                Text(
+                                    fmt.format(effectiveLimit.toDouble()),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Green600
+                                )
+                            } else {
+                                Text(
+                                    "creditLimitNone".t(lang),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Gray500
+                                )
+                            }
+                            if (!hasCustomLimit && effectiveLimit > 0) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    "creditLimitUsesDefault".t(lang) + " (${fmt.format(viewModel.getDefaultCreditLimit().toDouble())})",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Gray400
+                                )
+                            }
+                        }
+                        TextButton(onClick = {
+                            editingCreditLimit = !editingCreditLimit
+                            creditLimitInput = effectiveLimit.toString()
+                        }) {
+                            Text(
+                                if (editingCreditLimit) "creditLimitCancel".t(lang)
+                                else "creditLimitEdit".t(lang),
+                                color = Green700
+                            )
+                        }
+                    }
+                    if (editingCreditLimit) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = creditLimitInput,
+                            onValueChange = { creditLimitInput = it.filter { c -> c.isDigit() } },
+                            label = { Text("creditLimitLabel".t(lang)) },
+                            prefix = { Text("₱") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "defaultCreditLimitHint".t(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Gray400
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                val value = creditLimitInput.toIntOrNull()
+                                if (value != null) {
+                                    viewModel.updateDebtCreditLimit(debt.id, value.coerceIn(0, 10000))
+                                } else {
+                                    // Empty/invalid input → use default (clear custom)
+                                    viewModel.updateDebtCreditLimit(debt.id, null)
+                                }
+                                editingCreditLimit = false
+                                snackbarScope.launch {
+                                    snackbarHost.showSnackbar("creditLimitSaved".t(lang))
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Text("creditLimitSave".t(lang), fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

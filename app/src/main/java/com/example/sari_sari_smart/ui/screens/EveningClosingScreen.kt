@@ -54,20 +54,12 @@ fun EveningClosingScreen(
     // Per-sale profit (sum of each item's (sellingPrice - costPrice) × qty)
     val perSaleProfit = viewModel.todayProfit
 
-    // Form inputs (matching webapp closing.html inputs)
-    // Use endOfDayData costOfGoods if available, otherwise start empty
+    // End-of-day data — used to pre-fill Actual Sales when editing today's closing
     val eodDataForForm by viewModel.endOfDayData.collectAsState()
 
     // Detect edit mode — check if we're reopening today's finished closing
     val isEditMode = eodDataForForm?.date == today && eodDataForForm?.finished == true && !viewModel.dayArchived
 
-    // Cost of Goods input — pre-filled only when editing today's closing
-    var costOfGoods by remember {
-        mutableStateOf(
-            if (isEditMode) eodDataForForm?.costOfGoods?.let { if (it > 0) it.toString() else "" } ?: ""
-            else ""
-        )
-    }
     // Actual Sales Today input — pre-filled only when editing today's closing.
     // On a fresh day it starts EMPTY (web parity: closing.html begins blank);
     // the legacy fallback to dailyEntry.earnings is removed so a stale
@@ -80,14 +72,11 @@ fun EveningClosingScreen(
         )
     }
 
-    val cogVal = costOfGoods.toDoubleOrNull() ?: 0.0
     val asVal = actualSales.toDoubleOrNull() ?: 0.0
     val salesDiff = viewModel.getSalesDiff(asVal)
-    // Primary profit: per-sale profit (sum of each item's margin × qty)
+    // Profit: per-sale profit (sum of each item's margin × qty)
     // This matches web app's getTodayProfit() behavior
     val profitTotal = perSaleProfit
-    // Secondary: net profit (actual - cost) for comparison
-    val netProfit = asVal - cogVal
 
     // Weekly snapshot
     val weekSales = viewModel.getWeekSales()
@@ -112,7 +101,7 @@ fun EveningClosingScreen(
                 showComplete = false
             },
             onPrepareTomorrow = {
-                viewModel.completeEndOfDay(actualSales = asVal, costOfGoods = cogVal)
+                viewModel.completeEndOfDay(actualSales = asVal)
                 showComplete = false
                 onComplete()
             }
@@ -177,26 +166,6 @@ fun EveningClosingScreen(
                             color = Green600
                         )
                     }
-
-                    HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 8.dp))
-
-                    // Cost of Goods (input) — matching webapp closing.html "Cost of Goods" input
-                    Text(
-                        "closingExpensesLabel".t(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Gray500
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = costOfGoods,
-                        onValueChange = { costOfGoods = it },
-                        leadingIcon = { Text("\u20B1", fontWeight = FontWeight.Bold) },
-                        placeholder = { Text("0.00") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
 
                     HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 8.dp))
 

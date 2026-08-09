@@ -14,7 +14,6 @@ data class EndOfDayEntity(
     val recordedSales: Double = 0.0,
     val actualSales: Double = 0.0,
     val salesDiff: Double = 0.0,
-    val costOfGoods: Double = 0.0,
     val profit: Double = 0.0
 ) {
     fun toDomainModel(): EndOfDayData = EndOfDayData(
@@ -26,7 +25,6 @@ data class EndOfDayEntity(
         recordedSales = recordedSales,
         actualSales = actualSales,
         salesDiff = salesDiff,
-        costOfGoods = costOfGoods,
         profit = profit
     )
 
@@ -40,7 +38,6 @@ data class EndOfDayEntity(
             recordedSales = data.recordedSales,
             actualSales = data.actualSales,
             salesDiff = data.salesDiff,
-            costOfGoods = data.costOfGoods,
             profit = data.profit
         )
     }

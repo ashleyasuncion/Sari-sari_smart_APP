@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,97 @@ fun NewDebtScreen(
 
     val debtAmount = amount.toDoubleOrNull() ?: 0.0
     val canSave = customerName.isNotBlank() && debtAmount > 0
+
+    // Live credit-limit status for the typed customer + entry amount (web v2.56).
+    val creditStatus = if (customerName.isNotBlank()) {
+        viewModel.getCreditStatus(customerName, debtAmount)
+    } else null
+
+    /** Colour + text for a customer suggestion badge — web suggestionBalanceHtml parity. */
+    fun badgeFor(name: String, balance: Double): Pair<String, Color> {
+        val limit = viewModel.getEffectiveCreditLimit(name)
+        val peso = { v: Double -> "₱" + String.format("%,.2f", v) }
+        return if (limit > 0) {
+            val txt = "${peso(balance)} / ${peso(limit.toDouble())}"
+            val color = when {
+                balance == 0.0 -> Green600
+                balance >= limit -> Red500
+                balance >= limit * 0.8 -> Amber700
+                else -> Gray800
+            }
+            txt to color
+        } else {
+            if (balance > 0) "${peso(balance)}" to Red500
+            else "✓ ₱0.00" to Green600
+        }
+    }
+
+    /** Localized credit warning message — web creditWarnMessage parity. */
+    fun warnText(cs: CreditStatus): String {
+        val peso = { v: Double -> "₱" + String.format("%,.2f", v) }
+        val key = if (cs.overLimit) {
+            if (cs.total > cs.limit) "creditWarnOver" else "creditWarnAtLimit"
+        } else "creditWarnNear"
+        return when (key) {
+            "creditWarnAtLimit" -> "creditWarnAtLimit".t(lang)
+                .replace("{name}", customerName)
+                .replace("{limit}", peso(cs.limit.toDouble()))
+            "creditWarnOver" -> "creditWarnOver".t(lang)
+                .replace("{name}", customerName)
+                .replace("{total}", peso(cs.total))
+                .replace("{limit}", peso(cs.limit.toDouble()))
+            else -> "creditWarnNear".t(lang).replace("{limit}", peso(cs.limit.toDouble()))
+        }
+    }
+
+    /** Web saveNewDebt(force) parity: blocks at/over the credit limit unless forced. */
+    fun doSave(force: Boolean) {
+        if (!canSave) return
+        val name = customerName.trim()
+        if (!force) {
+            val cs2 = viewModel.getCreditStatus(name, debtAmount)
+            if (cs2.overLimit) {
+                snackbarScope.launch { snackbarHost.showSnackbar(warnText(cs2)) }
+                return
+            }
+        }
+        // Check if customer already exists
+        val existingDebt = viewModel.debts.value.find {
+            it.customerName.equals(name, ignoreCase = true)
+        }
+        if (existingDebt != null) {
+            viewModel.addToDebtBalance(existingDebt.id, debtAmount)
+            // Ledger entry (web saveNewDebt parity: description = "Manual")
+            viewModel.addDebtTransaction(existingDebt.id, "debt", "Manual", debtAmount)
+        } else {
+            val newDebt = viewModel.addDebt(
+                CustomerDebt(
+                    id = 0,
+                    customerName = name,
+                    amount = debtAmount,
+                    remainingBalance = debtAmount
+                )
+            )
+            viewModel.addDebtTransaction(newDebt.id, "debt", "Manual", debtAmount)
+        }
+        // Also record a SpecificSale so Debt Today on the Day page picks it up
+        viewModel.addSpecificSale(
+            SpecificSale(
+                id = 0,
+                date = viewModel.today,
+                description = "Manual debt: $name",
+                amount = debtAmount,
+                quantity = 1,
+                customerName = name,
+                profit = 0.0
+            )
+        )
+        snackbarScope.launch {
+            snackbarHost.showSnackbar("debtSaved".t(lang))
+        }
+        onSaved()
+        onBack()
+    }
 
     Scaffold(
         topBar = {
@@ -115,6 +207,7 @@ fun NewDebtScreen(
                     Column {
                         suggestions.forEach { name ->
                             val balance = customerBalances[name] ?: 0.0
+                            val (badgeText, badgeColor) = badgeFor(name, balance)
                             Row(
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     customerName = name; showSuggestions = false
@@ -127,20 +220,12 @@ fun NewDebtScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (balance > 0) {
-                                    Text(
-                                        "\u20B1${String.format("%,.2f", balance)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Red500
-                                    )
-                                } else {
-                                    Text(
-                                        "\u2714\uFE0F \u20B10.00",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Green600
-                                    )
-                                }
+                                Text(
+                                    badgeText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = badgeColor
+                                )
                             }
                         }
                     }
@@ -164,6 +249,39 @@ fun NewDebtScreen(
                 shape = MaterialTheme.shapes.medium
             )
 
+            // ── Live credit-limit warning (web v2.56/v2.57 parity) ────────
+            val cs = creditStatus
+            if (cs != null && (cs.overLimit || cs.nearLimit)) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (cs.overLimit) Red50 else Amber50
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            warnText(cs),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (cs.overLimit) Red700 else Amber800
+                        )
+                        if (cs.overLimit) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = { doSave(force = true) },
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = MaterialTheme.shapes.medium,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Red700)
+                            ) {
+                                Text("creditAllowAnyway".t(lang), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── Info note ───────────────────────────────────────────────
             Spacer(modifier = Modifier.height(16.dp))
             Card(
@@ -185,48 +303,7 @@ fun NewDebtScreen(
             // ── Save button ─────────────────────────────────────────────
             Spacer(modifier = Modifier.height(24.dp))
             Button(
-                onClick = {
-                    if (canSave) {
-                        val name = customerName.trim()
-
-                        // Check if customer already exists
-                        val existingDebt = viewModel.debts.value.find {
-                            it.customerName.equals(name, ignoreCase = true)
-                        }
-                        if (existingDebt != null) {
-                            viewModel.addToDebtBalance(existingDebt.id, debtAmount)
-                            // Ledger entry (web saveNewDebt parity: description = "Manual")
-                            viewModel.addDebtTransaction(existingDebt.id, "debt", "Manual", debtAmount)
-                        } else {
-                            val newDebt = viewModel.addDebt(
-                                CustomerDebt(
-                                    id = 0,
-                                    customerName = name,
-                                    amount = debtAmount,
-                                    remainingBalance = debtAmount
-                                )
-                            )
-                            viewModel.addDebtTransaction(newDebt.id, "debt", "Manual", debtAmount)
-                        }
-                        // Also record a SpecificSale so Debt Today on the Day page picks it up
-                        viewModel.addSpecificSale(
-                            SpecificSale(
-                                id = 0,
-                                date = viewModel.today,
-                                description = "Manual debt: $name",
-                                amount = debtAmount,
-                                quantity = 1,
-                                customerName = name,
-                                profit = 0.0
-                            )
-                        )
-                        snackbarScope.launch {
-                            snackbarHost.showSnackbar("debtSaved".t(lang))
-                        }
-                        onSaved()
-                        onBack()
-                    }
-                },
+                onClick = { doSave(force = false) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)

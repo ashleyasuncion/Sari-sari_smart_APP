@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sari_sari_smart.ui.localization.AppSettings
@@ -51,6 +53,9 @@ fun SettingsScreen(
     var ownerName by remember { mutableStateOf(settings.ownerName) }
     var language by remember { mutableStateOf(settings.language) }
     var selectedSize by remember { mutableStateOf(settings.textSize) }
+    var defaultMarkupText by remember { mutableStateOf(settings.defaultMarkup.toString()) }
+    var lowStockThresholdText by remember { mutableStateOf(settings.lowStockThreshold.toString()) }
+    var defaultCreditLimitText by remember { mutableStateOf(settings.defaultCreditLimit.toString()) }
 
     // Snackbar for save feedback
     val snackbarHostState = remember { SnackbarHostState() }
@@ -187,6 +192,83 @@ fun SettingsScreen(
                 label = { Text("ownerName".t(settings.language)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsOwnerName", highlightState)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── Default Markup (applies to new products) ──
+            SettingsSectionTitle("defaultMarkupLabel".t(settings.language))
+            OutlinedTextField(
+                value = defaultMarkupText,
+                onValueChange = {
+                    defaultMarkupText = it.filter { c -> c.isDigit() }
+                    val coerced = (defaultMarkupText.toIntOrNull() ?: 20).coerceIn(0, 200)
+                    settings.defaultMarkup = coerced
+                    defaultMarkupText = coerced.toString()
+                },
+                label = { Text("defaultMarkupLabel".t(settings.language)) },
+                suffix = { Text("%") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsDefaultMarkup", highlightState)
+            )
+            Text(
+                "defaultMarkupHint".t(settings.language),
+                style = MaterialTheme.typography.bodySmall,
+                color = Gray400
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── Low Stock Threshold (global default for new products) ──
+            SettingsSectionTitle("alertThreshold".t(settings.language))
+            OutlinedTextField(
+                value = lowStockThresholdText,
+                onValueChange = {
+                    lowStockThresholdText = it.filter { c -> c.isDigit() }
+                    val coerced = lowStockThresholdText.toIntOrNull() ?: 5
+                    settings.lowStockThreshold = coerced
+                    lowStockThresholdText = coerced.toString()
+                },
+                label = { Text("alertThreshold".t(settings.language)) },
+                suffix = { Text("units") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsLowStockThreshold", highlightState)
+            )
+            Text(
+                "alertThresholdDesc".t(settings.language),
+                style = MaterialTheme.typography.bodySmall,
+                color = Gray400
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // ── Default Credit Limit (web v2.56 parity) ──
+            SettingsSectionTitle("defaultCreditLimitLabel".t(settings.language))
+            OutlinedTextField(
+                value = defaultCreditLimitText,
+                onValueChange = {
+                    defaultCreditLimitText = it.filter { c -> c.isDigit() }
+                    // Only persist a valid number; empty/invalid keeps the last
+                    // valid value so backspacing can't silently turn "no limit"
+                    // (web saveSettings parity: NaN keeps the previous value).
+                    defaultCreditLimitText.toIntOrNull()?.let { parsed ->
+                        val coerced = parsed.coerceIn(0, 10000)
+                        settings.defaultCreditLimit = coerced
+                        defaultCreditLimitText = coerced.toString()
+                    }
+                },
+                label = { Text("defaultCreditLimitLabel".t(settings.language)) },
+                suffix = { Text("₱") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsDefaultCreditLimit", highlightState)
+            )
+            Text(
+                "defaultCreditLimitHint".t(settings.language),
+                style = MaterialTheme.typography.bodySmall,
+                color = Gray400
             )
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -45,6 +45,22 @@ class AppSettings(context: Context) {
         get() = prefs.getInt("default_markup", 20)
         set(value) = prefs.edit().putInt("default_markup", value).apply()
 
+    /** Global low-stock alert threshold — default for new products; per-product value overrides. */
+    var lowStockThreshold: Int
+        get() = prefs.getInt("low_stock_threshold", 5)
+        set(value) = prefs.edit().putInt("low_stock_threshold", value).apply()
+
+    /** Global default credit limit (₱) for customers without their own limit
+     *  (web v2.56 parity). 0 = no limit. Per-customer override wins. */
+    var defaultCreditLimit: Int
+        get() = prefs.getInt("default_credit_limit", 500)
+        set(value) = prefs.edit().putInt("default_credit_limit", value).apply()
+
+    /** Last selected Reports period ("day"/"week"/"month") — survives app restart (web v2.55 parity). */
+    var reportPeriod: String
+        get() = prefs.getString("report_period", "day") ?: "day"
+        set(value) = prefs.edit().putString("report_period", value).apply()
+
     fun getTextScaleFactor(): Float = when (textSize) {
         "standard" -> 1.0f
         "large" -> 1.125f

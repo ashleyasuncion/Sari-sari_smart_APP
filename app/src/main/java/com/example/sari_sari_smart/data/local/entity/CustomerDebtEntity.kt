@@ -10,14 +10,17 @@ data class CustomerDebtEntity(
     val customerName: String,
     val amount: Double,
     val remainingBalance: Double,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Per-customer credit limit; null = uses global default (web v2.56 parity). */
+    val creditLimit: Int? = null
 ) {
     fun toDomainModel(): CustomerDebt = CustomerDebt(
         id = id,
         customerName = customerName,
         amount = amount,
         remainingBalance = remainingBalance,
-        createdAt = createdAt
+        createdAt = createdAt,
+        creditLimit = creditLimit
     )
 
     companion object {
@@ -26,7 +29,8 @@ data class CustomerDebtEntity(
             customerName = debt.customerName,
             amount = debt.amount,
             remainingBalance = debt.remainingBalance,
-            createdAt = debt.createdAt
+            createdAt = debt.createdAt,
+            creditLimit = debt.creditLimit
         )
     }
 }

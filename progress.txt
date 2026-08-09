@@ -3912,3 +3912,292 @@ Validation:
 
 Affected files (mobile, git copy): DebtsScreen.kt,
 progress.txt: This entry.
+
+================================================================================
+PHASE 55 — CLOSING PAGE: OBSOLETE COST OF GOODS FIELD REMOVED (WEB v2.51 PARITY)
+Date: Aug 9, 2026
+Status: DONE
+
+Background: web v2.51 closing.html has no Cost of Goods field — it was
+removed July 8, 2026 with the Restock Day feature (web progress.txt
+line 1621). The mobile Closing page still rendered it because Phase 9
+(July 8, 2026) aligned the screen to the stale backup/app2.7/ web
+snapshot that still had the field; no later phase removed it. The field
+was already functionally orphaned (displayed profit = per-sale
+todayProfit, never actual − cost).
+
+Changes:
+- EveningClosingScreen.kt: removed Cost of Goods state var, cogVal /
+  netProfit shadow values, and the Cost of Goods input row + divider.
+  Sales section now matches web v2.51 exactly: Recorded Sales Today →
+  Actual Sales Today → Sales Difference → Profit from Items Sold.
+- AppViewModel.kt: removed dead getClosingProfit(); completeEndOfDay()
+  no longer takes costOfGoods (per-sale todayProfit unchanged).
+- data/Models.kt + data/local/entity/EndOfDayEntity.kt: removed the
+  costOfGoods field from EndOfDayData and the Room entity.
+- data/local/AppDatabase.kt: version 4 -> 5 with MIGRATION_4_5 that
+  recreates end_of_day_data without the costOfGoods column (table
+  recreate pattern, since minSdk 24 = SQLite < 3.35, no DROP COLUMN).
+- ui/localization/Strings.kt: removed unused closingExpensesLabel keys
+  (EN/FIL); reworded tutorial9 text (EN/FIL) to drop "cost of goods".
+- tutorials/main_tutorial.txt: STEP 9 reworded ("Cost + earnings" →
+  "Actual cash earnings").
+- AppViewModelTest.kt: removed 3 getClosingProfit tests; dropped
+  costOfGoods args/assertions from completeEndOfDay tests.
+
+Validation:
+- ./gradlew :app:testDebugUnitTest → PASS (BUILD SUCCESSFUL in 5m 40s)
+- ./gradlew :app:assembleDebug → BUILD SUCCESSFUL (same run)
+- grep costOfGoods/closingExpensesLabel/getClosingProfit in app/src →
+  no code references remain (only the MIGRATION_4_5 doc comment).
+
+Affected files (mobile, git copy): EveningClosingScreen.kt,
+AppViewModel.kt, data/Models.kt, data/local/entity/EndOfDayEntity.kt,
+data/local/AppDatabase.kt, ui/localization/Strings.kt,
+app/src/test/.../AppViewModelTest.kt, tutorials/main_tutorial.txt,
+progress.txt: This entry.
+
+================================================================================
+PHASE 56 — DEFAULT MARKUP SETTING + MARKUP HELPER BREAKDOWN (web v2.52 parity)
+Date: Aug 9, 2026
+Status: DONE
+
+Background: web v2.52 restored a Default Markup (%) setting (panelist
+feedback) and upgraded the markup helper to show the full cost → markup →
+amount → suggested-price breakdown. The mobile app still had the dormant
+AppSettings.defaultMarkup plumbing (default 20) from Phase 3 Step 13, but the
+Settings slider was removed in Phase 14. This phase re-exposes the setting,
+mirrors the helper breakdown, fixes the "Profit Margin" mislabel (the shown
+percentage is markup on cost), and makes Restock Day new products use the
+configured default instead of hardcoded x1.2.
+
+Changes:
+- SettingsScreen.kt: added "Default Markup (%)" field (0-200 integer,
+  auto-saves to AppSettings.defaultMarkup; hint "Applied to new products").
+- Strings.kt: added defaultMarkupLabel/defaultMarkupHint (EN/FIL); markupHint
+  now renders the breakdown "Cost {cost} + {percent}% ({amount}) = Suggested
+  {price}" (EN) / "Halaga {cost} + {percent}% ({amount}) = Mungkahing {price}"
+  (FIL); profitMargin label "Profit Margin" → "Markup" (EN/FIL).
+- AddStockScreen.kt: markup field pre-fills the product's ACTUAL markup when
+  editing (was always the default); helper hint renders the full breakdown
+  with cost + markup amount + suggested price.
+- AppViewModel.kt: completeRestock() new-product selling price uses
+  appSettings.defaultMarkup (falls back to 20) instead of hardcoded * 1.2.
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL
+- Web parity: same defaults (20), same math, same breakdown copy.
+
+Affected files (mobile, git copy): SettingsScreen.kt, AddStockScreen.kt,
+AppViewModel.kt, ui/localization/Strings.kt,
+progress.txt: This entry.
+
+================================================================================
+PHASE 57 — ADD STOCK: SELLING PRICE NOW AUTO-FILLS FROM COST (web parity bug)
+Date: Aug 9, 2026
+Status: DONE
+
+Bug: on the mobile Add Stock page the selling-price field was not
+auto-filled when the user entered only the cost price (markup stayed at
+its default). The markup helper hint rendered the suggested price, but the
+field itself stayed empty and Save remained disabled until the user
+touched the Markup field or typed a price manually.
+
+Root cause: web-parity gap. The auto-fill logic lived ONLY inside the
+Markup field's onValueChange. On the web, updateMarkupHint() is wired to
+BOTH the cost input and the markup input (app.js line 3220-3221), so
+entering cost alone fills the price. The mobile AddStockScreen (aligned
+to add_product.html in Phase 10) never ported the cost-input listener.
+Not a regression from Phase 56 — pre-existing since the screen parity.
+
+Fix (AddStockScreen.kt): the Cost price field's onValueChange now also
+computes cost x (1 + markup%) into sellPrice, guarded by the existing
+userEditedPrice flag so a manually typed price is never overwritten
+(identical logic to the markup field).
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL
+- Manual flow now: cost 100 → sellPrice auto-fills 120.00; editing a
+  price manually stops further auto-fill; edit mode still pre-fills the
+  existing product's price.
+
+Affected files (mobile, git copy): AddStockScreen.kt,
+progress.txt: This entry.
+
+================================================================================
+PHASE 58 — REVIEWER FOLLOW-UPS: CSV MARKUP LABEL, SETTINGS COERCE, AUTO-FILL REFACTOR
+Date: Aug 9, 2026
+Status: DONE
+
+Follow-up fixes from the Phase 56/57 code reviews, applied after those log
+entries were written:
+
+Changes:
+- AppViewModel.kt: data-export CSV header relabeled "Profit Margin" → "Markup"
+  (ID,Name,Quantity,Cost Price,Selling Price,Markup,Status) — matches the
+  Phase 56 terminology fix; the exported percentage is markup on cost.
+- SettingsScreen.kt: Default Markup (%) input now coerces to 0-200
+  (coerceIn(0, 200)) and the field display reflects the coerced value, so the
+  UI never shows a value different from what was saved.
+- AddStockScreen.kt: the duplicated cost/markup auto-fill logic was
+  consolidated into a shared autoFillSellPrice() helper used by both the Cost
+  and Markup field handlers (mirrors the web productCost/productMarkup input
+  listeners) so the two call sites can't drift apart.
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL
+
+Affected files (mobile, git copy): AppViewModel.kt, SettingsScreen.kt,
+AddStockScreen.kt, progress.txt: This entry.
+
+================================================================================
+PHASE 59 — GLOBAL LOW STOCK THRESHOLD SETTING + WEB PARITY FOR NEW PRODUCTS
+Date: Aug 9, 2026
+Status: DONE
+
+Background: web v2.54 added a per-product "Low Stock Alert At" field and a
+global Low Stock Threshold setting (the web previously only had a hardcoded
+global value with no UI). The mobile app already had the per-product field,
+but its global default was the model's hardcoded 5 and nothing in Settings
+could change it. This phase adds the global setting to mobile and makes all
+new-product flows respect it.
+
+Design (per user decision, matching web v2.54):
+- Global setting = default for NEW products + fallback; per-product value
+  wins; changing the global never rewrites existing per-product values.
+- No cap (digits-only input).
+
+Changes:
+- AppSettings.kt: new lowStockThreshold property (SharedPreferences
+  "low_stock_threshold", default 5).
+- SettingsScreen.kt: new "Low Stock Threshold" field (digits-only, auto-save,
+  suffix "units") + hint, reusing the existing alertThreshold /
+  alertThresholdDesc string keys (EN/FIL) that were left over from an older
+  Settings page; tutorial highlight key settingsLowStockThreshold.
+- AddStockScreen.kt: new defaultLowStockThreshold param; the Low Stock Alert
+  At field pre-fills with the product's stored value when editing, else the
+  global Settings default for new products (was hardcoded 5).
+- NavGraph.kt: passes appSettings.lowStockThreshold into AddStockScreen.
+- AppViewModel.kt: completeRestock() new products now use the global default
+  threshold instead of the hardcoded model default 5 (matches defaultMarkup).
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL
+- Web parity: same prefill rules, same fallback semantics, same default 5.
+- Code review: Settings field now syncs the displayed value after coerce
+  (clearing the field shows the saved default 5 instead of blank), mirroring
+  the defaultMarkup field.
+
+Affected files (mobile, git copy): ui/localization/AppSettings.kt,
+ui/screens/SettingsScreen.kt, ui/screens/AddStockScreen.kt,
+ui/navigation/NavGraph.kt, ui/screens/AppViewModel.kt,
+progress.txt: This entry.
+
+================================================================================
+PHASE 60 — REPORTS PAGE ENHANCEMENTS (WEB v2.55 PARITY): UTANG SECTION, COMPARISON BADGES, AUTO SUMMARY, CSV EXPORT
+Date: Aug 9, 2026
+Status: DONE
+
+Background: The web Reports page was upgraded in v2.55 (auto plain-language
+summary line, 6-tile KPI grid with period-over-period ▲/▼ comparison badges,
+utang/receivables section with aging buckets, and per-period CSV export).
+This phase ports those improvements to the mobile ReportsScreen, which
+previously only had Total Sales + Profit cards, the 7-day chart, best
+sellers, recent transactions, and low-stock items.
+
+Design (matching web v2.55):
+- All report numbers come from one shared engine (computeReportStats) so the
+  screen and CSV can never disagree. Windows: day = today, week = last 7 days,
+  month = last 30 days; comparison = the immediately preceding window
+  (yesterday / prior 7 days / prior 30 days). Dev-date override aware.
+- Aging buckets by debt creation date: 0-30 / 31-60 / 60+ days.
+- Collected This Period = debt payments recorded at/after the period start
+  (midnight of the first day in the window).
+- Period selection persists across app restarts (SharedPreferences).
+
+Changes:
+- AppViewModel.kt: new ReportStats/AgingBucket data classes + computeReportStats(period)
+  (current-window sales, prev-window totals, outstanding utang, active debtors,
+  collected this period, aging buckets); exportReportCsv(period) (period-scoped
+  CSV: summary rows, transactions, low stock); setReportPeriod now persists via
+  AppSettings; initAppSettings restores the saved period; resetAllData resets it
+  to day (web parity).
+- ReportsScreen.kt: full rewrite — auto summary line card ("Week: ₱225.00 sales,
+  ₱45.00 profit ▲ +20% vs previous · ₱200.00 still owed to you"), 2×3 KPI grid
+  (Total Sales & Profit carry ▲/▼ vs-previous badges; Items Sold, Transactions,
+  Cash Sales, Utang Sales), collapsible Utang / Receivables card (Outstanding,
+  Active Debtors, Collected, aging buckets with counts), Export CSV button in the
+  top bar (CreateDocument launcher + localized toasts), 7-day chart now anchored
+  to the dev-override-aware app date. All tutorial highlight IDs preserved.
+- AppSettings.kt: new reportPeriod property ("report_period", default "day").
+- Strings.kt: 17 new EN/FIL keys (cashSales, utangSales, utangReport,
+  outstandingUtang, activeDebtors, collected, debtAging, debtAge30/60/60Plus,
+  exportReport/Done/Error, reportSummaryLine, reportVsUp/Down, reportOwed).
+- AppViewModelTest.kt: 6 new unit tests (day/week window + prev comparison,
+  cash-vs-utang split, aging buckets, collected-this-period, CSV contents);
+  export CSV assertions made locale-robust (Locale.US).
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL
+  (20 unit tests pass, APK assembles).
+- Code review: window math, aging boundaries, payment window, and Compose
+  state/launcher verified; removed an unused collect and reset the period
+  on factory reset per review.
+
+Affected files (mobile, git copy): ui/screens/AppViewModel.kt,
+ui/screens/ReportsScreen.kt, ui/localization/AppSettings.kt,
+ui/localization/Strings.kt, app/src/test/.../AppViewModelTest.kt,
+progress.txt: This entry.
+
+================================================================================
+PHASE 61 — CREDIT LIMIT WARNINGS + OUT-OF-STOCK PREVENTION (WEB v2.56-2.58 PARITY)
+Date: Aug 9, 2026
+Status: DONE
+
+Background: The web app gained credit-limit warnings (v2.56: per-customer limits,
+balance/limit badges, save-time warnings with Allow-anyway), the at/over-limit
+alert (v2.57: block at-or-above with an explicit alert), and out-of-stock
+selection prevention (v2.58). This phase ports all three to the Android app.
+
+Data layer:
+- CustomerDebt gains creditLimit: Int? = null (null = use global default, 0 = no
+  limit for that customer). CustomerDebtEntity + Room migration v5→v6
+  (ALTER TABLE customer_debts ADD COLUMN creditLimit INTEGER — non-destructive).
+- AppSettings.defaultCreditLimit (default 500) persisted across restarts.
+- getRawStateJson/importData round-trip the per-debt creditLimit.
+
+Credit engine (AppViewModel, web getCreditStatus parity):
+- getDefaultCreditLimit / getDebtForName / getEffectiveCreditLimit
+  (per-customer override wins, else global default).
+- getCreditStatus: near-limit at >=80%, over-limit at >= limit - 0.005
+  (half-cent epsilon so float drift can't slip an at-limit sale through), new
+  atLimit flag for the exact-equality case.
+- getOverLimitDebtorCount (name-grouped totals at-or-above limit, 0 = no limit
+  excluded) for the Reports over-limit row. updateDebtCreditLimit(id, limit?) to
+  set or clear a per-customer limit.
+
+UI:
+- SaleBottomSheet: out-of-stock products greyed and unselectable (in-stock
+  items sorted first so greyed rows never crowd sellable items); customer
+  suggestions show a balance/limit badge colour-coded green/amber/red;
+  live credit-warning banner (amber near / red at-or-over) + saveSale(force)
+  gate that blocks at/over-limit saves and reveals a one-tap "Allow anyway"
+  button. Blocked-save feedback is the inline red banner — snackbars are
+  hidden behind the modal sheet window, so none are used inside the sheet.
+- NewDebtScreen: same badge, live banner + doSave(force) gate with Allow-anyway.
+- Settings: Default Credit Limit (₱) field, 0-10000, empty keeps last valid
+  value (web saveSettings parity).
+- CustomerDebtDetailScreen: Credit Limit card showing effective limit (with
+  "Uses default" hint when not customized) and Edit → inline save/cancel;
+  invalid input clears back to default rather than web's "0 = no limit".
+- ReportsScreen: Over-limit debtors row (shown only when > 0) in the utang
+  section.
+- Strings.kt: 14 new EN/FIL keys (incl. {name}/{total}/{limit} templates).
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL.
+- 29/29 unit tests pass (20 existing + 9 new credit-engine tests: default/custom/
+  zero limits, at/over/near thresholds, float-drift block, name-grouped sums,
+  over-limit count, set/clear limit).
+- Code review applied: removed snackbars inside the modal sheet (invisible),
+  settings empty-field keeps last valid value, import/style cleanups.

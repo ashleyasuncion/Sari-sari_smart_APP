@@ -107,13 +107,13 @@ STEP 8 — Closing intro
   Transition     : Next navigates day -> closing
   Interaction    : read text, tap Next
 ----------------------------------------------------------------------
-STEP 9 — Cost + earnings
+STEP 9 — Actual cash earnings
   Key      : tutorial9
-  Text EN : "Enter your cost of goods and cash earnings for the day. The app calculates your profit automatically."
-  Text FIL: "Ilagay ang iyong gastos sa paninda at kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita."
+  Text EN : "Enter your actual cash earnings for the day. The app calculates your profit automatically."
+  Text FIL: "Ilagay ang iyong aktwal na kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita."
   Target page    : closing
   Target element : closingEarnings (EveningClosingScreen)
-  Highlight      : the earnings / cost section
+  Highlight      : the earnings section
   Box position   : per runtime rule
   Transition     : none
   Interaction    : look at the section, tap Next

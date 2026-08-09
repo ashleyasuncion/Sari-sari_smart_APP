@@ -27,6 +27,7 @@ import com.example.sari_sari_smart.data.SpecificSale
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.screens.AppViewModel
+import com.example.sari_sari_smart.ui.screens.CreditStatus
 import com.example.sari_sari_smart.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
@@ -34,6 +35,11 @@ import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
 /**
  * Bottom sheet for quick sale entry — mirrors the "May Bumili" sheet from day.html.
  * Used in Day Mode when the Sell FAB is tapped.
+ *
+ * Web v2.56-2.58 parity:
+ *  - Out-of-stock products are shown greyed-out but NOT selectable (tap = "no stock" toast).
+ *  - Customer suggestions show a balance/limit badge, colour-coded (green/amber/red).
+ *  - Live credit-limit warning banner + at/over-limit save gate with "Allow anyway" override.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,9 +74,11 @@ fun SaleBottomSheet(
     val selectedProduct = products.find { it.id == selectedProductId }
     val totalAmount = selectedProduct?.let { it.sellingPrice * quantity } ?: 0.0
 
+    // In-stock items sort ahead of out-of-stock ones so greyed rows never crowd
+    // sellable items out of the visible top-8 (web v2.58 review fix).
     val filteredProducts = products.filter {
         it.name.contains(productQuery, ignoreCase = true)
-    }.take(8)
+    }.sortedBy { if (it.quantity <= 0) 1 else 0 }.take(8)
 
     val usedCustomerNames = remember(debts) {
         debts.map { it.customerName }.distinct()
@@ -83,6 +91,47 @@ fun SaleBottomSheet(
     val customerBalances = remember(debts) {
         debts.groupBy { it.customerName }
             .mapValues { (_, entries) -> entries.sumOf { it.remainingBalance } }
+    }
+
+    // Live credit-limit status for the typed customer + current sale amount (web v2.56).
+    val creditStatus: CreditStatus? =
+        if (customerName.isNotBlank()) viewModel.getCreditStatus(customerName, totalAmount) else null
+
+    /** Colour + text for a customer suggestion badge — web suggestionBalanceHtml parity. */
+    fun badgeFor(name: String, balance: Double): Pair<String, Color> {
+        val limit = viewModel.getEffectiveCreditLimit(name)
+        val peso = { v: Double -> "₱" + String.format("%,.2f", v) }
+        return if (limit > 0) {
+            val txt = "${peso(balance)} / ${peso(limit.toDouble())}"
+            val color = when {
+                balance == 0.0 -> Green600                    // settled
+                balance >= limit -> Red500                     // over
+                balance >= limit * 0.8 -> Amber700             // near
+                else -> Gray800
+            }
+            txt to color
+        } else {
+            if (balance > 0) "${peso(balance)}" to Red500
+            else "✓ ₱0.00" to Green600
+        }
+    }
+
+    /** Localized credit warning message — web creditWarnMessage parity. */
+    fun warnText(cs: CreditStatus): String {
+        val peso = { v: Double -> "₱" + String.format("%,.2f", v) }
+        val key = if (cs.overLimit) {
+            if (cs.total > cs.limit) "creditWarnOver" else "creditWarnAtLimit"
+        } else "creditWarnNear"
+        return when (key) {
+            "creditWarnAtLimit" -> "creditWarnAtLimit".t(lang)
+                .replace("{name}", customerName)
+                .replace("{limit}", peso(cs.limit.toDouble()))
+            "creditWarnOver" -> "creditWarnOver".t(lang)
+                .replace("{name}", customerName)
+                .replace("{total}", peso(cs.total))
+                .replace("{limit}", peso(cs.limit.toDouble()))
+            else -> "creditWarnNear".t(lang).replace("{limit}", peso(cs.limit.toDouble()))
+        }
     }
 
     fun finishEditing() {
@@ -106,6 +155,58 @@ fun SaleBottomSheet(
         showSuggestions = false
         isEditingQty = false
         qtyText = "1"
+    }
+
+    /** Web saveSale(force) parity: blocks at/over the credit limit unless forced. */
+    fun saveSale(force: Boolean) {
+        val product = selectedProduct
+        if (product == null || totalAmount <= 0 || quantity <= 0 || quantity > product.quantity) {
+            return
+        }
+        if (customerName.isNotBlank() && !force) {
+            val cs = viewModel.getCreditStatus(customerName, totalAmount)
+            if (cs.overLimit) {
+                // Alert is already visible: the live red banner + "Allow anyway"
+                // button (web v2.57 parity — snackbars are hidden behind the
+                // modal sheet window, so the inline banner is the alert here).
+                return
+            }
+        }
+        val sale = SpecificSale(
+            id = 0, // auto-assigned
+            date = viewModel.today,
+            description = product.name,
+            amount = totalAmount,
+            quantity = quantity,
+            customerName = if (customerName.isBlank()) null else customerName,
+            profit = (product.sellingPrice - product.costPrice) * quantity
+        )
+        viewModel.addSpecificSale(sale)
+        viewModel.deductStock(product.id, quantity)
+
+        // Auto-create debt if customer named
+        if (customerName.isNotBlank()) {
+            val existingDebt = viewModel.debts.value.find {
+                it.customerName.equals(customerName, ignoreCase = true)
+            }
+            if (existingDebt != null) {
+                viewModel.addToDebtBalance(existingDebt.id, totalAmount)
+                // Ledger entry (web saveSale parity: description = product name)
+                viewModel.addDebtTransaction(existingDebt.id, "debt", product.name, totalAmount)
+            } else {
+                val newDebt = viewModel.addDebt(
+                    CustomerDebt(
+                        id = 0,
+                        customerName = customerName,
+                        amount = totalAmount,
+                        remainingBalance = totalAmount
+                    )
+                )
+                viewModel.addDebtTransaction(newDebt.id, "debt", product.name, totalAmount)
+            }
+        }
+        // Stay open for next sale — reset form (matches webapp saveSale() behavior)
+        resetForm()
     }
 
     ModalBottomSheet(
@@ -152,7 +253,7 @@ fun SaleBottomSheet(
                 singleLine = true
             )
 
-            // Product suggestions dropdown
+            // Product suggestions dropdown — out-of-stock rows are greyed and unselectable (v2.58)
             if (showSuggestions && productQuery.isNotEmpty() && selectedProductId < 0 && filteredProducts.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -161,13 +262,20 @@ fun SaleBottomSheet(
                 ) {
                     Column {
                         filteredProducts.forEach { p ->
+                            val outOfStock = p.quantity <= 0
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .alpha(if (outOfStock) 0.5f else 1f)
                                     .clickable {
-                                        productQuery = p.name
-                                        selectedProductId = p.id
-                                        showSuggestions = false
+                                        if (outOfStock) {
+                                            // Greyed row + "no stock" label are the feedback;
+                                            // no snackbar (hidden behind the modal sheet window).
+                                        } else {
+                                            productQuery = p.name
+                                            selectedProductId = p.id
+                                            showSuggestions = false
+                                        }
                                     }
                                     .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -337,7 +445,7 @@ fun SaleBottomSheet(
                 singleLine = true
             )
 
-            // Customer suggestions
+            // Customer suggestions — balance/limit badge (web v2.56 parity)
             if (customerName.isNotEmpty() && filteredCustomers.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -347,6 +455,7 @@ fun SaleBottomSheet(
                     Column {
                         filteredCustomers.forEach { name ->
                             val balance = customerBalances[name] ?: 0.0
+                            val (badgeText, badgeColor) = badgeFor(name, balance)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -360,22 +469,48 @@ fun SaleBottomSheet(
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (balance > 0) {
-                                    Text(
-                                        "\u20B1${String.format("%,.2f", balance)}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Red500
-                                    )
-                                } else {
-                                    Text(
-                                        "\u2714\uFE0F \u20B10.00",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Green600
-                                    )
-                                }
+                                Text(
+                                    badgeText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = badgeColor
+                                )
                             }
                             HorizontalDivider()
+                        }
+                    }
+                }
+            }
+
+            // ── Live credit-limit warning (web v2.56/v2.57 parity) ──
+            val cs = creditStatus
+            if (cs != null && (cs.overLimit || cs.nearLimit)) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (cs.overLimit) Red50 else Amber50
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            warnText(cs),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (cs.overLimit) Red700 else Amber800
+                        )
+                        if (cs.overLimit) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // "Allow anyway" — one-tap deliberate override (web saveSale(true) parity)
+                            OutlinedButton(
+                                onClick = { saveSale(force = true) },
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Red700)
+                            ) {
+                                Text("creditAllowAnyway".t(lang), fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -415,46 +550,7 @@ fun SaleBottomSheet(
                     Text("close".t(lang))
                 }
                 Button(
-                    onClick = {
-                        val product = selectedProduct
-                        if (product != null && totalAmount > 0 && quantity > 0 && quantity <= product.quantity) {
-                            val sale = SpecificSale(
-                                id = 0, // auto-assigned
-                                date = viewModel.today,
-                                description = product.name,
-                                amount = totalAmount,
-                                quantity = quantity,
-                                customerName = if (customerName.isBlank()) null else customerName,
-                                profit = (product.sellingPrice - product.costPrice) * quantity
-                            )
-                            viewModel.addSpecificSale(sale)
-                            viewModel.deductStock(product.id, quantity)
-
-                            // Auto-create debt if customer named
-                            if (customerName.isNotBlank()) {
-                                val existingDebt = viewModel.debts.value.find {
-                                    it.customerName.equals(customerName, ignoreCase = true)
-                                }
-                                if (existingDebt != null) {
-                                    viewModel.addToDebtBalance(existingDebt.id, totalAmount)
-                                    // Ledger entry (web saveSale parity: description = product name)
-                                    viewModel.addDebtTransaction(existingDebt.id, "debt", product.name, totalAmount)
-                                } else {
-                                    val newDebt = viewModel.addDebt(
-                                        CustomerDebt(
-                                            id = 0,
-                                            customerName = customerName,
-                                            amount = totalAmount,
-                                            remainingBalance = totalAmount
-                                        )
-                                    )
-                                    viewModel.addDebtTransaction(newDebt.id, "debt", product.name, totalAmount)
-                                }
-                            }
-                        }
-                        // Stay open for next sale — reset form (matches webapp saveSale() behavior)
-                        resetForm()
-                    },
+                    onClick = { saveSale(force = false) },
                     enabled = selectedProduct != null && totalAmount > 0 && quantity > 0 && quantity <= (selectedProduct?.quantity ?: 0),
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp)

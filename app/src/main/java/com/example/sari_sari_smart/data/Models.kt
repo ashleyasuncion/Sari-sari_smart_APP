@@ -45,7 +45,10 @@ data class CustomerDebt(
     val customerName: String,
     val amount: Double,
     val remainingBalance: Double,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Per-customer credit limit (web v2.56 parity). null = uses the global
+     *  default; 0 = no limit for this customer. */
+    val creditLimit: Int? = null
 )
 
 data class EndOfDayData(
@@ -57,7 +60,6 @@ data class EndOfDayData(
     val recordedSales: Double = 0.0,
     val actualSales: Double = 0.0,
     val salesDiff: Double = 0.0,
-    val costOfGoods: Double = 0.0,
     val profit: Double = 0.0
 )
 

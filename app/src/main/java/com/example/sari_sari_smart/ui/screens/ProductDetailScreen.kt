@@ -30,7 +30,7 @@ import java.text.NumberFormat
 import java.util.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ProductDetailScreen(
     viewModel: AppViewModel,
@@ -173,6 +173,41 @@ fun ProductDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = Gray100)
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // ── Product identity tags (web v2.59 pd-tag parity) ──
+                    // Category, unit/measure, brand (when available), package size.
+                    // Each tag reads from its OWN property — an empty brand must
+                    // never display another field's value (v2.59 cleanup).
+                    val identityTags = buildList {
+                        if (product.category.isNotBlank())
+                            add(com.example.sari_sari_smart.ui.localization.Strings.productCategoryLabel(product.category, lang))
+                        add(com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel(product.unit, lang))
+                        if (product.brand.isNotBlank()) add(product.brand)
+                        if (product.packageSize.isNotBlank()) add(product.packageSize)
+                    }
+                    if (identityTags.isNotEmpty()) {
+                        androidx.compose.foundation.layout.FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            identityTags.forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Green50,
+                                    modifier = Modifier.wrapContentSize()
+                                ) {
+                                    Text(
+                                        tag,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Green800,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     // Pricing details
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {

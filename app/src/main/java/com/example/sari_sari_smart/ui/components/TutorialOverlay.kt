@@ -70,6 +70,9 @@ val pageTutorials = listOf(
         highlights = listOf(null, "addStockNameField", "addStockMarkup", "addStockQtyField", "addStockSaveBtn")),
     PageTutorial("newSale", "tutNewSale", "newSaleTutorial", 5, "day",
         highlights = listOf("sellFab", null, null, null, null)),
+    // Web v2.64 parity: standalone checkout page tutorial.
+    PageTutorial("checkout", "tutCheckout", "checkoutTutorial", 5, "checkout",
+        highlights = listOf("checkoutSearch", "checkoutAddCart", "checkoutCart", "checkoutPayCredit", "checkoutComplete")),
     PageTutorial("newDebt", "tutNewDebt", "newDebtTutorial", 4, "new_debt",
         highlights = listOf(null, "newDebtNameField", "newDebtAmountField", "newDebtSaveBtn")),
     PageTutorial("help", "tutHelp", "helpTutorial", 6, "help",

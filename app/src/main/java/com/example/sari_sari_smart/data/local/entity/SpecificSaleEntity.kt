@@ -13,7 +13,11 @@ data class SpecificSaleEntity(
     val quantity: Int = 1,
     val customerName: String? = null,
     val profit: Double = 0.0,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    // Web v2.63 parity (multi-item checkout): shared transaction id + payment method.
+    // Room migration v7→v8.
+    val transactionId: Long = 0,
+    val paymentMethod: String? = null
 ) {
     fun toDomainModel(): SpecificSale = SpecificSale(
         id = id,
@@ -23,7 +27,9 @@ data class SpecificSaleEntity(
         quantity = quantity,
         customerName = customerName,
         profit = profit,
-        timestamp = timestamp
+        timestamp = timestamp,
+        transactionId = transactionId,
+        paymentMethod = paymentMethod
     )
 
     companion object {
@@ -35,7 +41,9 @@ data class SpecificSaleEntity(
             quantity = sale.quantity,
             customerName = sale.customerName,
             profit = sale.profit,
-            timestamp = sale.timestamp
+            timestamp = sale.timestamp,
+            transactionId = sale.transactionId,
+            paymentMethod = sale.paymentMethod
         )
     }
 }

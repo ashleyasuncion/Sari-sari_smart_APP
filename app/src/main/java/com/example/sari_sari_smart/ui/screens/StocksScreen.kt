@@ -49,13 +49,23 @@ fun StocksScreen(
 
     val products by viewModel.products.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    // Category filter ('' = all). Products without a category only match 'all'
+    // (web v2.59 renderManageInventory parity).
+    var selectedCategory by remember { mutableStateOf("") }
 
-    val filteredProducts = remember(products, searchQuery) {
-        if (searchQuery.isNotBlank()) {
+    val filteredProducts = remember(products, searchQuery, selectedCategory) {
+        val searched = if (searchQuery.isNotBlank()) {
             viewModel.searchProducts(searchQuery)
         } else {
-            products.sortedBy { it.name }
+            products
         }
+        val byCategory = if (selectedCategory.isNotBlank()) {
+            viewModel.getProductsByCategory(selectedCategory)
+                .filter { p -> searched.any { it.id == p.id } }
+        } else {
+            searched
+        }
+        byCategory.sortedBy { it.name }
     }
 
     LazyColumn(
@@ -78,6 +88,29 @@ fun StocksScreen(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 shape = MaterialTheme.shapes.medium
             )
+        }
+
+        // ── Category filter chips (web v2.59 renderInventoryCatFilters parity) ──
+        item {
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedCategory == "",
+                        onClick = { selectedCategory = "" },
+                        label = { Text("catAll".t(lang)) }
+                    )
+                }
+                items(com.example.sari_sari_smart.data.ProductCatalog.CATEGORIES) { key ->
+                    FilterChip(
+                        selected = selectedCategory == key,
+                        onClick = { selectedCategory = key },
+                        label = { Text(com.example.sari_sari_smart.ui.localization.Strings.productCategoryLabel(key, lang)) }
+                    )
+                }
+            }
         }
 
         // ── Add Stock button ────────────────────────────────────────────
@@ -198,8 +231,20 @@ private fun InventoryProductCard(
                     fontWeight = FontWeight.SemiBold,
                     color = Gray800
                 )
+                // Brand · size sub-line (web productSubline parity) — only when
+                // a brand exists; an empty brand never falls back to size/unit.
+                val subline = com.example.sari_sari_smart.ui.localization.Strings.productSubline(product, lang)
+                if (subline.isNotEmpty()) {
+                    Text(
+                        subline,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = Green700,
+                        modifier = Modifier.padding(top = 1.dp)
+                    )
+                }
                 Text(
-                    "${product.quantity} pcs \u2022 ${fmt.format(product.sellingPrice)}",
+                    "${product.quantity} ${com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel(product.unit, lang)} \u2022 ${fmt.format(product.sellingPrice)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Gray500,
                     modifier = Modifier.padding(top = 2.dp)

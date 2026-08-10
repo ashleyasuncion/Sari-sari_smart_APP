@@ -22,6 +22,10 @@ object Routes {
     const val DAY = "day"
     const val CLOSING = "closing"
 
+    // ── Standalone checkout page (web v2.64 parity — the sale sheet overlay
+    //    was replaced by a dedicated checkout screen) ─────────────────────
+    const val CHECKOUT = "checkout"
+
     // ── Support screens ──────────────────────────────────
     const val INVENTORY = "inventory"
     const val DEBTS = "debts"

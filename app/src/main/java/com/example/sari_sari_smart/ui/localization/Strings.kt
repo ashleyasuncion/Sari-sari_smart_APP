@@ -10,6 +10,38 @@ object Strings {
         "help" to "Help",
         "settings" to "Settings",
 
+        // ── Product identity (web v2.59 — units/brands/categories) ──
+        "categoryLabel" to "Category",
+        "brandLabel" to "Brand",
+        "unitLabel" to "Unit",
+        "packageSizeLabel" to "Package Size",
+        "brandPlaceholder" to "e.g. Ligo, Bear Brand",
+        "packageSizePlaceholder" to "e.g. 155g, 1L",
+        "productDetailsSection" to "Product Details",
+        "productDetailsHint" to "Optional — helps identify and sort your products",
+        "catAll" to "All",
+        "catFood" to "Food",
+        "catCanned" to "Canned Goods",
+        "catCondiments" to "Condiments",
+        "catSnacks" to "Snacks",
+        "catBeverages" to "Beverages",
+        "catPersonalCare" to "Personal Care",
+        "catHousehold" to "Household",
+        "catDryGoods" to "Dry Goods",
+        "catOther" to "Other",
+        "unitPiece" to "piece",
+        "unitSachet" to "sachet",
+        "unitPack" to "pack",
+        "unitBox" to "box",
+        "unitBottle" to "bottle",
+        "unitCan" to "can",
+        "unitKg" to "kg",
+        "unitG" to "g",
+        "unitL" to "L",
+        "unitMl" to "mL",
+        "unitBundle" to "bundle",
+        "unitDozen" to "dozen",
+
         // Home
         "homeGreeting" to "Kamusta ang Tindahan Ngayon?",
         "todayEarnings" to "Today's Earnings",
@@ -226,7 +258,7 @@ object Strings {
         "tutorial4" to "When ready, tap 'Start the Day' to open your store for business and start recording sales.",
         "tutorial5" to "Welcome to Day Mode! This is where you record sales as they happen throughout the day.",
         "tutorial6" to "The Today summary shows your earnings, items sold, and utang transactions at a glance.",
-        "tutorial7" to "Tap the + button to open the sale sheet. Select a product, enter quantity, and save the sale.",
+        "tutorial7" to "Tap the + button to open the Checkout page. Search a product, add it to the cart, then complete the sale.",
         "tutorial8" to "At the end of the day, the Closing screen shows a full summary of today's performance.",
         "tutorial9" to "Enter your actual cash earnings for the day. The app calculates your profit automatically.",
         "tutorial10" to "Tap 'Day Complete' when you're ready to finalize. Your daily summary will be saved to history.",
@@ -238,10 +270,27 @@ object Strings {
         "prev" to "Previous",
         "next" to "Next",
 
-        // Sale Bottom Sheet
-        "saleSheetTitle" to "Record a Sale",
+        // Sale
         "saleCustomerLabel" to "Customer (for utang)",
         "customerPlaceholder" to "Enter customer name",
+
+        // ── Checkout (web v2.63/v2.64 parity) ──
+        "checkoutTitle" to "Checkout",
+        "addToCart" to "Add to Cart",
+        "cartTitle" to "Cart",
+        "cartEmpty" to "Cart is empty — add a product to start.",
+        "paymentMethod" to "Payment Method",
+        "payCash" to "Cash",
+        "payCredit" to "Utang",
+        "completeSale" to "Complete Sale",
+        "saleCompleted" to "Sale completed!",
+        "discardCart" to "Discard cart?",
+        "discardCartMsg" to "Your cart has items. Leave checkout and discard them?",
+        "noCustomerCredit" to "Enter a customer name for utang.",
+        "itemRemoved" to "Item removed",
+        "addedToCart" to "Added to cart",
+        "selectProductFirst" to "Select a product first",
+        "lineSubtotal" to "Subtotal",
 
         // ── Header / Greeting ──
         "greeting" to "Good day!",
@@ -315,7 +364,6 @@ object Strings {
         // Common
         "peso" to "₱",
         "all" to "All",
-        "saleSaved" to "Sale recorded.",
         "productSaved" to "Item saved.",
         "back" to "Back",
 
@@ -422,6 +470,7 @@ object Strings {
         "tutSettings" to "Settings Tutorial",
         "tutAddProduct" to "Add Product Tutorial",
         "tutNewSale" to "New Sale Tutorial",
+        "tutCheckout" to "Checkout Tutorial",
         "tutNewDebt" to "New Debt Tutorial",
         "tutHelp" to "Help Tutorial",
 
@@ -460,6 +509,13 @@ object Strings {
         "salesTutorial8" to "Recent specific sales appear in the \"Recent Transactions\" collapsible section, showing the item name, amount, customer tag (if on utang), and time. The \"Today's Sold Items\" section groups items with quantities and profit totals.",
         "salesTutorial9" to "The New Sale page lets you record a specific item sale. Start typing a product name — the app suggests matching items from your inventory for quick selection.",
         "salesTutorial10" to "Enter the quantity sold — the total is calculated automatically. If the sale is on credit (utang), enter a customer name to create a debt record. Tap \"Save Sale\" to finish.",
+
+        // Checkout Tutorial (web v2.64 parity — standalone checkout page)
+        "checkoutTutorial1" to "This is the Checkout page where you build a sale with one or more products. Start by searching for a product from your inventory.",
+        "checkoutTutorial2" to "Pick a product, set the quantity, then tap \"Add to Cart\". You can add more items to the same sale.",
+        "checkoutTutorial3" to "Your cart shows every item with quantity controls and per-item subtotals. Adjust or remove items before completing the sale.",
+        "checkoutTutorial4" to "Choose the payment method: Cash for immediate payment, or Utang to record the whole purchase on credit for a customer.",
+        "checkoutTutorial5" to "Review the total and tap \"Complete Sale\" — the entire purchase is recorded as one transaction, stock is deducted, and a credit purchase creates a single debt record.",
 
         // Debt Tutorial
         "debtTutorial1" to "This is the Utang page where you track all customer debts.",
@@ -612,6 +668,38 @@ object Strings {
         "utang" to "Utang",
         "help" to "Tulong",
         "settings" to "Settings",
+
+        // ── Product identity (web v2.59 — units/brands/categories) ──
+        "categoryLabel" to "Kategorya",
+        "brandLabel" to "Brand",
+        "unitLabel" to "Unit",
+        "packageSizeLabel" to "Laki ng Pack",
+        "brandPlaceholder" to "Hal. Ligo, Bear Brand",
+        "packageSizePlaceholder" to "Hal. 155g, 1L",
+        "productDetailsSection" to "Product Details",
+        "productDetailsHint" to "Opsyonal — nakakatulong sa pagkilala at pag-aayos ng mga produkto",
+        "catAll" to "Lahat",
+        "catFood" to "Pagkain",
+        "catCanned" to "Delata",
+        "catCondiments" to "Pampalasa",
+        "catSnacks" to "Meryenda",
+        "catBeverages" to "Inumin",
+        "catPersonalCare" to "Pampaganda",
+        "catHousehold" to "Pambahay",
+        "catDryGoods" to "Tuyong Paninda",
+        "catOther" to "Iba pa",
+        "unitPiece" to "piraso",
+        "unitSachet" to "sachet",
+        "unitPack" to "pack",
+        "unitBox" to "kahon",
+        "unitBottle" to "bote",
+        "unitCan" to "lata",
+        "unitKg" to "kg",
+        "unitG" to "g",
+        "unitL" to "L",
+        "unitMl" to "mL",
+        "unitBundle" to "bundle",
+        "unitDozen" to "dosena",
 
         // Home
         "homeGreeting" to "Kamusta ang Tindahan Ngayon?",
@@ -829,7 +917,7 @@ object Strings {
         "tutorial4" to "Kapag handa na, i-tap ang 'Simulan ang Araw' para buksan ang tindahan at magsimulang magtala ng benta.",
         "tutorial5" to "Maligayang pagdating sa Day Mode! Dito mo itinatala ang mga benta habang nangyayari ang mga ito.",
         "tutorial6" to "Ang Today summary ay nagpapakita ng iyong kita, naibenta, at utang sa isang sulyap.",
-        "tutorial7" to "I-tap ang + button para buksan ang sale sheet. Pumili ng produkto, ilagay ang dami, at i-save ang benta.",
+        "tutorial7" to "I-tap ang + button para buksan ang Checkout page. Maghanap ng produkto, idagdag sa cart, pagkatapos kumpletuhin ang benta.",
         "tutorial8" to "Sa pagtatapos ng araw, ang Closing screen ay nagpapakita ng buong summary ng performance ngayong araw.",
         "tutorial9" to "Ilagay ang iyong aktwal na kinita ngayon. Awtomatikong kukuwentahin ng app ang iyong kita.",
         "tutorial10" to "I-tap ang 'Tapos Na ang Araw' para tapusin. Ang iyong daily summary ay mase-save sa history.",
@@ -841,10 +929,27 @@ object Strings {
         "prev" to "Nakaraan",
         "next" to "Susunod",
 
-        // Sale Bottom Sheet
-        "saleSheetTitle" to "Magtala ng Benta",
+        // Sale
         "saleCustomerLabel" to "Kostumer (para sa utang)",
         "customerPlaceholder" to "Ilagay ang pangalan ng kostumer",
+
+        // ── Checkout (web v2.63/v2.64 parity) ──
+        "checkoutTitle" to "Checkout",
+        "addToCart" to "Idagdag sa Cart",
+        "cartTitle" to "Cart",
+        "cartEmpty" to "Walang laman ang cart — magdagdag ng produkto para magsimula.",
+        "paymentMethod" to "Paraan ng Pagbabayad",
+        "payCash" to "Cash",
+        "payCredit" to "Utang",
+        "completeSale" to "Kumpletuhin ang Benta",
+        "saleCompleted" to "Kumpleto ang benta!",
+        "discardCart" to "Itapon ang cart?",
+        "discardCartMsg" to "May laman ang iyong cart. Umalis sa checkout at itapon ito?",
+        "noCustomerCredit" to "Maglagay ng pangalan ng kostumer para sa utang.",
+        "itemRemoved" to "Naalis ang item",
+        "addedToCart" to "Idinagdag sa cart",
+        "selectProductFirst" to "Pumili muna ng produkto",
+        "lineSubtotal" to "Subtotal",
 
         // ── Header / Greeting ──
         "greeting" to "Magandang araw!",
@@ -918,7 +1023,6 @@ object Strings {
         // Common
         "peso" to "₱",
         "all" to "Lahat",
-        "saleSaved" to "Naitala ang benta.",
         "productSaved" to "Na-save ang item.",
         "back" to "Bumalik",
 
@@ -1022,6 +1126,7 @@ object Strings {
         "tutSettings" to "Settings na Tutorial",
         "tutAddProduct" to "Add Product na Tutorial",
         "tutNewSale" to "New Sale na Tutorial",
+        "tutCheckout" to "Checkout na Tutorial",
         "tutNewDebt" to "New Debt na Tutorial",
         "tutHelp" to "Help na Tutorial",
 
@@ -1060,6 +1165,13 @@ object Strings {
         "salesTutorial8" to "Lilitaw dito ang mga kamakailang specific sale na may pangalan ng produkto, halaga, at kostumer kung naitala sa utang.",
         "salesTutorial9" to "Ang New Sale page ay para magtala ng specific item sale. Simulan ang pag-type ng pangalan ng produkto — ang app ay magmumungkahi ng mga item mula sa iyong inventory.",
         "salesTutorial10" to "Ilagay ang quantity na naibenta — awtomatikong kakalkulahin ang total. Kung ang benta ay on credit (utang), ilagay ang pangalan ng customer para awtomatikong lumikha ng debt record. I-tap ang \"Save Sale\" para matapos.",
+
+        // Checkout Tutorial (web v2.64 parity — standalone checkout page)
+        "checkoutTutorial1" to "Ito ang Checkout page kung saan ka bumubuo ng benta na may isa o higit pang produkto. Magsimula sa paghahanap ng produkto mula sa iyong inventory.",
+        "checkoutTutorial2" to "Pumili ng produkto, itakda ang dami, pagkatapos i-tap ang \"Add to Cart\". Maaari kang magdagdag ng iba pang item sa parehong benta.",
+        "checkoutTutorial3" to "Ipinapakita ng iyong cart ang bawat item na may mga kontrol sa dami at subtotal bawat item. Ayusin o tanggalin ang mga item bago kumpletuhin ang benta.",
+        "checkoutTutorial4" to "Piliin ang paraan ng pagbabayad: Cash para sa agarang bayad, o Utang para itala ang buong benta sa credit ng isang kostumer.",
+        "checkoutTutorial5" to "Suriin ang total at i-tap ang \"Complete Sale\" — ang buong benta ay itatala bilang isang transaksyon, mababawasan ang stock, at ang credit na benta ay gagawa ng isang debt record.",
 
         // Debt Tutorial
         "debtTutorial1" to "Ito ang Utang page kung saan mo sinusubaybayan ang lahat ng utang ng kostumer.",
@@ -1195,5 +1307,62 @@ object Strings {
     fun get(key: String, lang: String): String {
         val dict = if (lang == "fil") fil else en
         return dict[key] ?: en[key] ?: key
+    }
+
+    // ── Product identity labels (web v2.59 parity — units/brands/categories) ──
+
+    /** Localized label for a product-category key (web productCategoryLabel parity).
+     *  Unknown/empty keys resolve to the "Other" label. */
+    fun productCategoryLabel(key: String, lang: String): String {
+        val i18nKey = when (key) {
+            "food" -> "catFood"
+            "canned" -> "catCanned"
+            "condiments" -> "catCondiments"
+            "snacks" -> "catSnacks"
+            "beverages" -> "catBeverages"
+            "personal_care" -> "catPersonalCare"
+            "household" -> "catHousehold"
+            "dry_goods" -> "catDryGoods"
+            "other" -> "catOther"
+            else -> "catOther"
+        }
+        return i18nKey.t(lang)
+    }
+
+    /** Localized label for a product-unit key (web productUnitLabel parity).
+     *  Unknown keys fall back to the raw key itself. */
+    fun productUnitLabel(key: String, lang: String): String {
+        val i18nKey = when (key) {
+            "piece" -> "unitPiece"
+            "sachet" -> "unitSachet"
+            "pack" -> "unitPack"
+            "box" -> "unitBox"
+            "bottle" -> "unitBottle"
+            "can" -> "unitCan"
+            "kg" -> "unitKg"
+            "g" -> "unitG"
+            "L" -> "unitL"
+            "mL" -> "unitMl"
+            "bundle" -> "unitBundle"
+            "dozen" -> "unitDozen"
+            else -> key
+        }
+        return i18nKey.t(lang)
+    }
+
+    /** One-line product descriptor: "Brand · Size" (or unit) — used in the sale
+     *  sheet and inventory list so variants are distinguishable (web
+     *  productSubline parity). v2.59 cleanup: only renders when a BRAND is
+     *  present — an empty brand must never leak package size (or unit) into the
+     *  brand slot as a fallback. */
+    fun productSubline(product: com.example.sari_sari_smart.data.Product, lang: String): String {
+        if (product.brand.isBlank()) return ""
+        val parts = mutableListOf(product.brand)
+        if (product.packageSize.isNotBlank()) {
+            parts.add(product.packageSize)
+        } else if (product.unit.isNotBlank() && product.unit != "piece") {
+            parts.add(productUnitLabel(product.unit, lang))
+        }
+        return parts.joinToString(" \u00b7 ")
     }
 }

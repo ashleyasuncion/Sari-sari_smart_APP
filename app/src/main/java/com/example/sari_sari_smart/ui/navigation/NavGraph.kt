@@ -88,10 +88,9 @@ fun NavGraph(
     var devPanelVisible by remember { mutableStateOf(false) }
     val showDevPanel: () -> Unit = { devPanelVisible = true }
 
-    // Sale sheet state (shown via FAB on Day mode)
-    var saleSheetVisible by remember { mutableStateOf(false) }
-    val openSaleSheet: () -> Unit = { saleSheetVisible = true }
-    val closeSaleSheet: () -> Unit = { saleSheetVisible = false }
+    // Sale checkout state (web v2.64 parity: the sale bottom sheet was replaced
+    // by a standalone checkout page — the Day FAB now navigates to it).
+    val openSaleSheet: () -> Unit = { navController.navigate(Routes.CHECKOUT) }
 
     // Tutorial state
     var tutorialActive by remember { mutableStateOf(false) }
@@ -132,6 +131,7 @@ fun NavGraph(
         Routes.HELP -> "help"
         Routes.SETTINGS -> "settings"
         Routes.ADD_STOCK -> "add_stock"
+        Routes.CHECKOUT -> "checkout"
         Routes.NEW_DEBT -> "new_debt"
         Routes.RESTOCK -> "restock"
         Routes.REPORTS -> "reports"
@@ -145,6 +145,7 @@ fun NavGraph(
         "morning" -> Routes.MORNING; "day" -> Routes.DAY; "closing" -> Routes.CLOSING
         "inventory" -> Routes.INVENTORY; "debts" -> Routes.DEBTS
         "help" -> Routes.HELP; "settings" -> Routes.SETTINGS; "add_stock" -> Routes.addStock()
+        "checkout" -> Routes.CHECKOUT
         "new_debt" -> Routes.NEW_DEBT; "restock" -> Routes.RESTOCK
         "reports" -> Routes.REPORTS
         // Arg'd pages have no fixed route id — fall back to their parent list page
@@ -409,6 +410,27 @@ fun NavGraph(
                 }
             }
 
+            // ── Standalone Checkout (web v2.64 parity — replaces the sale sheet overlay) ──
+            composable(Routes.CHECKOUT) {
+                val lang = LocalLanguage.current.value
+                // Entry guard: checkout requires an open, non-stale day. Skipped
+                // during the tutorial flow (same pattern as Day Mode). The message
+                // is routed through the screen (it owns its snackbar host).
+                var blockedMessage by remember { mutableStateOf<String?>(null) }
+                LaunchedEffect(Unit) {
+                    if (!tutorialActive && (!appViewModel.dayOpen || appViewModel.isStaleOpenDay())) {
+                        blockedMessage = if (appViewModel.isStaleOpenDay())
+                            "overdueRedirect".t(lang) else "dayNotOpen".t(lang)
+                    }
+                }
+                CheckoutScreen(
+                    viewModel = appViewModel,
+                    onBack = { navController.popBackStack() },
+                    onTutorialClick = { startPageTutorial("checkout") },
+                    blockedMessage = blockedMessage
+                )
+            }
+
             composable(Routes.CLOSING) {
                 val lang = LocalLanguage.current.value
                 val greetingText = "pageClosing".t(lang)
@@ -627,13 +649,4 @@ fun NavGraph(
 
     // Developer Panel
     DeveloperPanel(visible = devPanelVisible, onDismiss = { devPanelVisible = false }, viewModel = appViewModel, appSettings = appSettings)
-
-    // Sale sheet (shown on Day mode)
-    if (saleSheetVisible) {
-        SaleBottomSheet(
-            viewModel = appViewModel,
-            onDismiss = closeSaleSheet,
-            onSaved = closeSaleSheet
-        )
-    }
 }

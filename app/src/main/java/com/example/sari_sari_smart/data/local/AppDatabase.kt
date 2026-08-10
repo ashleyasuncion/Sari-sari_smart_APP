@@ -21,7 +21,7 @@ import com.example.sari_sari_smart.data.local.entity.*
         DebtPaymentEntity::class,
         DebtTransactionEntity::class
     ],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -46,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sari_sari_smart_db"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
@@ -113,6 +113,33 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `customer_debts` ADD COLUMN `creditLimit` INTEGER")
+            }
+        }
+
+        /**
+         * v6 → v7: add the product identity columns (web v2.59 parity — units,
+         * brands, and categories feature). All columns default to empty so
+         * existing products remain valid and uncategorized.
+         * Non-destructive: existing product rows keep their data.
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `category` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `brand` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `products` ADD COLUMN `packageSize` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        /**
+         * v7 → v8: add multi-item checkout columns (web v2.63 parity).
+         * `transactionId` groups all items of one checkout under a shared id;
+         * `paymentMethod` records whether the sale was cash or credit.
+         * Non-destructive: existing sale rows keep their data.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `specific_sales` ADD COLUMN `transactionId` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `specific_sales` ADD COLUMN `paymentMethod` TEXT")
             }
         }
     }

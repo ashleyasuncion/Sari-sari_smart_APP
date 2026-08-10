@@ -613,7 +613,19 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun addOrUpdateProduct(name: String, qty: Int, costPrice: Double, sellingPrice: Double, lowStockThreshold: Int = 5): Product {
+    /** Web v2.59 parity: identity fields (category/brand/unit/packageSize) are
+     *  persisted on both the add and update paths so edits keep them intact. */
+    fun addOrUpdateProduct(
+        name: String,
+        qty: Int,
+        costPrice: Double,
+        sellingPrice: Double,
+        lowStockThreshold: Int = 5,
+        category: String = "",
+        brand: String = "",
+        unit: String = "piece",
+        packageSize: String = ""
+    ): Product {
         val existing = _products.value.find { it.name.equals(name, ignoreCase = true) }
         return if (existing != null) {
             val updated = _products.value.toMutableList()
@@ -622,13 +634,21 @@ class AppViewModel : ViewModel() {
                 quantity = existing.quantity + qty,
                 costPrice = costPrice,
                 sellingPrice = sellingPrice,
-                lowStockThreshold = lowStockThreshold
+                lowStockThreshold = lowStockThreshold,
+                category = category,
+                brand = brand,
+                unit = unit,
+                packageSize = packageSize
             )
             _products.value = updated
             updated[index]
         } else {
             _productIdCounter++
-            val newProduct = Product(_productIdCounter, name, qty, costPrice, sellingPrice, lowStockThreshold = lowStockThreshold)
+            val newProduct = Product(
+                _productIdCounter, name, qty, costPrice, sellingPrice,
+                unit = unit, lowStockThreshold = lowStockThreshold,
+                category = category, brand = brand, packageSize = packageSize
+            )
             _products.value = _products.value + newProduct
             newProduct
         }
@@ -638,9 +658,50 @@ class AppViewModel : ViewModel() {
         _products.value = _products.value.filter { it.id != productId }
     }
 
+    /** Web v2.59 parity: product search covers ALL identity fields — name,
+     *  category (key + EN/FIL labels), brand, unit (key + labels), and package
+     *  size — so an owner can find products by category (e.g. "condiments" /
+     *  "pampalasa"), brand, or size, not just by name. */
     fun searchProducts(query: String): List<Product> {
         if (query.isBlank()) return _products.value
-        return _products.value.filter { it.name.contains(query, ignoreCase = true) }
+        val q = query.lowercase()
+        return _products.value.filter { p ->
+            val hay = buildString {
+                append(p.name.lowercase())
+                if (p.category.isNotBlank()) {
+                    append(' ').append(p.category.lowercase())
+                    append(' ').append(com.example.sari_sari_smart.ui.localization.Strings.productCategoryLabel(p.category, "en").lowercase())
+                    append(' ').append(com.example.sari_sari_smart.ui.localization.Strings.productCategoryLabel(p.category, "fil").lowercase())
+                }
+                if (p.brand.isNotBlank()) append(' ').append(p.brand.lowercase())
+                if (p.unit.isNotBlank()) {
+                    append(' ').append(p.unit.lowercase())
+                    append(' ').append(com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel(p.unit, "en").lowercase())
+                    append(' ').append(com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel(p.unit, "fil").lowercase())
+                }
+                if (p.packageSize.isNotBlank()) append(' ').append(p.packageSize.lowercase())
+            }
+            hay.contains(q)
+        }
+    }
+
+    // ── Product identity helpers (web v2.59 parity) ────────────────────────
+
+    /** Distinct brands already used by products — for Add Stock suggestions
+     *  (web getUsedBrands parity). */
+    fun getUsedBrands(): List<String> =
+        _products.value.map { it.brand }.filter { it.isNotBlank() }.distinct().sorted()
+
+    /** Distinct package sizes already used by products — for Add Stock
+     *  suggestions (web getUsedPackageSizes parity). */
+    fun getUsedPackageSizes(): List<String> =
+        _products.value.map { it.packageSize }.filter { it.isNotBlank() }.distinct().sorted()
+
+    /** Filter products by a category key (web v2.59 parity). Empty filter or
+     *  "" returns ALL products (uncategorized products only match "all"). */
+    fun getProductsByCategory(category: String): List<Product> {
+        if (category.isBlank()) return _products.value
+        return _products.value.filter { it.category == category }
     }
 
     fun getFilteredProducts(filter: String): List<Product> {
@@ -705,6 +766,175 @@ class AppViewModel : ViewModel() {
     fun getDebtById(id: Int): CustomerDebt? = _debts.value.find { it.id == id }
 
     fun getUsedCustomerNames(): List<String> = _debts.value.map { it.customerName }.distinct()
+
+    // ── Multi-item checkout (web v2.63/v2.64 parity) ──────────────────────
+    // The Day page's Sell action now opens a standalone checkout screen that
+    // builds a CART of multiple products, then completes them as ONE
+    // transaction: a shared transactionId on every sale row, a single debt
+    // entry per credit purchase, per-line ledger entries, one stock deduction
+    // pass, and one cart total used for the credit-limit gate.
+
+    /** One line of the in-progress sale cart. */
+    data class CartLine(
+        val productId: Int,
+        val name: String,
+        val brand: String,
+        val unit: String,
+        val packageSize: String,
+        val sellingPrice: Double,
+        val qty: Int
+    ) {
+        val subtotal: Double get() = sellingPrice * qty
+    }
+
+    private val _saleCart = MutableStateFlow<List<CartLine>>(emptyList())
+    /** Items currently in the checkout cart. */
+    val saleCart: StateFlow<List<CartLine>> = _saleCart.asStateFlow()
+
+    private val _salePayment = MutableStateFlow("cash")
+    /** "cash" or "credit" — the checkout payment method (web setSalePayment parity). */
+    val salePayment: StateFlow<String> = _salePayment.asStateFlow()
+
+    /** Sum of all cart lines (₱). */
+    fun getCartTotal(): Double = _saleCart.value.sumOf { it.subtotal }
+
+    /** Number of items across all cart lines (for the count badge). */
+    fun getCartLineCount(): Int = _saleCart.value.sumOf { it.qty }
+
+    fun setSalePayment(payment: String) {
+        if (payment == "cash" || payment == "credit") _salePayment.value = payment
+    }
+
+    /** Add a product to the cart. Same product merges; qty is clamped to stock
+     *  (web addToCart parity). Returns true when the item was added/merged. */
+    fun addToCart(product: Product, qty: Int): Boolean {
+        if (product.quantity <= 0 || qty <= 0) return false
+        val current = _saleCart.value.toMutableList()
+        val idx = current.indexOfFirst { it.productId == product.id }
+        val clamped = qty.coerceAtMost(product.quantity)
+        if (idx >= 0) {
+            val line = current[idx]
+            current[idx] = line.copy(qty = (line.qty + clamped).coerceAtMost(product.quantity))
+        } else {
+            current.add(
+                CartLine(
+                    productId = product.id,
+                    name = product.name,
+                    brand = product.brand,
+                    unit = product.unit,
+                    packageSize = product.packageSize,
+                    sellingPrice = product.sellingPrice,
+                    qty = clamped
+                )
+            )
+        }
+        _saleCart.value = current
+        return true
+    }
+
+    /** Adjust a line's qty by [delta] (web cartAdjustQty parity). */
+    fun cartAdjustQty(productId: Int, delta: Int) {
+        val product = getProductById(productId)
+        val current = _saleCart.value.toMutableList()
+        val idx = current.indexOfFirst { it.productId == productId }
+        if (idx < 0) return
+        val line = current[idx]
+        val max = product?.quantity?.coerceAtLeast(line.qty) ?: Int.MAX_VALUE
+        val newQty = (line.qty + delta).coerceIn(1, max)
+        current[idx] = line.copy(qty = newQty)
+        _saleCart.value = current
+    }
+
+    /** Set a line's qty directly (web cartSetQty parity, clamped to stock). */
+    fun cartSetQty(productId: Int, qty: Int) {
+        if (qty < 1) return
+        val product = getProductById(productId)
+        val current = _saleCart.value.toMutableList()
+        val idx = current.indexOfFirst { it.productId == productId }
+        if (idx < 0) return
+        val line = current[idx]
+        val max = product?.quantity?.coerceAtLeast(line.qty) ?: Int.MAX_VALUE
+        current[idx] = line.copy(qty = qty.coerceAtMost(max))
+        _saleCart.value = current
+    }
+
+    /** Remove one line from the cart (web cartRemoveLine parity). */
+    fun cartRemoveLine(productId: Int) {
+        _saleCart.value = _saleCart.value.filter { it.productId != productId }
+    }
+
+    fun clearCart() {
+        _saleCart.value = emptyList()
+    }
+
+    /**
+     * Complete the whole cart as ONE transaction (web completeSale parity).
+     *
+     * - Every sale row shares the same [transactionId] and carries the payment
+     *   method, so the Day feed / reports can group items of one purchase.
+     * - A credit purchase creates ONE debt entry for the transaction total with
+     *   PER-LINE ledger entries (web: one debt per transaction, per-item rows).
+     * - Stock is deducted per line.
+     * - The credit-limit gate checks the CART TOTAL, not a single item.
+     *
+     * Returns false (and does nothing) when the cart is empty, a credit sale
+     * has no customer name, or the credit limit blocks the sale without [force].
+     */
+    fun completeSale(customerName: String = "", force: Boolean = false): Boolean {
+        val lines = _saleCart.value
+        if (lines.isEmpty()) return false
+        val total = getCartTotal()
+        val isCredit = _salePayment.value == "credit"
+        if (isCredit && customerName.isBlank()) return false
+        if (isCredit && !force) {
+            val cs = getCreditStatus(customerName, total)
+            if (cs.overLimit) return false
+        }
+
+        // Shared transaction id so all lines read as one purchase.
+        val transactionId = System.currentTimeMillis()
+        lines.forEach { line ->
+            val sale = SpecificSale(
+                id = 0, // auto-assigned
+                date = today,
+                description = line.name,
+                amount = line.subtotal,
+                quantity = line.qty,
+                customerName = if (isCredit) customerName else null,
+                profit = (line.sellingPrice - (getProductById(line.productId)?.costPrice ?: 0.0)) * line.qty,
+                transactionId = transactionId,
+                paymentMethod = if (isCredit) "credit" else "cash"
+            )
+            addSpecificSale(sale)
+            deductStock(line.productId, line.qty)
+        }
+
+        // One debt entry per transaction; per-line ledger entries (web parity).
+        if (isCredit) {
+            val existingDebt = getDebtForName(customerName)
+            if (existingDebt != null) {
+                addToDebtBalance(existingDebt.id, total)
+                lines.forEach { line ->
+                    addDebtTransaction(existingDebt.id, "debt", line.name, line.subtotal)
+                }
+            } else {
+                val newDebt = addDebt(
+                    CustomerDebt(
+                        id = 0,
+                        customerName = customerName,
+                        amount = total,
+                        remainingBalance = total
+                    )
+                )
+                lines.forEach { line ->
+                    addDebtTransaction(newDebt.id, "debt", line.name, line.subtotal)
+                }
+            }
+        }
+
+        clearCart()
+        return true
+    }
 
     // ── Credit-limit engine (web v2.56/v2.57 parity) ────────────────────
 
@@ -1032,24 +1262,38 @@ class AppViewModel : ViewModel() {
     }
 
     // ── Seed demo data ──────────────────────────────────────────────────
+    /** Web v2.59 parity: 17 sample products matching the web prototype's
+     *  getSampleProducts() — all 9 categories covered, a brand/no-brand mix
+     *  (10/7), and lowStockThreshold set on 6 (the rest exercise the global
+     *  Settings fallback). Only products are seeded — no fake sales, debts,
+     *  payments, or daily entries (web parity: a clean slate has no financial
+     *  data). */
     fun seedSampleData() {
+        fun p(id: Int, name: String, cat: String, brand: String, unit: String, pkg: String, qty: Int, cost: Double, sell: Double, threshold: Int? = null) =
+            Product(
+                id = id, name = name, quantity = qty, costPrice = cost, sellingPrice = sell,
+                unit = unit, lowStockThreshold = threshold ?: 5,
+                category = cat, brand = brand, packageSize = pkg
+            )
         _products.value = listOf(
-            Product(1, "Cigarettes (Marvel)", 20, 12.0, 15.0),
-            Product(2, "Canned Sardines", 15, 15.0, 20.0),
-            Product(3, "Instant Noodles", 8, 8.0, 12.0),
-            Product(4, "Cooking Oil (500ml)", 3, 30.0, 42.0),
-            Product(5, "Rice (1kg)", 0, 45.0, 55.0),
-            Product(6, "Sugar (1kg)", 4, 55.0, 68.0),
-            Product(7, "Coffee 3in1 (10pk)", 12, 25.0, 35.0),
-            Product(8, "Milk Powder (400g)", 2, 80.0, 105.0),
-            Product(9, "Shampoo Sachet (50pcs)", 30, 5.0, 7.0),
-            Product(10, "Candy Jar (approx 50pcs)", 25, 20.0, 30.0)
+            p(1, "Bigas", "food", "", "kg", "1kg", 20, 45.0, 55.0, 10),
+            p(2, "Mantika", "dry_goods", "", "L", "1L", 3, 22.0, 30.0),
+            p(3, "Asin", "condiments", "", "sachet", "", 0, 10.0, 15.0),
+            p(4, "Canned Tuna", "canned", "Ligo", "can", "155g", 30, 18.0, 25.0, 12),
+            p(5, "Instant Noodles", "food", "Lucky Me", "pack", "60g", 8, 10.0, 15.0),
+            p(6, "Kape 3in1", "beverages", "Nescaf\u00e9", "sachet", "", 50, 5.0, 8.0, 20),
+            p(7, "Asukal", "food", "", "kg", "1kg", 10, 50.0, 65.0),
+            p(8, "Gatas Powder", "beverages", "Bear Brand", "sachet", "25g", 6, 28.0, 38.0, 10),
+            p(9, "Sardinas", "canned", "555", "can", "155g", 25, 15.0, 22.0),
+            p(10, "Shampoo Sachet", "personal_care", "Sunsilk", "sachet", "", 100, 3.0, 5.0),
+            p(11, "Sabon", "personal_care", "Safeguard", "piece", "", 2, 10.0, 16.0, 5),
+            p(12, "Toyo", "condiments", "Silver Swan", "bottle", "350mL", 15, 12.0, 18.0),
+            p(13, "Chichirya", "snacks", "Jack 'n Jill", "pack", "90g", 40, 8.0, 12.0),
+            p(14, "Detergent", "household", "Surf", "sachet", "50g", 35, 6.0, 10.0, 15),
+            p(15, "Lighter", "other", "", "piece", "", 24, 7.0, 12.0),
+            p(16, "Pisi (Bamboo Ties)", "dry_goods", "", "bundle", "25 pcs", 12, 20.0, 30.0),
+            p(17, "Itlog", "food", "", "dozen", "", 4, 90.0, 115.0)
         )
-        // WEB PARITY: a fresh day / clean slate starts with NO financial data.
-        // Only sample products are seeded — no fake sales, debts, payments, or
-        // daily entries — so Day Mode / Closing show P0.00 / 0 items until real
-        // sales are recorded. (Fake transactions used to be auto-seeded here,
-        // causing phantom P120 / 10-item sales to appear on a clean launch.)
     }
 
     // ── Dev Panel Actions (Phase 1, adaptation_plan2) ────────────────────
@@ -1062,6 +1306,9 @@ class AppViewModel : ViewModel() {
                     put("quantity", p.quantity); put("costPrice", p.costPrice)
                     put("sellingPrice", p.sellingPrice); put("unit", p.unit)
                     put("lowStockThreshold", p.lowStockThreshold)
+                    // v2.59 parity: identity fields round-trip with the data
+                    put("category", p.category); put("brand", p.brand)
+                    put("packageSize", p.packageSize)
                 }
             }))
             put("dailyEntry", _dailyEntry.value?.let { de ->
@@ -1076,6 +1323,8 @@ class AppViewModel : ViewModel() {
                     put("amount", s.amount); put("quantity", s.quantity)
                     if (s.customerName != null) put("customerName", s.customerName) else put("customerName", org.json.JSONObject.NULL)
                     put("profit", s.profit)
+                    put("transactionId", s.transactionId)
+                    if (s.paymentMethod != null) put("paymentMethod", s.paymentMethod) else put("paymentMethod", org.json.JSONObject.NULL)
                 }
             }))
             put("debts", org.json.JSONArray(_debts.value.map { d ->
@@ -1119,7 +1368,10 @@ class AppViewModel : ViewModel() {
                     costPrice = p.optDouble("costPrice", 0.0),
                     sellingPrice = p.optDouble("sellingPrice", 0.0),
                     unit = p.optString("unit", "piece"),
-                    lowStockThreshold = p.optInt("lowStockThreshold", 5)
+                    lowStockThreshold = p.optInt("lowStockThreshold", 5),
+                    category = p.optString("category", ""),
+                    brand = p.optString("brand", ""),
+                    packageSize = p.optString("packageSize", "")
                 ))
             }
             if (products.isNotEmpty()) _products.value = products
@@ -1147,7 +1399,9 @@ class AppViewModel : ViewModel() {
                     amount = s.optDouble("amount", 0.0),
                     quantity = s.optInt("quantity", 1),
                     customerName = customerName,
-                    profit = s.optDouble("profit", 0.0)
+                    profit = s.optDouble("profit", 0.0),
+                    transactionId = s.optLong("transactionId", 0),
+                    paymentMethod = if (s.isNull("paymentMethod")) null else s.optString("paymentMethod", null)
                 ))
             }
             if (sales.isNotEmpty()) _specificSales.value = sales
@@ -1400,12 +1654,12 @@ class AppViewModel : ViewModel() {
         sb.appendLine("Exported: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}")
         sb.appendLine()
 
-        // Products section
+        // Products section (v2.59: identity columns — category, brand, unit, package size)
         sb.appendLine("=== PRODUCTS ===")
-        sb.appendLine("ID,Name,Quantity,Cost Price,Selling Price,Markup,Status")
+        sb.appendLine("ID,Name,Category,Brand,Unit,Package Size,Quantity,Cost Price,Selling Price,Markup,Status")
         _products.value.forEach { p ->
             val margin = if (p.costPrice > 0) String.format("%.1f%%", ((p.sellingPrice - p.costPrice) / p.costPrice) * 100) else "N/A"
-            sb.appendLine("${p.id},${p.name},${p.quantity},${p.costPrice},${p.sellingPrice},$margin,${p.status}")
+            sb.appendLine("${p.id},${p.name},${p.category},${p.brand},${p.unit},${p.packageSize},${p.quantity},${p.costPrice},${p.sellingPrice},$margin,${p.status}")
         }
         sb.appendLine()
 

@@ -14,7 +14,11 @@ data class ProductEntity(
     val costPrice: Double,
     val sellingPrice: Double,
     val unit: String = "piece",
-    val lowStockThreshold: Int = 5
+    val lowStockThreshold: Int = 5,
+    // v2.59 parity (web units/brands/categories feature). Room migration v6→v7.
+    val category: String = "",
+    val brand: String = "",
+    val packageSize: String = ""
 ) {
     val status: StockStatus get() = when {
         quantity <= 0 -> StockStatus.OUT_OF_STOCK
@@ -29,7 +33,10 @@ data class ProductEntity(
         costPrice = costPrice,
         sellingPrice = sellingPrice,
         unit = unit,
-        lowStockThreshold = lowStockThreshold
+        lowStockThreshold = lowStockThreshold,
+        category = category,
+        brand = brand,
+        packageSize = packageSize
     )
 
     companion object {
@@ -40,7 +47,10 @@ data class ProductEntity(
             costPrice = product.costPrice,
             sellingPrice = product.sellingPrice,
             unit = product.unit,
-            lowStockThreshold = product.lowStockThreshold
+            lowStockThreshold = product.lowStockThreshold,
+            category = product.category,
+            brand = product.brand,
+            packageSize = product.packageSize
         )
     }
 }

@@ -1,6 +1,12 @@
 ================================================================================
 SARI-SARI SMART — KOTLIN ANDROID APP PROGRESS
 ================================================================================
+⚠️⚠️ READ FIRST (Aug 9, 2026): V2.59 "Product Units, Brands & Categorization"
+    was implemented on the WEB APP ONLY and is UNFINISHED. THIS MOBILE APP HAS
+    NOT been updated: no brand, no category, and the unit field is never
+    settable in the UI (always "piece"). Mobile parity is PENDING. See web
+    progress.txt "V2.59 STATUS CORRECTION — UNFINISHED" entry for full details.
+================================================================================
 Date: July 5, 2026
 Project: Sari-sari_smart/ (Kotlin Jetpack Compose)
 ================================================================================
@@ -4201,3 +4207,141 @@ Validation:
   over-limit count, set/clear limit).
 - Code review applied: removed snackbars inside the modal sheet (invisible),
   settings empty-field keeps last valid value, import/style cleanups.
+================================================================================
+PHASE 62 — PRODUCT UNITS, BRANDS & CATEGORIES (WEB v2.59 PARITY) — MOBILE PORT
+Date: Aug 10, 2026
+Status: DONE
+
+Background: The web app shipped v2.59 (Product Units, Brands, and Categories)
+on Aug 10, 2026 — structured product identity fields (category/brand/unit/
+package size) plus a guided-ish Add Stock flow, category filter chips, brand
+sub-lines, and identity-aware search. The Android app lacked all of it (mobile
+parity was flagged as the single most important open task in the web progress
+checkpoint). This phase ports the full feature to Kotlin/Compose.
+
+Data layer:
+- Product gains category/brand/packageSize (unit already existed, default
+  "piece"). ProductEntity + Room migration v6→v7 (ALTER TABLE products ADD
+  COLUMN category/brand/packageSize TEXT NOT NULL DEFAULT '' — non-destructive).
+- ProductCatalog object in Models.kt: CATEGORIES (food, canned, condiments,
+  snacks, beverages, personal_care, household, dry_goods, other) and UNITS
+  (piece, sachet, pack, box, bottle, can, kg, g, L, mL, bundle, dozen) — kept
+  in sync with web PRODUCT_CATEGORIES/PRODUCT_UNITS arrays.
+- getRawStateJson/importData round-trip the three new fields; exportCsv()
+  header now includes Category,Brand,Unit,Package Size.
+
+ViewModel (web parity):
+- addOrUpdateProduct(name, qty, cost, price, threshold, category, brand, unit,
+  packageSize) — identity fields persist on BOTH add and name-merge paths.
+- searchProducts() haystack now covers name + category key + EN/FIL category
+  label + brand + unit key + EN/FIL unit label + package size (web
+  onProductSearch/renderManageInventory parity) — e.g. "condiments" and
+  "pampalasa" both find condiment items.
+- getUsedBrands()/getUsedPackageSizes() (web getUsedBrands/getUsedPackageSizes)
+  for Add Stock datalist-style suggestions; getProductsByCategory() for the
+  inventory category filter (uncategorized products only match "all").
+- seedSampleData() upgraded to 17 products matching web getSampleProducts():
+  all 9 categories covered, brand/no-brand mix (10/7), bundle/dozen units,
+  lowStockThreshold set on 6 (rest exercise the global Settings fallback).
+
+UI:
+- AddStockScreen: new "Product Details" section (optional) — Category dropdown
+  (9 + "All" = uncategorized), Brand input with selectable used-brand
+  suggestions, Unit dropdown (12), Package Size input with used-size
+  suggestions. Suggestions are SELECTABLE only — no remembered-value
+  auto-fill (web v2.59 cleanup requirement: fields must not remember prior
+  input). Edit mode prefills all four from the existing product.
+- StocksScreen: horizontal category filter chips (All + 9 categories); cards
+  now show a "Brand · Size" sub-line (web productSubline parity) and use the
+  localized unit label. Empty-brand products show NO sub-line (the v2.59
+  "package size leaking into the brand slot" bug cannot occur).
+- ProductDetailScreen: identity tag chips (Category, Unit, Brand when present,
+  Package Size) rendered as a FlowRow under the stock info.
+- SaleBottomSheet: search now matches ALL identity fields; suggestion rows and
+  the selected-product card show the brand sub-line so variants are
+distinguishable.
+- Strings.kt: 33 new EN/FIL keys (catAll/catFood/.../catOther, unitPiece/.../
+  unitDozen, categoryLabel/brandLabel/unitLabel/packageSizeLabel,
+  brandPlaceholder/packageSizePlaceholder, productDetailsSection/Hint) plus
+  productCategoryLabel()/productUnitLabel()/productSubline() helpers.
+
+Validation:
+- ./gradlew :app:testDebugUnitTest :app:assembleDebug → BUILD SUCCESSFUL.
+- 44/44 unit tests pass (29 existing + 15 new: identity-field persistence on
+  add + merge, search by category EN/FIL labels/brand/unit/size, used-brand/
+  used-size suggestion lists, category filter, productSubline rules incl.
+  empty-brand no-fallback, seed data integrity, localized labels).
+- Code review applied: getProductsByCategory wired into StocksScreen (no dead
+  code), unused noCategory key removed, exportCsv updated for parity.
+
+Affected files (mobile, git copy): data/Models.kt, data/local/entity/
+ProductEntity.kt, data/local/AppDatabase.kt, ui/localization/Strings.kt,
+ui/screens/AppViewModel.kt, ui/screens/AddStockScreen.kt, ui/screens/
+StocksScreen.kt, ui/screens/ProductDetailScreen.kt, ui/components/
+SaleBottomSheet.kt, app/src/test/.../AppViewModelTest.kt, progress.txt: This
+entry.
+
+
+══════════════════════════════════════════════════════════
+PHASE 54 — STANDALONE CHECKOUT PAGE (MULTI-ITEM SALE) — WEB V2.63/V2.64 PARITY
+Date: Aug 10, 2026
+Status: DONE
+
+Tracks: user asked to port the web app's multi-item checkout to the
+mobile app. The web app replaced the single-item sale bottom sheet
+with a standalone checkout page (web v2.64). This mobile phase ports
+that: the Day-page sale bottom sheet is GONE; the Sell FAB now opens
+a dedicated CheckoutScreen where the owner builds a cart of multiple
+products and completes them as ONE transaction.
+
+Web parity implemented:
+- SpecificSale gains transactionId (Long) + paymentMethod ("cash" /
+  "credit") with Room migration v7→v8 (ALTER TABLE, non-destructive).
+- AppViewModel: saleCart (List<CartLine>) + salePayment state with
+  addToCart() (merges same product, clamps to stock), cartAdjustQty(),
+  cartSetQty(), cartRemoveLine(), getCartTotal(), getCartLineCount(),
+  setSalePayment(), clearCart(), completeSale(customerName, force).
+  completeSale shares ONE transactionId across all sale rows, deducts
+  stock per line, and for credit creates ONE debt entry per transaction
+  with PER-LINE ledger entries. The credit-limit gate checks the CART
+  TOTAL (not a single item).
+- NEW CheckoutScreen.kt (standalone route): SupportAppHeader (back +
+  tutorial), product search across all identity fields (category/brand/
+  unit/package size), qty selector, Add to Cart, live cart list with
+  −/+ steppers + remove ✕ + per-line subtotal + count badge, Cash/Utang
+  payment toggle, customer suggestions with balance/limit badges,
+  live credit-limit warn + "Allow anyway", cart-total display, Complete
+  Sale + Close buttons. BackHandler/header-back asks to discard a
+  non-empty cart (no silent cart loss). Own snackbar host (standalone
+  route is not wrapped in MainScaffold).
+- NavGraph: sale sheet overlay removed; Day FAB navigates to
+  Routes.CHECKOUT; checkout composable with day-open entry guard
+  (blockedMessage → toast + back); pageForRoute/routeForPage map
+  "checkout".
+- Tutorial: new 5-step checkout page tutorial (EN + FIL) with
+  highlights checkoutSearch/checkoutAddCart/checkoutCart/
+  checkoutPayCredit/checkoutComplete; appears in Settings/Help
+  selectors automatically; tutorial7 text updated (was "sale sheet").
+- SaleBottomSheet.kt DELETED (replaced by CheckoutScreen).
+- Strings.kt: 18 new EN/FIL checkout keys; orphaned saleSheetTitle /
+  saleSaved keys removed.
+
+Validation:
+- ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest →
+  BUILD SUCCESSFUL.
+- 54/54 unit tests pass (43 existing + 11 new: cart add/merge/clamp,
+  adjust/remove/setQty, cash completion with shared transactionId +
+  stock deduction, credit completion with one debt + per-line ledger,
+  credit-limit block + force override, empty-cart guard, payment
+  default).
+- Code review applied: checkout snackbar host self-contained,
+  blockedMessage routed through the screen, redundant alias + dead
+  string keys removed.
+
+Affected files (mobile, git copy): data/Models.kt, data/local/entity/
+SpecificSaleEntity.kt, data/local/AppDatabase.kt, ui/localization/
+Strings.kt, ui/navigation/Routes.kt, ui/navigation/NavGraph.kt,
+ui/screens/AppViewModel.kt, ui/screens/CheckoutScreen.kt (NEW),
+ui/components/TutorialOverlay.kt, ui/components/SaleBottomSheet.kt
+(DELETED), app/src/test/.../AppViewModelTest.kt, progress.txt: This
+entry.

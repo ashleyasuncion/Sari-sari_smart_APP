@@ -441,4 +441,313 @@ class AppViewModelTest {
         )
         assertEquals(1, viewModel.getOverLimitDebtorCount())
     }
+
+    // ── Web v2.59 parity: units, brands, and categories ─────────────────────
+
+    @Test
+    fun addOrUpdateProduct_persistsIdentityFields() {
+        viewModel.addOrUpdateProduct(
+            "Canned Tuna", 10, 18.0, 25.0,
+            category = "canned", brand = "Ligo", unit = "can", packageSize = "155g"
+        )
+        val p = viewModel.products.value.first()
+        assertEquals("canned", p.category)
+        assertEquals("Ligo", p.brand)
+        assertEquals("can", p.unit)
+        assertEquals("155g", p.packageSize)
+    }
+
+    @Test
+    fun addOrUpdateProduct_updatePathKeepsIdentityFields() {
+        viewModel.addOrUpdateProduct(
+            "Canned Tuna", 10, 18.0, 25.0,
+            category = "canned", brand = "Ligo", unit = "can", packageSize = "155g"
+        )
+        // Same name → merge path (existing product updated, qty added)
+        viewModel.addOrUpdateProduct(
+            "Canned Tuna", 5, 20.0, 28.0,
+            category = "canned", brand = "Century", unit = "can", packageSize = "155g"
+        )
+        val p = viewModel.products.value.first()
+        assertEquals(15, p.quantity)
+        assertEquals("Century", p.brand) // identity updated on the merge path too
+        assertEquals(20.0, p.costPrice, 0.001)
+    }
+
+    @Test
+    fun searchProducts_matchesCategoryLabel_enAndFil() {
+        viewModel.addOrUpdateProduct(
+            "Asin", 10, 10.0, 15.0, category = "condiments", unit = "sachet"
+        )
+        // English label
+        assertTrue(viewModel.searchProducts("condiments").isNotEmpty())
+        // Filipino label
+        assertTrue(viewModel.searchProducts("pampalasa").isNotEmpty())
+    }
+
+    @Test
+    fun searchProducts_matchesBrand() {
+        viewModel.addOrUpdateProduct(
+            "Canned Tuna", 10, 18.0, 25.0, category = "canned", brand = "Ligo", packageSize = "155g"
+        )
+        assertTrue(viewModel.searchProducts("ligo").isNotEmpty())
+        assertTrue(viewModel.searchProducts("155g").isNotEmpty())
+    }
+
+    @Test
+    fun searchProducts_matchesUnitKeyAndLabel() {
+        viewModel.addOrUpdateProduct(
+            "Toyo", 15, 12.0, 18.0, category = "condiments", unit = "bottle", packageSize = "350mL"
+        )
+        // Unit key
+        assertTrue(viewModel.searchProducts("bottle").isNotEmpty())
+        // Unit EN label is same as key for bottle; Filipino label
+        assertTrue(viewModel.searchProducts("bote").isNotEmpty())
+    }
+
+    @Test
+    fun searchProducts_emptyQueryReturnsAll() {
+        viewModel.addOrUpdateProduct("Item A", 1, 1.0, 2.0)
+        viewModel.addOrUpdateProduct("Item B", 1, 1.0, 2.0)
+        assertEquals(2, viewModel.searchProducts("").size)
+    }
+
+    @Test
+    fun getUsedBrands_returnsDistinctSortedBrands() {
+        viewModel.addOrUpdateProduct("A", 1, 1.0, 2.0, brand = "Zebra")
+        viewModel.addOrUpdateProduct("B", 1, 1.0, 2.0, brand = "Alpha")
+        viewModel.addOrUpdateProduct("C", 1, 1.0, 2.0, brand = "Zebra") // duplicate
+        viewModel.addOrUpdateProduct("D", 1, 1.0, 2.0, brand = "")      // blank ignored
+        assertEquals(listOf("Alpha", "Zebra"), viewModel.getUsedBrands())
+    }
+
+    @Test
+    fun getUsedPackageSizes_returnsDistinctSortedSizes() {
+        viewModel.addOrUpdateProduct("A", 1, 1.0, 2.0, packageSize = "155g")
+        viewModel.addOrUpdateProduct("B", 1, 1.0, 2.0, packageSize = "1L")
+        viewModel.addOrUpdateProduct("C", 1, 1.0, 2.0, packageSize = "155g")
+        viewModel.addOrUpdateProduct("D", 1, 1.0, 2.0, packageSize = "")
+        assertEquals(listOf("155g", "1L"), viewModel.getUsedPackageSizes())
+    }
+
+    @Test
+    fun getProductsByCategory_filtersAndAllReturnsEverything() {
+        viewModel.addOrUpdateProduct("A", 1, 1.0, 2.0, category = "canned")
+        viewModel.addOrUpdateProduct("B", 1, 1.0, 2.0, category = "food")
+        viewModel.addOrUpdateProduct("C", 1, 1.0, 2.0, category = "")
+        assertEquals(3, viewModel.getProductsByCategory("").size)
+        assertEquals(1, viewModel.getProductsByCategory("canned").size)
+        assertEquals(0, viewModel.getProductsByCategory("condiments").size)
+    }
+
+    @Test
+    fun productSubline_returnsEmptyWhenNoBrand() {
+        val p = com.example.sari_sari_smart.data.Product(
+            id = 1, name = "Tosino", quantity = 100, costPrice = 10.0, sellingPrice = 15.0,
+            category = "food", unit = "g", packageSize = "10"
+        )
+        // Brand empty → no subline; package size must NEVER leak into the brand slot
+        assertEquals("", com.example.sari_sari_smart.ui.localization.Strings.productSubline(p, "en"))
+    }
+
+    @Test
+    fun productSubline_rendersBrandWithSize() {
+        val p = com.example.sari_sari_smart.data.Product(
+            id = 1, name = "Canned Tuna", quantity = 30, costPrice = 18.0, sellingPrice = 25.0,
+            category = "canned", brand = "Ligo", unit = "can", packageSize = "155g"
+        )
+        assertEquals("Ligo \u00b7 155g", com.example.sari_sari_smart.ui.localization.Strings.productSubline(p, "en"))
+    }
+
+    @Test
+    fun productSubline_fallsBackToUnitLabelWhenNoSize() {
+        val p = com.example.sari_sari_smart.data.Product(
+            id = 1, name = "Toyo", quantity = 15, costPrice = 12.0, sellingPrice = 18.0,
+            category = "condiments", brand = "Silver Swan", unit = "bottle", packageSize = ""
+        )
+        assertEquals("Silver Swan \u00b7 bottle", com.example.sari_sari_smart.ui.localization.Strings.productSubline(p, "en"))
+    }
+
+    @Test
+    fun productSubline_omitsUnitWhenPiece() {
+        val p = com.example.sari_sari_smart.data.Product(
+            id = 1, name = "Sabon", quantity = 2, costPrice = 10.0, sellingPrice = 16.0,
+            category = "personal_care", brand = "Safeguard", unit = "piece", packageSize = ""
+        )
+        assertEquals("Safeguard", com.example.sari_sari_smart.ui.localization.Strings.productSubline(p, "en"))
+    }
+
+    @Test
+    fun seedSampleData_has17ProductsWithIdentityFields() {
+        viewModel.seedSampleData()
+        val products = viewModel.products.value
+        assertEquals(17, products.size)
+        // All 9 categories covered
+        val categories = products.map { it.category }.filter { it.isNotBlank() }.toSet()
+        assertEquals(9, categories.size)
+        // Brand/no-brand mix present
+        val withBrand = products.count { it.brand.isNotBlank() }
+        assertTrue(withBrand > 0)
+        assertTrue(products.size - withBrand > 0)
+        // Canned Tuna has a full identity
+        val tuna = products.first { it.name == "Canned Tuna" }
+        assertEquals("Ligo", tuna.brand)
+        assertEquals("can", tuna.unit)
+        assertEquals("155g", tuna.packageSize)
+        // Low-stock threshold set on SOME, omitted on others (global fallback)
+        val withThreshold = products.count { it.lowStockThreshold != 5 }
+        assertTrue(withThreshold in 1 until products.size)
+    }
+
+    // ── Multi-item checkout cart (web v2.63/v2.64 parity) ────────────────
+
+    @Test
+    fun addToCart_addsNewLine() {
+        viewModel.addOrUpdateProduct("Canned Tuna", 30, 18.0, 25.0)
+        val p = viewModel.products.value.first()
+        assertTrue(viewModel.addToCart(p, 2))
+        assertEquals(1, viewModel.saleCart.value.size)
+        assertEquals(2, viewModel.saleCart.value[0].qty)
+        assertEquals(50.0, viewModel.getCartTotal(), 0.001)
+    }
+
+    @Test
+    fun addToCart_mergesSameProductAndClampsToStock() {
+        viewModel.addOrUpdateProduct("Canned Tuna", 5, 18.0, 25.0)
+        val p = viewModel.products.value.first()
+        viewModel.addToCart(p, 3)
+        viewModel.addToCart(p, 3) // 3+3 = 6 > stock 5 → clamped to 5
+        assertEquals(1, viewModel.saleCart.value.size)
+        assertEquals(5, viewModel.saleCart.value[0].qty)
+        assertEquals(125.0, viewModel.getCartTotal(), 0.001)
+    }
+
+    @Test
+    fun addToCart_rejectsOutOfStock() {
+        viewModel.addOrUpdateProduct("Asin", 0, 10.0, 15.0)
+        val p = viewModel.products.value.first()
+        assertFalse(viewModel.addToCart(p, 1))
+        assertTrue(viewModel.saleCart.value.isEmpty())
+    }
+
+    @Test
+    fun cartAdjustQty_and_RemoveLine() {
+        viewModel.addOrUpdateProduct("A", 10, 1.0, 2.0)
+        viewModel.addOrUpdateProduct("B", 10, 1.0, 3.0)
+        val a = viewModel.products.value.first { it.name == "A" }
+        val b = viewModel.products.value.first { it.name == "B" }
+        viewModel.addToCart(a, 2)
+        viewModel.addToCart(b, 1)
+        viewModel.cartAdjustQty(a.id, 1)
+        assertEquals(3, viewModel.saleCart.value.first { it.productId == a.id }.qty)
+        viewModel.cartAdjustQty(a.id, -1)
+        assertEquals(2, viewModel.saleCart.value.first { it.productId == a.id }.qty)
+        viewModel.cartSetQty(b.id, 4)
+        assertEquals(4, viewModel.saleCart.value.first { it.productId == b.id }.qty)
+        viewModel.cartRemoveLine(a.id)
+        assertEquals(1, viewModel.saleCart.value.size)
+        assertTrue(viewModel.saleCart.value.none { it.productId == a.id })
+    }
+
+    @Test
+    fun completeSale_cash_recordsAllLinesWithSharedTransactionId() {
+        viewModel.addOrUpdateProduct("A", 10, 1.0, 2.0)
+        viewModel.addOrUpdateProduct("B", 10, 1.0, 3.0)
+        val a = viewModel.products.value.first { it.name == "A" }
+        val b = viewModel.products.value.first { it.name == "B" }
+        viewModel.addToCart(a, 2)
+        viewModel.addToCart(b, 3)
+        viewModel.setSalePayment("cash")
+
+        assertTrue(viewModel.completeSale())
+        assertEquals(2, viewModel.specificSales.value.size)
+        val txIds = viewModel.specificSales.value.map { it.transactionId }.distinct()
+        assertEquals(1, txIds.size) // one shared transaction
+        assertTrue(txIds[0] > 0)
+        assertTrue(viewModel.specificSales.value.all { it.paymentMethod == "cash" })
+        assertTrue(viewModel.specificSales.value.all { it.customerName == null })
+        // Stock deducted
+        assertEquals(8, viewModel.getProductById(a.id)?.quantity)
+        assertEquals(7, viewModel.getProductById(b.id)?.quantity)
+        // Cart cleared
+        assertTrue(viewModel.saleCart.value.isEmpty())
+    }
+
+    @Test
+    fun completeSale_credit_createsSingleDebtWithPerLineLedger() {
+        viewModel.addOrUpdateProduct("A", 10, 1.0, 2.0)
+        viewModel.addOrUpdateProduct("B", 10, 1.0, 3.0)
+        val a = viewModel.products.value.first { it.name == "A" }
+        val b = viewModel.products.value.first { it.name == "B" }
+        viewModel.addToCart(a, 2) // 4.00
+        viewModel.addToCart(b, 3) // 9.00 → total 13.00
+        viewModel.setSalePayment("credit")
+
+        assertTrue(viewModel.completeSale(customerName = "Juan"))
+        // ONE debt record for the whole transaction
+        val debt = viewModel.getDebtForName("Juan")
+        assertNotNull(debt)
+        assertEquals(13.0, debt!!.remainingBalance, 0.001)
+        // Per-line ledger entries (one per cart line)
+        val txs = viewModel.getDebtTransactionsForDebt(debt.id)
+        assertEquals(2, txs.size)
+        assertEquals("A", txs[0].description)
+        assertEquals(4.0, txs[0].amount, 0.001)
+        assertEquals("B", txs[1].description)
+        assertEquals(9.0, txs[1].amount, 0.001)
+        // Sales rows carry payment method + customer
+        assertTrue(viewModel.specificSales.value.all { it.paymentMethod == "credit" })
+        assertTrue(viewModel.specificSales.value.all { it.customerName == "Juan" })
+    }
+
+    @Test
+    fun completeSale_credit_requiresCustomer() {
+        viewModel.addOrUpdateProduct("A", 10, 1.0, 2.0)
+        viewModel.addToCart(viewModel.products.value.first(), 1)
+        viewModel.setSalePayment("credit")
+        assertFalse(viewModel.completeSale(customerName = ""))
+        assertTrue(viewModel.saleCart.value.isNotEmpty()) // cart kept
+        assertTrue(viewModel.specificSales.value.isEmpty())
+    }
+
+    @Test
+    fun completeSale_credit_blocksAtLimitUnlessForced() {
+        // Juan already at 490 with default limit 500
+        viewModel.addDebt(
+            CustomerDebt(id = 0, customerName = "Juan", amount = 490.0, remainingBalance = 490.0)
+        )
+        viewModel.addOrUpdateProduct("A", 10, 1.0, 2.0)
+        viewModel.addToCart(viewModel.products.value.first(), 10) // 20.00 → 510 > 500
+        viewModel.setSalePayment("credit")
+
+        assertFalse(viewModel.completeSale(customerName = "Juan"))
+        assertTrue(viewModel.saleCart.value.isNotEmpty())
+        // Force (allow anyway) succeeds
+        assertTrue(viewModel.completeSale(customerName = "Juan", force = true))
+        assertTrue(viewModel.saleCart.value.isEmpty())
+    }
+
+    @Test
+    fun completeSale_emptyCart_returnsFalse() {
+        assertFalse(viewModel.completeSale())
+    }
+
+    @Test
+    fun salePayment_defaultsToCash() {
+        assertEquals("cash", viewModel.salePayment.value)
+        viewModel.setSalePayment("credit")
+        assertEquals("credit", viewModel.salePayment.value)
+        viewModel.setSalePayment("garbage")
+        assertEquals("credit", viewModel.salePayment.value) // invalid ignored
+    }
+
+    @Test
+    fun categoryAndUnitLabels_areLocalized() {
+        assertEquals("Condiments", com.example.sari_sari_smart.ui.localization.Strings.productCategoryLabel("condiments", "en"))
+        assertEquals("Pampalasa", com.example.sari_sari_smart.ui.localization.Strings.productCategoryLabel("condiments", "fil"))
+        assertEquals("piece", com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel("piece", "en"))
+        assertEquals("piraso", com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel("piece", "fil"))
+        assertEquals("kahon", com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel("box", "fil"))
+    }
 }
+

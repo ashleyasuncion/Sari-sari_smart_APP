@@ -2,6 +2,10 @@ package com.example.sari_sari_smart.data
 
 /**
  * Data models matching the web prototype (git/Sari-sari_smart/)
+ *
+ * v2.59 parity: products carry structured identity fields — category, brand,
+ * unit, and package size — instead of relying on the name alone to identify
+ * the product (e.g. "Canned Tuna · Ligo · 155g can").
  */
 data class Product(
     val id: Int,
@@ -10,13 +14,38 @@ data class Product(
     val costPrice: Double,
     val sellingPrice: Double,
     val unit: String = "piece",
-    val lowStockThreshold: Int = 5
+    val lowStockThreshold: Int = 5,
+    /** Category key (web v2.59 parity — one of [ProductCatalog.CATEGORIES]).
+     *  Empty string = uncategorized. */
+    val category: String = "",
+    /** Brand name (web v2.59 parity). Empty string = no brand. */
+    val brand: String = "",
+    /** Package size (web v2.59 parity), e.g. "155g", "1L". Empty = none. */
+    val packageSize: String = ""
 ) {
     val status: StockStatus get() = when {
         quantity <= 0 -> StockStatus.OUT_OF_STOCK
         quantity <= lowStockThreshold -> StockStatus.LOW
         else -> StockStatus.PLENTY
     }
+}
+
+/**
+ * Product identity catalogs — must stay in sync with the web prototype's
+ * PRODUCT_CATEGORIES / PRODUCT_UNITS arrays (app.js) and the `cat*` / `unit*`
+ * i18n keys in Strings.kt. Label lookup lives in Strings.productCategoryLabel()
+ * / Strings.productUnitLabel().
+ */
+object ProductCatalog {
+    val CATEGORIES = listOf(
+        "food", "canned", "condiments", "snacks", "beverages",
+        "personal_care", "household", "dry_goods", "other"
+    )
+
+    val UNITS = listOf(
+        "piece", "sachet", "pack", "box", "bottle", "can",
+        "kg", "g", "L", "mL", "bundle", "dozen"
+    )
 }
 
 enum class StockStatus { PLENTY, LOW, OUT_OF_STOCK }
@@ -37,7 +66,12 @@ data class SpecificSale(
     val quantity: Int = 1,
     val customerName: String? = null,
     val profit: Double = 0.0,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    /** Shared transaction id for all items of one multi-item checkout (web v2.63 parity).
+     *  0 = standalone sale created outside the cart flow. */
+    val transactionId: Long = 0,
+    /** "cash" or "credit" — set on cart-based checkouts (web v2.63 parity). */
+    val paymentMethod: String? = null
 )
 
 data class CustomerDebt(

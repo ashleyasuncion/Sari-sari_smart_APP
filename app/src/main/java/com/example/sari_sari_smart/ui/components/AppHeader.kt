@@ -1,5 +1,6 @@
 package com.example.sari_sari_smart.ui.components
 
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -90,7 +91,12 @@ fun MomentAppHeaderPreview() {
     }
 }
 
-// ── Support Header (for Inventory, Debts screens) ────────────────────────
+// ── Support Header (for Inventory, Debts, Checkout screens) ───────────────
+// V2.68 parity with the web header rule: pages that have a Back button
+// center-align their header title; pages without a Back button (and the
+// Morning/Closing moments) keep the left-aligned title. All callers of
+// SupportAppHeader pass a Back button, so they all render centered — the
+// regular TopAppBar branch is kept for any future no-back usage.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,46 +107,60 @@ fun SupportAppHeader(
     onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    TopAppBar(
-        title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
-        },
-        navigationIcon = {
-            if (onBackClick != null) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
+    val titleContent: @Composable () -> Unit = {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White
+        )
+    }
+    val navigationIconContent: @Composable () -> Unit = {
+        if (onBackClick != null) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White
+                )
             }
-        },
-        actions = {
-            if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
-            if (onSettingsClick != null) {
-                IconButton(onClick = onSettingsClick) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = Color.White
-                    )
-                }
+        }
+    }
+    val actionsContent: @Composable RowScope.() -> Unit = {
+        if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
+        if (onSettingsClick != null) {
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = Color.White
+                )
             }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Green600,
-            titleContentColor = Color.White,
-            navigationIconContentColor = Color.White,
-            actionIconContentColor = Color.White
-        ),
-        modifier = modifier
+        }
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = Green600,
+        titleContentColor = Color.White,
+        navigationIconContentColor = Color.White,
+        actionIconContentColor = Color.White
     )
+    if (onBackClick != null) {
+        CenterAlignedTopAppBar(
+            title = titleContent,
+            navigationIcon = navigationIconContent,
+            actions = actionsContent,
+            colors = colors,
+            modifier = modifier
+        )
+    } else {
+        TopAppBar(
+            title = titleContent,
+            navigationIcon = navigationIconContent,
+            actions = actionsContent,
+            colors = colors,
+            modifier = modifier
+        )
+    }
 }
 
 @Preview(showBackground = true, name = "Support App Header")

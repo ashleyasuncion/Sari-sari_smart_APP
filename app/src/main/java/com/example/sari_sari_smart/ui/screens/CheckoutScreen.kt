@@ -655,25 +655,42 @@ fun CheckoutScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // ── Actions ──
+                    // V2.68: "Kumpletuhin ang Benta" needs more room than the
+                    // default 50/50 split + 24dp button padding allows, so the
+                    // Complete Sale button takes the wide share (1.5 vs 0.5)
+                    // and both buttons use tighter horizontal padding (8.dp).
+                    // At the default text scale this keeps the Filipino label
+                    // on ONE line at every supported width (320dp+). The font
+                    // itself is left to the theme (respects the app's text-size
+                    // setting); heightIn + maxLines=2 let Extra Large text wrap
+                    // gracefully inside a slightly taller button instead of
+                    // clipping, and Close maxes at one line.
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(
                             onClick = { leave() },
-                            modifier = Modifier.weight(1f).height(50.dp),
-                            shape = RoundedCornerShape(12.dp)
+                            modifier = Modifier.weight(0.5f).heightIn(min = 50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
-                            Text("close".t(lang))
+                            Text("close".t(lang), maxLines = 1)
                         }
                         Button(
                             onClick = { completeSale(force = false) },
                             enabled = cart.isNotEmpty(),
                             modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
+                                .weight(1.5f)
+                                .heightIn(min = 50.dp)
                                 .tutorialHighlight("checkoutComplete", highlightState),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Green600)
+                            colors = ButtonDefaults.buttonColors(containerColor = Green600),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
-                            Text("\u2714\uFE0F ${"completeSale".t(lang)}", fontWeight = FontWeight.Bold)
+                            Text(
+                                "\u2714\uFE0F ${"completeSale".t(lang)}",
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
                         }
                     }
                 }

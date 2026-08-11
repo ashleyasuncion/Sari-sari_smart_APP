@@ -4345,3 +4345,164 @@ ui/screens/AppViewModel.kt, ui/screens/CheckoutScreen.kt (NEW),
 ui/components/TutorialOverlay.kt, ui/components/SaleBottomSheet.kt
 (DELETED), app/src/test/.../AppViewModelTest.kt, progress.txt: This
 entry.
+
+================================================================================
+V2.67 — FINANCIAL TERMINOLOGY UPDATE (MOBILE): BENTA/KITA/TUBO CLARITY (EN + FIL)
+Date: Aug 11, 2026
+Status: DONE
+
+Background: the web received the terminology update in V2.66 (see web
+progress.txt + Terminology.txt at repo root). This version ports the same
+label recommendations to the MOBILE app (Strings.kt) plus mobile-only fixes.
+Terminology rule: Benta = sales, Kita = income/revenue only, Tubo = profit.
+
+Label changes (Strings.kt, EN + FIL):
+- Day page: recordedSalesToday -> Cash Sales Today / Bentang Cash Ngayon;
+  debtToday EN -> Credit Sales Today (FIL Utang Ngayon kept, web parity);
+  soldLabel FIL Nabenta -> Naibenta.
+- Closing page: closingRecordedSales -> Cash Sales Today / Bentang Cash
+  Ngayon; closingActualSales -> Cash Counted / Perang Nabilang sa Drawer;
+  closingSalesDiff -> Cash Difference / Pagkakaiba ng Pera; closingProfitLabel
+  -> Profit from Items Sold / Tubo mula sa mga Naibenta; NEW closingProfitHint
+  helper line shown under the profit (both languages).
+- Reports: profit KPI -> NEW reportsProfit (Gross Profit / Kabuuang Tubo);
+  cashSales FIL Cash Benta -> Bentang Cash; utangSales -> Credit Sales /
+  Bentang Utang; utangReport -> Debts / Receivables / Utang na Hindi pa
+  Bayad (Resibols removed); outstandingUtang EN -> Outstanding Debts;
+  reportSummaryLine FIL kita -> tubo.
+- AddStock profit preview: profit FIL Kita -> Tubo (per-item profit).
+- Dead keys updated for consistency: utangSalesToday, pendingProfit (Tubo
+  mula sa Bentang Utang), cashProfit (Tubo mula sa Bentang Cash),
+  profitPerItem, totalProfitLabel (Kabuuang Tubo).
+- NEW keys both langs: reportsProfit, weeklyTrend (Weekly Sales Trend /
+  Lingguhang Benta), yesterday (Yesterday: {amount} / Kahapon: {amount}),
+  yesterdayDesc (Yesterday's sales / Benta kahapon), lowStockAlertLabel,
+  units (piraso).
+- Deduped dead activeDebtors duplicate keys (EN/FIL) found during the pass.
+
+Mobile-only fixes:
+- Morning page Yesterday card: was HARDCODED bilingual mix (always showed
+  "Kahapon: ..." + "Yesterday's profit" regardless of language). Now uses
+  localized yesterday/yesterdayDesc keys and shows yesterday's ACTUAL sales
+  (EndOfDayData.actualSales) instead of yesterday's profit -- web parity
+  (web shows entry.earnings = actual sales entered at close).
+- ReportsScreen: "Weekly Sales Trend" was hardcoded English -> weeklyTrend
+  key; low-stock rows (Out of stock / X left) now localized inline.
+- AddStockScreen: "Low Stock Alert At" + "units" suffix were hardcoded
+  English -> lowStockAlertLabel / units keys.
+- CSV export headers: Utang Sales -> Credit Sales, Outstanding Utang ->
+  Outstanding Debts (NOTE: web CSV still carries the old headers -- flagged
+  for the web's next terminology pass to mirror).
+
+Validation: ./gradlew :app:compileDebugKotlin BUILD SUCCESSFUL (both before
+and after review follow-ups); grep sweep confirms no stale user-visible
+terms remain (only synced comments). Code review applied: legacy-record
+actualSales confirmed Room-persisted (no fallback needed), duplicate
+activeDebtors deduped, low-stock text style matched to Morning page.
+
+--- V2.67 addendum (cross-reference) ---
+- Closes the web V2.66 "NOT APPLIED" item "Mobile (Strings.kt) terminology"
+  -- see git/Sari-sari_smart/progress.txt V2.66 for the web-side entry and
+  Terminology.txt at repo root for the full analysis.
+- Known divergence logged: web CSV export headers (Utang Sales / Outstanding
+  Utang) not yet mirrored -- flagged for the web's next pass.
+- Shared deferred items: FIL tutorial prose (kita used for profit in
+  closingTutorial4/mainTutorial9), supporting hints on the two cash fields,
+  user-check of "Tubo" wording.
+================================================================================
+V2.68 — CHECKOUT CONSISTENCY (MOBILE): COMPLETE SALE BUTTON FIT
+Date: Aug 11, 2026
+Status: DONE
+
+Fix (mobile portion of the Checkout & Navigation review):
+
+1. COMPLETE SALE BUTTON — "Kumpletuhin ang Benta" no longer cramped/clipped.
+   - CheckoutScreen.kt actions row: the Complete Sale button now takes the
+     wide share (weight 1.5 vs Close 0.5) and both buttons use tighter content
+     padding (horizontal 8.dp instead of the Material default ~24dp). At the
+     default text scale the Filipino label stays on ONE line at every
+     supported width (320dp+), so no wrapping/clipping/overflow; English
+     "Complete Sale" is unaffected too.
+   - Font size left to the theme (respects the app's Standard/Large/Extra
+     Large text-size setting); heightIn(min 50dp) + maxLines=2 let Extra
+     Large text wrap gracefully inside a slightly taller button instead of
+     clipping. Close stays single-line (maxLines=1).
+   - Translation preserved ("Kumpletuhin ang Benta" unchanged).
+
+Cross-platform consistency (no mobile change needed):
+- Checkout header already uses checkoutTitle = 'Checkout' in both EN and FIL
+  (Strings.kt), matching the web V2.68 checkoutTitle key/value exactly.
+- Mobile header is a Material3 TopAppBar (title centered when a Back arrow is
+  present), consistent with the web's new centered subpage headers.
+
+Validation: ./gradlew :app:compileDebugKotlin -> BUILD SUCCESSFUL.
+Cross-ref: web counterpart is V2.68 in git/Sari-sari_smart/progress.txt.
+--- V2.68 addendum (mobile header alignment) ---
+- Applied the web V2.68 header-alignment rule to the MOBILE app:
+  "pages with a Back button -> center-aligned header title".
+- AppHeader.kt: SupportAppHeader (used by Inventory, Debts via SupportScaffold,
+  and Checkout) now renders CenterAlignedTopAppBar when onBackClick is present,
+  and keeps the regular (left-aligned) TopAppBar otherwise. All current callers
+  pass a Back button, so all subpage titles are now centered — matching the web.
+- Morning / Day / Closing keep the left-aligned MomentAppHeader greeting header
+  (Morning and Closing are the web's stated exceptions; Day has no Back button).
+- Validation: :app:compileDebugKotlin BUILD SUCCESSFUL; :app:testDebugUnitTest
+  BUILD SUCCESSFUL.
+--- V2.68 addendum 2 (sub-page headers — full coverage) ---
+- Extended the centered-header rule to EVERY mobile sub-page with a Back
+  button, matching the web sub-page list:
+  * Checkout, Inventory(Stocks), Debts -> SupportAppHeader (already centered)
+  * Add Stock, New Debt, Customer Debt Detail, Product Detail, Record Payment,
+    Reports, Restock, Settings -> inline TopAppBar changed to
+    CenterAlignedTopAppBar (each kept its own colors/actions: Reports keeps the
+    Share action, Restock keeps its light surface header + Green600 tutorial
+    tint, etc.)
+  * Help -> custom Row header title now uses textAlign = TextAlign.Center
+- Morning / Day / Closing (MomentAppHeader, no Back button) remain
+  left-aligned — the web's stated exceptions.
+- Validation: :app:compileDebugKotlin BUILD SUCCESSFUL; :app:testDebugUnitTest
+  BUILD SUCCESSFUL. Code review applied (no missed page, no wrong-page
+  centering, param compatibility verified).
+================================================================================
+V2.69 — ANALYSIS: EXPENSES & NOTIFICATION MANAGEMENT (MOBILE) — REPORTS ONLY
+Date: Aug 11, 2026
+Status: ANALYSIS DONE — no code changes in this version
+
+Analysis & requirements tasks completed for the mobile version (no code
+modified):
+
+1. EXPENSES IN PROFIT TRACKING -> main-dir report ExpenseTracking.txt
+   - Confirmed mobile profit model: completeSale profit = (sellingPrice -
+     costPrice) x qty (AppViewModel line ~904); todayProfit = per-sale sum;
+     completeEndOfDay stores it; Closing labels "Profit from Items Sold" /
+     "Tubo mula sa mga Naibenta"; getClosingProfit(actualSales, costOfGoods)
+     helper exists.
+   - Finding: current profit is GROSS profit. closingExpensesLabel = "Cost of
+     Goods" / "Gastos sa Paninda" = COGS, NOT operating expenses. No operating
+     expense tracking anywhere.
+   - Recommendation (NOT implemented): Expense Log (amount + category, date
+     auto = today, optional note) -> Net Profit / Tunay na Kita = gross -
+     expenses; new Closing rows, new Strings.kt EN+FIL entries, AppViewModel
+     methods + AppViewModelTest cases, new SupportScaffold/SupportAppHeader
+     screen (centered header per V2.68 rule).
+
+2. NOTIFICATION MANAGEMENT -> main-dir report NotificationManagement.txt
+   - Mobile is the PRIMARY notification platform (native device capability).
+   - Inventory: BusinessTip priorities 1-6 (out of stock, running low, utang
+     pending earnings, debtor count, utang % / closing needed, sales-vs-
+     average), overdue banner + review dialog (isStaleOpenDay), nav guards
+     (dayNotOpen / overdueRedirect), snackbars/toasts for confirmations,
+     AlertDialogs.
+   - Recommendation (NOT implemented): 4 local-notification categories via
+     WorkManager + NotificationCompat + Notification Channels — Overdue Store
+     (HIGH, once/day), Out-of-Stock (DEFAULT, grouped, once/item/day),
+     Closing reminder (DEFAULT, once/day, business hours), Weekly Debt digest
+     (DEFAULT). POST_NOTIFICATIONS requested contextually; deep links to
+     Morning/Inventory/Closing/Debts; per-category toggles in Settings; no
+     push/FCM (offline-first app). All text EN + FIL localized. Unit tests for
+     due/throttle logic.
+
+Validation: n/a (analysis only). Implementation of either feature is pending
+user direction.
+Cross-ref: same V2.69 analysis logged in git/Sari-sari_smart/progress.txt.
+================================================================================

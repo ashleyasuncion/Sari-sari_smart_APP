@@ -107,7 +107,8 @@ fun ReportsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            // V2.68: subpage rule — Back button present → centered title.
+            CenterAlignedTopAppBar(
                 title = { Text("reportsTitle".t(lang), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -212,7 +213,7 @@ fun ReportsScreen(
                     modifier = Modifier.weight(1f)
                 )
                 KpiTile(
-                    title = "profit".t(lang),
+                    title = "reportsProfit".t(lang),
                     value = peso(totalProfit),
                     color = Blue600,
                     bgColor = Blue50,
@@ -260,7 +261,7 @@ fun ReportsScreen(
             // Sales bar chart (last 7 days)
             if (selectedPeriod == "week" || selectedPeriod == "day") {
                 Text(
-                    "Weekly Sales Trend",
+                    "weeklyTrend".t(lang),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Gray800,
@@ -551,7 +552,8 @@ fun ReportsScreen(
                                 ) {
                                     Text(p.name, style = MaterialTheme.typography.bodySmall, color = Gray800)
                                     Text(
-                                        if (p.quantity <= 0) "Out of stock" else "${p.quantity} left",
+                                        if (p.quantity <= 0) (if (lang == "fil") "\u2014 Walang stock" else "\u2014 No stock")
+                                        else (if (lang == "fil") "\u2014 ${p.quantity} na lang" else "\u2014 ${p.quantity} left"),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = if (p.quantity <= 0) Red500 else Amber700,
                                         fontWeight = FontWeight.Medium

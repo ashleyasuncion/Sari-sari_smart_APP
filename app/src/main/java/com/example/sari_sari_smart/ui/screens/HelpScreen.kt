@@ -87,6 +87,8 @@ fun HelpScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
+                    // V2.68: subpage rule — Back button present → centered title.
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.weight(1f)
                 )
                 if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)

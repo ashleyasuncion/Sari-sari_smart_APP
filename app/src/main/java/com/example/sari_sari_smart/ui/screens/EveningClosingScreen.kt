@@ -26,8 +26,8 @@ import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
 /**
  * EVENING CLOSING — Third of three daily moments.
  * Matches closing.html from the web prototype exactly.
- * Sales section: Recorded Sales Today (read-only), Actual Sales Today (input),
- * Sales Difference (auto), Profit from Items Sold (auto), Last Restock info.
+ * Sales section: Cash Sales Today (read-only), Cash Counted (input),
+ * Cash Difference (auto), Profit from Items Sold (auto), Last Restock info.
  */
 @Composable
 fun EveningClosingScreen(
@@ -60,7 +60,7 @@ fun EveningClosingScreen(
     // Detect edit mode — check if we're reopening today's finished closing
     val isEditMode = eodDataForForm?.date == today && eodDataForForm?.finished == true && !viewModel.dayArchived
 
-    // Actual Sales Today input — pre-filled only when editing today's closing.
+    // Cash Counted input — pre-filled only when editing today's closing.
     // On a fresh day it starts EMPTY (web parity: closing.html begins blank);
     // the legacy fallback to dailyEntry.earnings is removed so a stale
     // persisted value (e.g. a previously entered 1,250,000) can never leak
@@ -148,7 +148,7 @@ fun EveningClosingScreen(
                     fontWeight = FontWeight.SemiBold,
                     color = Gray700,
                     modifier = Modifier.padding(bottom = 12.dp)
-                )                // Recorded Sales Today (read-only) — matching webapp closing.html
+                )                // Cash Sales Today (read-only) — matching webapp closing.html
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -169,7 +169,7 @@ fun EveningClosingScreen(
 
                     HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 8.dp))
 
-                    // Actual Sales Today (input) — matching webapp closing.html
+                    // Cash Counted (input) — matching webapp closing.html
                     Text(
                         "closingActualSales".t(lang),
                         style = MaterialTheme.typography.labelMedium,
@@ -188,7 +188,7 @@ fun EveningClosingScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Sales Difference (auto) — matching webapp closing.html
+                    // Cash Difference (auto) — matching webapp closing.html
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,6 +234,13 @@ fun EveningClosingScreen(
                             color = Green600
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        "closingProfitHint".t(lang),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Gray500
+                    )
 
                     // Last Restock info (matching webapp closing.html behavior)
                     val daysSinceRestock = viewModel.daysSinceLastRestock

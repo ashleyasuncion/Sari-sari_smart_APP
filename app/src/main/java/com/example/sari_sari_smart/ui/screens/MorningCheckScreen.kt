@@ -66,7 +66,7 @@ fun MorningCheckScreen(
 
     // Yesterday's recap
     val yesterdayEod = eodData?.takeIf { it.date != viewModel.today }
-    val yesterdayProfit = yesterdayEod?.profit ?: 0.0
+    val yesterdayEarnings = yesterdayEod?.actualSales ?: 0.0
     val hasYesterdayData = yesterdayEod != null
 
     // Context-aware button state (matching web app renderMorningCheck())
@@ -346,14 +346,14 @@ fun MorningCheckScreen(
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Kahapon: \u20B1${String.format("%,.2f", yesterdayProfit)}",
+                            "yesterday".t(lang).replace("{amount}", "\u20B1${String.format("%,.2f", yesterdayEarnings)}"),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = Gray800
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            "Yesterday's profit",
+                            "yesterdayDesc".t(lang),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Gray500
                         )

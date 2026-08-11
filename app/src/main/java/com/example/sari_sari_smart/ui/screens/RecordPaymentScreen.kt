@@ -53,7 +53,8 @@ fun RecordPaymentScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            // V2.68: subpage rule — Back button present → centered title.
+            CenterAlignedTopAppBar(
                 title = { Text("recordPayment".t(lang)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

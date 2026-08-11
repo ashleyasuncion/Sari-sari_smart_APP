@@ -65,7 +65,8 @@ fun RestockScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            TopAppBar(
+            // V2.68: subpage rule — Back button present → centered title.
+            CenterAlignedTopAppBar(
                 title = { Text("Restock Day 🚚", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

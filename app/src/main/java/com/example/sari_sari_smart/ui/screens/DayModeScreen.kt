@@ -58,7 +58,7 @@ fun DayModeScreen(
 
     val today = viewModel.today
     val todaySales = specificSales.filter { it.date == today }
-    // Recorded Sales Today = actual recorded cash sales (web parity: the web's
+    // Cash Sales Today = actual recorded cash sales (web parity: the web's
     // getTodayEarnings() sums only cash sales, never a seeded/manual DailyEntry.
     // A stale DailyEntry.earnings (e.g. the old 1,250 sample seed) must not
     // override real sales or show money before any sale is recorded).

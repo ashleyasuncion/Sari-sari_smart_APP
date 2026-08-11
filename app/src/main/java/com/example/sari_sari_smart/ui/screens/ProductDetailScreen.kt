@@ -57,7 +57,8 @@ fun ProductDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            // V2.68: subpage rule — Back button present → centered title.
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         product?.name ?: "Product",

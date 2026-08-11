@@ -205,7 +205,7 @@ class AppViewModel : ViewModel() {
     val todaySpecificSalesTotal: Double
         get() = _specificSales.value.filter { it.date == today }.sumOf { it.amount }
 
-    /** Total cash sales today (non-utang) — this is the Recorded Sales Today value */
+    /** Total cash sales today (non-utang) — this is the Cash Sales Today value */
     val todayRecordedSales: Double
         get() = _specificSales.value.filter { it.date == today && it.customerName == null }.sumOf { it.amount }
 
@@ -1798,9 +1798,9 @@ class AppViewModel : ViewModel() {
         sb.appendLine("Items Sold,${st.sales.sumOf { it.quantity }}")
         sb.appendLine("Transactions,${st.sales.size}")
         sb.appendLine("Cash Sales,${String.format("%.2f", st.sales.filter { it.customerName == null }.sumOf { it.amount })}")
-        sb.appendLine("Utang Sales,${String.format("%.2f", st.sales.filter { it.customerName != null }.sumOf { it.amount })}")
+        sb.appendLine("Credit Sales,${String.format("%.2f", st.sales.filter { it.customerName != null }.sumOf { it.amount })}")
         sb.appendLine("vs Previous Sales,${String.format("%.2f", st.prevSalesTotal)}")
-        sb.appendLine("Outstanding Utang,${String.format("%.2f", st.outstandingUtang)}")
+        sb.appendLine("Outstanding Debts,${String.format("%.2f", st.outstandingUtang)}")
         sb.appendLine("Active Debtors,${st.activeDebtors}")
         sb.appendLine("Collected This Period,${String.format("%.2f", st.collectedThisPeriod)}")
         sb.appendLine("Aging 0-30 days,${String.format("%.2f", st.aging[0].amount)} (${st.aging[0].count})")

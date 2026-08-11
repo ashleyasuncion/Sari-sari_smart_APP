@@ -98,7 +98,8 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            // V2.68: subpage rule — Back button present → centered title.
+            CenterAlignedTopAppBar(
                 title = { Text("settings".t(settings.language), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -115,7 +115,8 @@ fun AddStockScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            // V2.68: subpage rule — Back button present → centered title.
+            CenterAlignedTopAppBar(
                 title = { Text(if (isEditing) "edit".t(lang) else "addStockTitle".t(lang)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -426,13 +427,13 @@ fun AddStockScreen(
             OutlinedTextField(
                 value = lowStockThreshold,
                 onValueChange = { lowStockThreshold = it.filter { c -> c.isDigit() } },
-                label = { Text("Low Stock Alert At") },
+                label = { Text("lowStockAlertLabel".t(lang)) },
                 placeholder = { Text("5") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 prefix = { Text("≤ ") },
-                suffix = { Text("units") },
+                suffix = { Text("units".t(lang)) },
                 shape = MaterialTheme.shapes.medium
             )
 

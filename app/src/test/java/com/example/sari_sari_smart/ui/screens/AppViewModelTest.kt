@@ -749,5 +749,140 @@ class AppViewModelTest {
         assertEquals("piraso", com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel("piece", "fil"))
         assertEquals("kahon", com.example.sari_sari_smart.ui.localization.Strings.productUnitLabel("box", "fil"))
     }
+
+    // ── Expense Log (web V2.71 parity) ───────────────────────────────────
+
+    @Test
+    fun todayExpensesTotal_returnsZero_whenNoExpenses() {
+        assertEquals(0.0, viewModel.todayExpensesTotal, 0.001)
+        assertEquals(0.0, viewModel.todayNetProfit, 0.001)
+    }
+
+    @Test
+    fun addExpense_appendsAndTotalsToday() {
+        val today = viewModel.today
+        val e1 = viewModel.addExpense(date = today, category = "utilities", amount = 150.5, note = "electric bill")
+        assertNotNull(e1)
+        assertTrue(e1!!.id > 0)
+        assertEquals(today, e1.date)
+        assertEquals("utilities", e1.category)
+        assertEquals(150.5, e1.amount, 0.001)
+        assertEquals("electric bill", e1.note)
+        assertEquals(1, viewModel.expenses.value.size)
+        assertEquals(150.5, viewModel.todayExpensesTotal, 0.001)
+
+        viewModel.addExpense(date = today, category = "rent", amount = 300.0)
+        assertEquals(450.5, viewModel.todayExpensesTotal, 0.001)
+    }
+
+    @Test
+    fun addExpense_validatesAmountAndCategory() {
+        // Amount <= 0 → rejected
+        assertNull(viewModel.addExpense(date = viewModel.today, category = "rent", amount = 0.0))
+        assertNull(viewModel.addExpense(date = viewModel.today, category = "rent", amount = -5.0))
+        // Blank category → rejected
+        assertNull(viewModel.addExpense(date = viewModel.today, category = "", amount = 100.0))
+        assertEquals(0, viewModel.expenses.value.size)
+    }
+
+    @Test
+    fun addExpense_defaultsBlankDateToToday() {
+        val e = viewModel.addExpense(date = "", category = "supplies", amount = 25.0)
+        assertNotNull(e)
+        assertEquals(viewModel.today, e!!.date)
+    }
+
+    @Test
+    fun getExpensesTotalFor_filtersByExactDate() {
+        viewModel.addExpense(date = "2026-08-09", category = "utilities", amount = 100.0)
+        viewModel.addExpense(date = "2026-08-10", category = "rent", amount = 200.0)
+        assertEquals(100.0, viewModel.getExpensesTotalFor("2026-08-09"), 0.001)
+        assertEquals(200.0, viewModel.getExpensesTotalFor("2026-08-10"), 0.001)
+        assertEquals(0.0, viewModel.getExpensesTotalFor("2026-08-11"), 0.001)
+    }
+
+    @Test
+    fun getPeriodExpensesTotal_sumsOnOrAfterStartDate() {
+        viewModel.addExpense(date = "2026-08-01", category = "utilities", amount = 100.0)
+        viewModel.addExpense(date = "2026-08-05", category = "rent", amount = 200.0)
+        viewModel.addExpense(date = "2026-07-31", category = "other", amount = 50.0)
+        assertEquals(300.0, viewModel.getPeriodExpensesTotal("2026-08-01"), 0.001)
+        assertEquals(50.0, viewModel.getPeriodExpensesTotal("2026-07-01") - 300.0, 0.001)
+    }
+
+    @Test
+    fun todayNetProfit_equalsGrossProfitMinusExpenses() {
+        val today = viewModel.today
+        viewModel.addSpecificSale(
+            SpecificSale(id = 0, date = today, description = "Item", amount = 200.0, quantity = 1, customerName = null, profit = 80.0)
+        )
+        viewModel.addExpense(date = today, category = "utilities", amount = 30.0)
+        assertEquals(80.0, viewModel.todayProfit, 0.001)
+        assertEquals(30.0, viewModel.todayExpensesTotal, 0.001)
+        assertEquals(50.0, viewModel.todayNetProfit, 0.001)
+    }
+
+    @Test
+    fun todayNetProfit_canBeNegative() {
+        val today = viewModel.today
+        viewModel.addSpecificSale(
+            SpecificSale(id = 0, date = today, description = "Item", amount = 100.0, quantity = 1, customerName = null, profit = 20.0)
+        )
+        viewModel.addExpense(date = today, category = "transport", amount = 50.0)
+        assertEquals(-30.0, viewModel.todayNetProfit, 0.001) // never clamped
+    }
+
+    @Test
+    fun deleteExpense_recalculatesTotalsFromLog() {
+        val today = viewModel.today
+        val e1 = viewModel.addExpense(date = today, category = "utilities", amount = 100.0)
+        viewModel.addExpense(date = today, category = "rent", amount = 200.0)
+        assertEquals(300.0, viewModel.todayExpensesTotal, 0.001)
+        viewModel.deleteExpense(e1!!.id)
+        assertEquals(1, viewModel.expenses.value.size)
+        assertEquals(200.0, viewModel.todayExpensesTotal, 0.001)
+    }
+
+    @Test
+    fun completeEndOfDay_storesExpensesAndNetProfit() {
+        val today = viewModel.today
+        viewModel.addSpecificSale(
+            SpecificSale(id = 0, date = today, description = "Item", amount = 150.0, quantity = 1, customerName = null, profit = 50.0)
+        )
+        viewModel.addExpense(date = today, category = "utilities", amount = 20.0)
+        viewModel.addExpense(date = today, category = "transport", amount = 10.0)
+        viewModel.completeEndOfDay(actualSales = 150.0)
+
+        val eod = viewModel.endOfDayData.value
+        assertNotNull(eod)
+        assertEquals(50.0, eod!!.profit, 0.001)      // gross (unchanged)
+        assertEquals(30.0, eod.expenses, 0.001)      // today's expense total
+        assertEquals(20.0, eod.netProfit, 0.001)     // 50 - 30
+    }
+
+    @Test
+    fun computeReportStats_day_includesExpensesAndNetProfit() {
+        assertTrue(viewModel.setDevDateOverride("2026-08-09"))
+        viewModel.addSpecificSale(
+            SpecificSale(id = 0, date = "2026-08-09", description = "Today", amount = 100.0, quantity = 1, customerName = null, profit = 40.0)
+        )
+        viewModel.addExpense(date = "2026-08-09", category = "utilities", amount = 25.0)
+        // An expense outside the day window must not leak into the day total
+        viewModel.addExpense(date = "2026-08-01", category = "rent", amount = 500.0)
+
+        val stats = viewModel.computeReportStats("day")
+        assertEquals(25.0, stats.expenses, 0.001)
+        assertEquals(15.0, stats.netProfit, 0.001)   // 40 - 25
+        assertEquals(0.0, stats.prevNetProfit, 0.001)
+    }
+
+    @Test
+    fun expenseCategoryLabels_areLocalized() {
+        assertEquals("Utilities", com.example.sari_sari_smart.ui.localization.Strings.expenseCategoryLabel("utilities", "en"))
+        assertEquals("Kuryente at Tubig", com.example.sari_sari_smart.ui.localization.Strings.expenseCategoryLabel("utilities", "fil"))
+        assertEquals("Permits & Fees", com.example.sari_sari_smart.ui.localization.Strings.expenseCategoryLabel("permits", "en"))
+        assertEquals("Lisensya / Bayarin", com.example.sari_sari_smart.ui.localization.Strings.expenseCategoryLabel("permits", "fil"))
+        assertEquals("Iba pa", com.example.sari_sari_smart.ui.localization.Strings.expenseCategoryLabel("bogus", "fil"))
+    }
 }
 

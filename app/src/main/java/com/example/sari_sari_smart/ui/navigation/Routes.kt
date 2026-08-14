@@ -36,6 +36,7 @@ object Routes {
     const val RECORD_PAYMENT = "record_payment/{debtId}"
     const val PRODUCT_DETAIL = "product_detail/{productId}"
     const val REPORTS = "reports"
+    const val EXPENSES = "expenses"
     const val SETTINGS = "settings"
     const val HELP = "help"
 

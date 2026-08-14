@@ -1,4 +1,4 @@
-package com.example.sari_sari_smart.ui.components
+ package com.example.sari_sari_smart.ui.components
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -24,13 +24,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.sari_sari_smart.data.notifications.DailyCheckWorker
+import com.example.sari_sari_smart.data.notifications.NotificationCenter
+import com.example.sari_sari_smart.data.notifications.runNotificationCheck
 import com.example.sari_sari_smart.ui.localization.AppSettings
+import com.example.sari_sari_smart.ui.localization.t
 import com.example.sari_sari_smart.ui.screens.AppViewModel
 import com.example.sari_sari_smart.ui.theme.Red500
 import com.example.sari_sari_smart.ui.theme.Blue500
 import com.example.sari_sari_smart.ui.theme.Green500
 import com.example.sari_sari_smart.ui.theme.Amber500
 import com.example.sari_sari_smart.ui.theme.SariSariSmartTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
@@ -101,6 +107,22 @@ fun DeveloperPanel(
                 Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    // V2.73: coroutine scope for the on-demand notification check trigger.
+    val scope = rememberCoroutineScope()
+
+    // V2.73: notification permission request (Android 13+) — without it every
+    // post silently no-ops, so the test tools must be able to request it.
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        Toast.makeText(
+            context,
+            if (granted) "Notification permission granted — post again to see banners."
+            else "Notification permission denied — banners will not show.",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     // Show sub-dialogs
@@ -262,6 +284,93 @@ fun DeveloperPanel(
                     onClick = {
                         Toast.makeText(context, viewModel.viewRestockLogCount(), Toast.LENGTH_SHORT).show()
                     }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                // ── Section: Test Notifications (V2.73) ──
+                SectionHeader("Test Notifications")
+                DevActionItem(
+                    icon = Icons.Default.Notifications,
+                    label = "Run Notification Check Now",
+                    desc = "Run the real morning/evening rules + cooldowns with current data (force-posts)",
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            val app = context.applicationContext as com.example.sari_sari_smart.SariSariApp
+                            val morning = runNotificationCheck(
+                                app,
+                                DailyCheckWorker.CHECK_MORNING,
+                                force = true
+                            )
+                            // Also run the closing reminder half so both rule sets are exercised.
+                            val closing = runNotificationCheck(
+                                app,
+                                DailyCheckWorker.CHECK_CLOSING,
+                                force = true
+                            )
+                            val total = morning.posted + closing.posted
+                            val msg = when {
+                                morning.masterToggleOff || closing.masterToggleOff ->
+                                    "Notifications are OFF (Settings → Notifications master switch). Turn them on, then run again."
+                                morning.noPermission || closing.noPermission ->
+                                    "Notification permission missing — grant it, then run again."
+                                total > 0 ->
+                                    "Notification check: $total notification(s) posted."
+                                else ->
+                                    "Notification check ran — nothing due (check Settings toggles / day state / stock)."
+                            }
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.Email,
+                    label = "Post Sample Notifications",
+                    desc = "One per channel (overdue/stock/closing/digest) — no rules, no cooldowns",
+                    onClick = {
+                        if (!NotificationCenter.canPost(context)) {
+                            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                                notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                Toast.makeText(context, "Notifications blocked by the system.", Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            val lang = appSettings?.language ?: "en"
+                            val posted = NotificationCenter.postSampleNotifications(context, lang)
+                            Toast.makeText(
+                                context,
+                                if (posted == 4) "4 sample notification(s) posted — check the shade."
+                                else "$posted/4 posted — some channels may be disabled in system settings (try Reset Channels).",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.Settings,
+                    label = "Reset Notification Channels",
+                    desc = "Recreate the 4 channels (fixes channels disabled in system settings)",
+                    onClick = {
+                        NotificationCenter.resetChannels(context)
+                        Toast.makeText(context, "Notification channels recreated.", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                DevActionItem(
+                    icon = Icons.Default.Clear,
+                    label = "Clear All Notifications",
+                    desc = "Dismiss every notification this app posted",
+                    onClick = {
+                        NotificationCenter.cancelAll(context)
+                        Toast.makeText(context, "Notifications cleared.", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                Text(
+                    text = "Tip: scheduled workers (~06:30 / 18:00) suppress while the app is open — the check button forces a run for testing.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))

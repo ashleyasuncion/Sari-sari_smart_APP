@@ -79,6 +79,46 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean("day_archived", false)
         set(value) = prefs.edit().putBoolean("day_archived", value).apply()
 
+    // ── Notification settings (V2.70 — NotificationManagement analysis §5.3) ──
+    /** Master notification on/off switch. */
+    var notificationsEnabled: Boolean
+        get() = prefs.getBoolean("notifications_enabled", true)
+        set(value) = prefs.edit().putBoolean("notifications_enabled", value).apply()
+
+    /** Per-category toggles. Digest is opt-in (off by default). */
+    var notifyOverdue: Boolean
+        get() = prefs.getBoolean("notify_overdue", true)
+        set(value) = prefs.edit().putBoolean("notify_overdue", value).apply()
+
+    var notifyStock: Boolean
+        get() = prefs.getBoolean("notify_stock", true)
+        set(value) = prefs.edit().putBoolean("notify_stock", value).apply()
+
+    var notifyClosing: Boolean
+        get() = prefs.getBoolean("notify_closing", true)
+        set(value) = prefs.edit().putBoolean("notify_closing", value).apply()
+
+    var notifyDigest: Boolean
+        get() = prefs.getBoolean("notify_digest", false) // opt-in
+        set(value) = prefs.edit().putBoolean("notify_digest", value).apply()
+
+    /** Hour (6-21) at which the evening closing reminder fires. */
+    var closingReminderHour: Int
+        get() = prefs.getInt("closing_reminder_hour", 18)
+        set(value) = prefs.edit().putInt("closing_reminder_hour", value.coerceIn(6, 21)).apply()
+
+    /** Whether the contextual permission primer has been shown (once). */
+    var notifPrimerShown: Boolean
+        get() = prefs.getBoolean("notif_primer_shown", false)
+        set(value) = prefs.edit().putBoolean("notif_primer_shown", value).apply()
+
+    /** Last-notified throttle map persisted as a StringSet of "key=epochDay".
+     *  Always assign a fresh set — SharedPreferences StringSets must not be
+     *  mutated in place. */
+    var notifiedKeys: Set<String>
+        get() = prefs.getStringSet("notified_keys", emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet("notified_keys", value).apply()
+
     fun clearAll() {
         prefs.edit().clear().apply()
     }

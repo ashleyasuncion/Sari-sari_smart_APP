@@ -94,8 +94,40 @@ data class EndOfDayData(
     val recordedSales: Double = 0.0,
     val actualSales: Double = 0.0,
     val salesDiff: Double = 0.0,
-    val profit: Double = 0.0
+    val profit: Double = 0.0,
+    /** Store expenses for the day (web V2.71 parity — Expense Log). */
+    val expenses: Double = 0.0,
+    /** Net Profit = profit (from items sold) - expenses. May be negative. */
+    val netProfit: Double = 0.0
 )
+
+/**
+ * Store operating expense — web V2.71 parity (ExpenseTracking analysis §10.1).
+ * Net Profit = gross profit (from items sold) - sum of expenses. Only two
+ * inputs are required: amount + category. Date defaults to today (editable for
+ * backfilling) and the note is optional.
+ */
+data class Expense(
+    val id: Int,
+    /** YYYY-MM-DD business date this expense belongs to (defaults to today). */
+    val date: String,
+    /** Fixed category key (see [ExpenseCatalog.CATEGORIES]). */
+    val category: String,
+    val amount: Double,
+    val note: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
+ * Fixed expense categories — must stay in sync with the web prototype's
+ * EXPENSE_CATEGORIES array (app.js) and the `exp*` i18n keys in Strings.kt.
+ * Filipino-first per the ExpenseTracking analysis §10.2.
+ */
+object ExpenseCatalog {
+    val CATEGORIES = listOf(
+        "utilities", "rent", "transport", "permits", "labor", "supplies", "maintenance", "other"
+    )
+}
 
 data class DebtPayment(
     val id: Int,

@@ -42,6 +42,10 @@ class AppViewModel : ViewModel() {
     private val _debtTransactions = MutableStateFlow<List<DebtTransaction>>(emptyList())
     val debtTransactions: StateFlow<List<DebtTransaction>> = _debtTransactions.asStateFlow()
 
+    private val _expenses = MutableStateFlow<List<Expense>>(emptyList())
+    /** Expense log (web V2.71 parity) — all store expenses, newest first. */
+    val expenses: StateFlow<List<Expense>> = _expenses.asStateFlow()
+
     private val _endOfDayData = MutableStateFlow<EndOfDayData?>(null)
     val endOfDayData: StateFlow<EndOfDayData?> = _endOfDayData.asStateFlow()
 
@@ -80,7 +84,8 @@ class AppViewModel : ViewModel() {
         val dayArchived: Boolean,
         val sales: List<SpecificSale>,
         val dailyEntry: DailyEntry?,
-        val endOfDayData: EndOfDayData?
+        val endOfDayData: EndOfDayData?,
+        val expenses: List<Expense>
     )
 
     private var devDaySnapshot: DayStateSnapshot? = null
@@ -108,7 +113,8 @@ class AppViewModel : ViewModel() {
                 dayArchived = dayArchived,
                 sales = _specificSales.value.toList(),
                 dailyEntry = _dailyEntry.value,
-                endOfDayData = _endOfDayData.value
+                endOfDayData = _endOfDayData.value,
+                expenses = _expenses.value.toList()
             )
         }
         devDateOverride = d
@@ -166,6 +172,7 @@ class AppViewModel : ViewModel() {
         dayArchived = snap.dayArchived
         _dailyEntry.value = snap.dailyEntry
         _endOfDayData.value = snap.endOfDayData
+        _expenses.value = snap.expenses.toList()
         persistDayState()
     }
 
@@ -215,6 +222,44 @@ class AppViewModel : ViewModel() {
 
     /** Difference between Actual Sales and Recorded Sales */
     fun getSalesDiff(actualSales: Double): Double = actualSales - todayRecordedSales
+
+    // ── Expense log helpers (web V2.71 parity) ───────────────────────────
+    /** Sum of today's store expenses (gastos sa tindahan). */
+    val todayExpensesTotal: Double
+        get() = _expenses.value.filter { it.date == today }.sumOf { it.amount }
+
+    /** Sum of expenses recorded for one exact business date. */
+    fun getExpensesTotalFor(date: String): Double =
+        _expenses.value.filter { it.date == date }.sumOf { it.amount }
+
+    /** Sum of expenses recorded on or after a start date (reports period). */
+    fun getPeriodExpensesTotal(startDate: String): Double =
+        _expenses.value.filter { it.date >= startDate }.sumOf { it.amount }
+
+    /** Net Profit = gross profit (from items sold) - today's expenses. */
+    val todayNetProfit: Double
+        get() = todayProfit - todayExpensesTotal
+
+    /** Add a store expense. Returns null (and records nothing) when the amount
+     *  is invalid or the category is blank — mirrors web addExpense() validation. */
+    fun addExpense(date: String, category: String, amount: Double, note: String = ""): Expense? {
+        if (amount <= 0 || category.isBlank()) return null
+        _expenseIdCounter++
+        val expense = Expense(
+            id = _expenseIdCounter,
+            date = date.ifBlank { today },
+            category = category,
+            amount = amount,
+            note = note.trim()
+        )
+        _expenses.value = _expenses.value + expense
+        return expense
+    }
+
+    /** Delete one expense; totals are recomputed from the log (no memory decrement). */
+    fun deleteExpense(id: Int) {
+        _expenses.value = _expenses.value.filter { it.id != id }
+    }
 
     // ── EOD Editability State ──────────────────────────────────────────
     // ── AppSettings persistence for day state ───────────────────────────
@@ -316,6 +361,7 @@ class AppViewModel : ViewModel() {
     private var _debtIdCounter = 4
     private var _paymentIdCounter = 10
     private var _debtTxIdCounter = 100
+    private var _expenseIdCounter = 100
     private var _tipRotationIndex = 0
     private var _restockIdCounter = 0
 
@@ -510,6 +556,11 @@ class AppViewModel : ViewModel() {
                 v?.let { repo.saveEndOfDayData(it) }
             }
         }
+        viewModelScope.launch {
+            _expenses.collect { list ->
+                list.forEach { repo.saveExpense(it) }
+            }
+        }
     }
 
     /**
@@ -576,6 +627,12 @@ class AppViewModel : ViewModel() {
         }
         val eod = repo.getLatestEndOfDayData().first()
         if (eod != null) _endOfDayData.value = eod
+        val expenses = repo.getAllExpenses().first()
+        if (expenses.isNotEmpty()) {
+            _expenses.value = expenses
+            val maxExpenseId = expenses.maxOfOrNull { it.id } ?: 100
+            if (maxExpenseId > _expenseIdCounter) _expenseIdCounter = maxExpenseId
+        }
 
         // Load latest restock log to restore last restock date (survives app restart)
         val restockLog = repo.getLatestRestockLog().first()
@@ -595,6 +652,7 @@ class AppViewModel : ViewModel() {
         repo.savePayments(_payments.value)
         repo.saveDebtTransactions(_debtTransactions.value)
         _endOfDayData.value?.let { repo.saveEndOfDayData(it) }
+        repo.saveExpenses(_expenses.value)
     }
 
     /** True if data was loaded from persistence (not just seed data) */
@@ -1059,6 +1117,9 @@ class AppViewModel : ViewModel() {
         val recordedSales = todayRecordedSales
         val salesDiff = actualSales - recordedSales
         val profit = todayProfit // Use per-sale profit (matching web app getTodayProfit())
+        // V2.71: store the day's expenses + Net Profit snapshot (web completeDay parity)
+        val expenses = todayExpensesTotal
+        val netProfit = profit - expenses
         _endOfDayData.value = EndOfDayData(
             date = today,
             cashInDrawer = actualSales,
@@ -1068,7 +1129,9 @@ class AppViewModel : ViewModel() {
             recordedSales = recordedSales,
             actualSales = actualSales,
             salesDiff = salesDiff,
-            profit = profit
+            profit = profit,
+            expenses = expenses,
+            netProfit = netProfit
         )
         dayOpen = false
         dayArchived = false // Keep data available for editing
@@ -1146,6 +1209,7 @@ class AppViewModel : ViewModel() {
         _debts.value = emptyList()
         _payments.value = emptyList()
         _debtTransactions.value = emptyList()
+        _expenses.value = emptyList()
         _endOfDayData.value = null
         _reportPeriod.value = "day" // web parity: resetData() also resets the persisted period
         _productIdCounter = 10
@@ -1153,6 +1217,7 @@ class AppViewModel : ViewModel() {
         _debtIdCounter = 4
         _paymentIdCounter = 10
         _debtTxIdCounter = 100
+        _expenseIdCounter = 100
         dayOpen = false
         dayDate = ""
         dayArchived = false
@@ -1348,6 +1413,13 @@ class AppViewModel : ViewModel() {
                     put("amount", tx.amount); put("timestamp", tx.timestamp)
                 }
             }))
+            put("expenses", org.json.JSONArray(_expenses.value.map { e ->
+                JSONObject().apply {
+                    put("id", e.id); put("date", e.date); put("category", e.category)
+                    put("amount", e.amount); put("note", e.note)
+                    put("timestamp", e.timestamp)
+                }
+            }))
             put("lowStockCount", lowStockCount)
             put("outOfStockCount", outOfStockCount)
             put("totalOutstandingDebts", totalOutstandingDebts)
@@ -1460,6 +1532,27 @@ class AppViewModel : ViewModel() {
                 _debtTransactions.value = txs
                 val maxTxId = txs.maxOfOrNull { it.id } ?: 100
                 if (maxTxId > _debtTxIdCounter) _debtTxIdCounter = maxTxId
+            }
+        }
+        // Expenses (web V2.71 parity)
+        if (obj.has("expenses")) {
+            val arr = obj.getJSONArray("expenses")
+            val expenses = mutableListOf<Expense>()
+            for (i in 0 until arr.length()) {
+                val e = arr.getJSONObject(i)
+                expenses.add(Expense(
+                    id = e.optInt("id", _expenseIdCounter + i + 1),
+                    date = e.optString("date", today),
+                    category = e.optString("category", "other"),
+                    amount = e.optDouble("amount", 0.0),
+                    note = e.optString("note", ""),
+                    timestamp = e.optLong("timestamp", System.currentTimeMillis())
+                ))
+            }
+            if (expenses.isNotEmpty()) {
+                _expenses.value = expenses
+                val maxExpenseId = expenses.maxOfOrNull { it.id } ?: 100
+                if (maxExpenseId > _expenseIdCounter) _expenseIdCounter = maxExpenseId
             }
         }
         // Web loadState parity: backfill an initial ledger row for imported debts
@@ -1619,6 +1712,7 @@ class AppViewModel : ViewModel() {
                     _debtTransactions.value = emptyList()
                 }
                 "eod" -> _endOfDayData.value = null
+                "expenses" -> _expenses.value = emptyList()
             }
         }
     }
@@ -1688,6 +1782,14 @@ class AppViewModel : ViewModel() {
         _debts.value.filter { it.remainingBalance > 0 }.forEach { d ->
             val lastAct = getLastActivity(d)
             sb.appendLine("${d.customerName},${d.amount},${d.remainingBalance},$lastAct")
+        }
+        sb.appendLine()
+
+        // Expenses section (web V2.71 parity)
+        sb.appendLine("=== EXPENSES ===")
+        sb.appendLine("ID,Date,Category,Amount,Note")
+        _expenses.value.sortedByDescending { it.date }.forEach { e ->
+            sb.appendLine("${e.id},${e.date},${e.category},${e.amount},${e.note}")
         }
         sb.appendLine()
 
@@ -1770,15 +1872,26 @@ class AppViewModel : ViewModel() {
             aging[idx] = AgingBucket(b.amount + d.remainingBalance, b.count + 1)
         }
 
+        // V2.71: expenses + Net Profit for the period (gross profit stays as-is)
+        val expenses = getPeriodExpensesTotal(curStart)
+        val netProfit = curSales.sumOf { it.profit } - expenses
+        val prevExpensesTotal = getPeriodExpensesTotal(prevStart) - expenses
+        val prevNetProfit = prevSales.sumOf { it.profit } - prevExpensesTotal
+
         return ReportStats(
             period = period,
+            periodStart = curStart,
             sales = curSales,
             prevSalesTotal = prevSales.sumOf { it.amount },
             prevProfitTotal = prevSales.sumOf { it.profit },
             outstandingUtang = activeDebts.sumOf { it.remainingBalance },
             activeDebtors = activeDebts.size,
             collectedThisPeriod = collected,
-            aging = aging
+            aging = aging,
+            expenses = expenses,
+            netProfit = netProfit,
+            prevExpensesTotal = prevExpensesTotal,
+            prevNetProfit = prevNetProfit
         )
     }
 
@@ -1795,6 +1908,8 @@ class AppViewModel : ViewModel() {
         sb.appendLine("Period,$today")
         sb.appendLine("Total Sales,${String.format("%.2f", st.sales.sumOf { it.amount })}")
         sb.appendLine("Total Profit,${String.format("%.2f", st.sales.sumOf { it.profit })}")
+        sb.appendLine("Expenses,${String.format("%.2f", st.expenses)}")
+        sb.appendLine("Net Profit,${String.format("%.2f", st.netProfit)}")
         sb.appendLine("Items Sold,${st.sales.sumOf { it.quantity }}")
         sb.appendLine("Transactions,${st.sales.size}")
         sb.appendLine("Cash Sales,${String.format("%.2f", st.sales.filter { it.customerName == null }.sumOf { it.amount })}")
@@ -1811,6 +1926,12 @@ class AppViewModel : ViewModel() {
         sb.appendLine("Date,Description,Quantity,Amount,Profit,Customer")
         st.sales.sortedByDescending { it.timestamp }.forEach { s ->
             sb.appendLine("${s.date},${s.description},${s.quantity},${String.format("%.2f", s.amount)},${String.format("%.2f", s.profit)},${s.customerName ?: "Cash"}")
+        }
+        sb.appendLine()
+        sb.appendLine("=== EXPENSES ===")
+        sb.appendLine("Date,Category,Amount,Note")
+        _expenses.value.filter { it.date >= st.periodStart }.forEach { e ->
+            sb.appendLine("${e.date},${e.category},${String.format("%.2f", e.amount)},${e.note}")
         }
         sb.appendLine()
         sb.appendLine("=== LOW STOCK ===")
@@ -1836,13 +1957,22 @@ data class CreditStatus(
 /** Aggregated report stats for one period (web computeReportStats parity). */
 data class ReportStats(
     val period: String,
+    /** First date of the current window (YYYY-MM-DD) — used for period expenses. */
+    val periodStart: String = "",
     val sales: List<SpecificSale>,
     val prevSalesTotal: Double,
     val prevProfitTotal: Double,
     val outstandingUtang: Double,
     val activeDebtors: Int,
     val collectedThisPeriod: Double,
-    val aging: List<AgingBucket>
+    val aging: List<AgingBucket>,
+    /** Total store expenses in the period (web V2.71 parity). */
+    val expenses: Double = 0.0,
+    /** Net Profit = gross profit - expenses for the period. May be negative. */
+    val netProfit: Double = 0.0,
+    /** Previous-window expenses + net profit (for vs-previous badges). */
+    val prevExpensesTotal: Double = 0.0,
+    val prevNetProfit: Double = 0.0
 )
 
 /** One aging bucket (0-30 / 31-60 / 60+ days) — amount outstanding + debtor count. */

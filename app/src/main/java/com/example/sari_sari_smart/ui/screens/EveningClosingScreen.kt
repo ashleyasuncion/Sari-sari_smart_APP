@@ -47,6 +47,7 @@ fun EveningClosingScreen(
     val products by viewModel.products.collectAsState()
     val debts by viewModel.debts.collectAsState()
     val lastRestockDate by viewModel.lastRestockDate.collectAsState()
+    val expenses by viewModel.expenses.collectAsState()
 
     val today = viewModel.today
     val todaySales = specificSales.filter { it.date == today }
@@ -77,6 +78,9 @@ fun EveningClosingScreen(
     // Profit: per-sale profit (sum of each item's margin × qty)
     // This matches web app's getTodayProfit() behavior
     val profitTotal = perSaleProfit
+    // V2.71: store expenses today + Net Profit = gross profit - expenses
+    val expensesTotal = expenses.filter { it.date == today }.sumOf { it.amount }
+    val netProfit = profitTotal - expensesTotal
 
     // Weekly snapshot
     val weekSales = viewModel.getWeekSales()
@@ -93,6 +97,8 @@ fun EveningClosingScreen(
             actualSales = asVal,
             salesDiff = salesDiff,
             profit = profitTotal,
+            expenses = expensesTotal,
+            netProfit = netProfit,
             itemsSoldCount = todaySales.sumOf { it.quantity },
             lowStockCount = products.count { it.status != StockStatus.PLENTY },
             totalDebts = debts.sumOf { it.remainingBalance },
@@ -238,6 +244,54 @@ fun EveningClosingScreen(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         "closingProfitHint".t(lang),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Gray500
+                    )
+
+                    HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Store Expenses Today (V2.71) — operating expenses, NOT COGS
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "closingExpensesToday".t(lang),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Gray800
+                        )
+                        Text(
+                            "₱${String.format("%,.2f", expensesTotal)}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Red600
+                        )
+                    }
+
+                    // Net Profit (gross profit - store expenses); red when negative
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "closingNetProfit".t(lang),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Gray800
+                        )
+                        Text(
+                            "₱${String.format("%,.2f", netProfit)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (netProfit < 0) Red600 else Green600
+                        )
+                    }
+
+                    Text(
+                        "closingNetProfitHint".t(lang),
                         style = MaterialTheme.typography.bodySmall,
                         color = Gray500
                     )
@@ -490,6 +544,8 @@ private fun EveningCompleteOverlay(
     actualSales: Double,
     salesDiff: Double,
     profit: Double,
+    expenses: Double,
+    netProfit: Double,
     itemsSoldCount: Int,
     lowStockCount: Int,
     totalDebts: Double,
@@ -545,7 +601,14 @@ private fun EveningCompleteOverlay(
                             OverlayRow("closingSalesDiff".t(lang), "$diffSign\u20B1${String.format("%,.2f", salesDiff)}", diffColor)
                         }
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        OverlayRow("closingProfitLabel".t(lang), "\u20B1${String.format("%,.2f", profit)}", Green600, bold = true)
+                        OverlayRow("closingProfitLabel".t(lang), "\u20B1${String.format("%,.2f", profit)}", Gray600)
+                        OverlayRow("closingExpensesToday".t(lang), "\u20B1${String.format("%,.2f", expenses)}", Red600)
+                        OverlayRow(
+                            "closingNetProfit".t(lang),
+                            "\u20B1${String.format("%,.2f", netProfit)}",
+                            if (netProfit < 0) Red600 else Green600,
+                            bold = true
+                        )
                     }
                 }
 

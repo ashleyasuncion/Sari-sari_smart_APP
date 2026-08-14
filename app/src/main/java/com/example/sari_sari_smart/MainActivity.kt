@@ -44,4 +44,15 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // V2.70: foreground suppression — no notifications while the app is visible.
+    override fun onStart() {
+        super.onStart()
+        com.example.sari_sari_smart.data.notifications.AppForegroundTracker.isForeground = true
+    }
+
+    override fun onStop() {
+        super.onStop()
+        com.example.sari_sari_smart.data.notifications.AppForegroundTracker.isForeground = false
+    }
 }

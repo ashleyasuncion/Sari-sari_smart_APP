@@ -1,6 +1,11 @@
 package com.example.sari_sari_smart.ui.screens
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -18,6 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.content.ContextCompat
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.sari_sari_smart.data.notifications.DailyCheckWorker
+import com.example.sari_sari_smart.data.notifications.NotificationCenter
+import com.example.sari_sari_smart.data.notifications.NotificationChannels
+import com.example.sari_sari_smart.data.notifications.NotificationDeepLinks
 import com.example.sari_sari_smart.ui.localization.AppSettings
 import com.example.sari_sari_smart.ui.localization.LocalLanguage
 import com.example.sari_sari_smart.ui.localization.LocalTextScale
@@ -274,6 +287,129 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ── Notifications (V2.70) ──
+            SettingsSectionTitle("notificationsSection".t(settings.language))
+            val contextForNotif = context
+            var notifEnabled by remember { mutableStateOf(settings.notificationsEnabled) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "notificationsEnabled".t(settings.language),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Gray800
+                    )
+                    Text(
+                        "notifyDescMaster".t(settings.language),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Gray400
+                    )
+                }
+                Switch(
+                    checked = notifEnabled,
+                    onCheckedChange = {
+                        notifEnabled = it
+                        settings.notificationsEnabled = it
+                    }
+                )
+            }
+            if (notifEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                NotificationToggleRow(
+                    label = "notifyOverdue".t(settings.language),
+                    desc = "notifyDescOverdue".t(settings.language),
+                    initial = settings.notifyOverdue,
+                    onChange = { settings.notifyOverdue = it }
+                )
+                NotificationToggleRow(
+                    label = "notifyStock".t(settings.language),
+                    desc = "notifyDescStock".t(settings.language),
+                    initial = settings.notifyStock,
+                    onChange = { settings.notifyStock = it }
+                )
+                NotificationToggleRow(
+                    label = "notifyClosing".t(settings.language),
+                    desc = "notifyDescClosing".t(settings.language),
+                    initial = settings.notifyClosing,
+                    onChange = { settings.notifyClosing = it }
+                )
+                NotificationToggleRow(
+                    label = "notifyDigest".t(settings.language),
+                    desc = "notifyDescDigest".t(settings.language),
+                    initial = settings.notifyDigest,
+                    onChange = { settings.notifyDigest = it }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Closing reminder hour (6-21)
+                var closingHourText by remember { mutableStateOf(settings.closingReminderHour.toString()) }
+                OutlinedTextField(
+                    value = closingHourText,
+                    onValueChange = {
+                        closingHourText = it.filter { c -> c.isDigit() }
+                        closingHourText.toIntOrNull()?.let { v ->
+                            val coerced = v.coerceIn(6, 21)
+                            settings.closingReminderHour = coerced
+                        }
+                    },
+                    label = { Text("closingReminderHour".t(settings.language)) },
+                    suffix = { Text(":00") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Permission denied → open system settings (no nagging)
+                val hasNotifPermission = Build.VERSION.SDK_INT < 33 ||
+                    ContextCompat.checkSelfPermission(contextForNotif, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                if (!hasNotifPermission) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "notifPermissionDeniedHint".t(settings.language),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Gray400
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            contextForNotif.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, contextForNotif.packageName)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("openSystemSettings".t(settings.language)) }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Dev convenience: test notification + run the daily check now
+                OutlinedButton(
+                    onClick = {
+                        NotificationCenter.post(
+                            contextForNotif, NotificationChannels.CLOSING, 2999,
+                            "notifTest".t(settings.language), "notifTestBody".t(settings.language),
+                            NotificationDeepLinks.MORNING
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("notifTest".t(settings.language)) }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        WorkManager.getInstance(contextForNotif).enqueueUniqueWork(
+                            "notification_check_now",
+                            ExistingWorkPolicy.REPLACE,
+                            OneTimeWorkRequestBuilder<DailyCheckWorker>().build()
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("notifRunCheck".t(settings.language)) }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // ── Tutorial Selector ──
             SettingsSectionTitle("tutorials".t(settings.language))
             Card(
@@ -400,6 +536,32 @@ fun SettingsScreenPreview() {
         SettingsScreen(
             appSettings = AppSettings(context),
             onBack = {}
+        )
+    }
+}
+
+@Composable
+private fun NotificationToggleRow(
+    label: String,
+    desc: String,
+    initial: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    var checked by remember { mutableStateOf(initial) }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = Gray800)
+            Text(desc, style = MaterialTheme.typography.bodySmall, color = Gray400)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = {
+                checked = it
+                onChange(it)
+            }
         )
     }
 }

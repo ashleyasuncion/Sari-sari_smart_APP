@@ -19,9 +19,10 @@ import com.example.sari_sari_smart.data.local.entity.*
         EndOfDayEntity::class,
         RestockLogEntity::class,
         DebtPaymentEntity::class,
-        DebtTransactionEntity::class
+        DebtTransactionEntity::class,
+        ExpenseEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -34,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun restockLogDao(): RestockLogDao
     abstract fun debtPaymentDao(): DebtPaymentDao
     abstract fun debtTransactionDao(): DebtTransactionDao
+    abstract fun expenseDao(): ExpenseDao
 
     companion object {
         @Volatile
@@ -46,7 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sari_sari_smart_db"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
@@ -140,6 +142,27 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `specific_sales` ADD COLUMN `transactionId` INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE `specific_sales` ADD COLUMN `paymentMethod` TEXT")
+            }
+        }
+
+        /**
+         * v8 → v9: add the expense log (web V2.71 parity — ExpenseTracking
+         * analysis). Creates the `expenses` table and adds the EOD snapshot
+         * columns (`expenses`, `netProfit`) so a finished closing stores the
+         * day's expense total + Net Profit. Non-destructive: existing rows
+         * keep their data, new columns default to 0.
+         * Schema must match ExpenseEntity / EndOfDayEntity exactly.
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `expenses` (`id` INTEGER NOT NULL, " +
+                        "`date` TEXT NOT NULL, `category` TEXT NOT NULL, " +
+                        "`amount` REAL NOT NULL, `note` TEXT NOT NULL DEFAULT '', " +
+                        "`timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL("ALTER TABLE `end_of_day_data` ADD COLUMN `expenses` REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `end_of_day_data` ADD COLUMN `netProfit` REAL NOT NULL DEFAULT 0")
             }
         }
     }

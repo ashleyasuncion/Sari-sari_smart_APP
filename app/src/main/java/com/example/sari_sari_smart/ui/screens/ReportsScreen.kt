@@ -255,6 +255,28 @@ fun ReportsScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            // V2.71: Expenses + Net Profit tiles (Net Profit may be negative on bad days)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                KpiTile(
+                    title = "reportsExpenses".t(lang),
+                    value = peso(stats.expenses),
+                    color = Red600,
+                    bgColor = Red50,
+                    modifier = Modifier.weight(1f)
+                )
+                KpiTile(
+                    title = "reportsNetProfit".t(lang),
+                    value = peso(stats.netProfit),
+                    color = if (stats.netProfit < 0) Red600 else Blue600,
+                    bgColor = if (stats.netProfit < 0) Red50 else Blue50,
+                    badge = vsBadge(stats.netProfit, stats.prevNetProfit, lang),
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 

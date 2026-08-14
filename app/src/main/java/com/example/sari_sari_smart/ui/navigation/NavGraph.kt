@@ -3,6 +3,10 @@ package com.example.sari_sari_smart.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -10,10 +14,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navDeepLink
+import com.example.sari_sari_smart.data.notifications.NotificationDeepLinks
 import com.example.sari_sari_smart.SariSariApp
 import com.example.sari_sari_smart.data.AppRepository
 import com.example.sari_sari_smart.data.LocalSnackbarHost
 import com.example.sari_sari_smart.data.LocalSnackbarScope
+import com.example.sari_sari_smart.data.notifications.NotificationCenter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.sari_sari_smart.ui.MainScaffold
@@ -64,7 +71,8 @@ fun NavGraph(
             endOfDayDao = app.database.endOfDayDao(),
             restockLogDao = app.database.restockLogDao(),
             debtPaymentDao = app.database.debtPaymentDao(),
-            debtTransactionDao = app.database.debtTransactionDao()
+            debtTransactionDao = app.database.debtTransactionDao(),
+            expenseDao = app.database.expenseDao()
         )
     }
     LaunchedEffect(Unit) {
@@ -135,6 +143,7 @@ fun NavGraph(
         Routes.NEW_DEBT -> "new_debt"
         Routes.RESTOCK -> "restock"
         Routes.REPORTS -> "reports"
+        Routes.EXPENSES -> "expenses"
         Routes.PRODUCT_DETAIL -> "product_detail"
         Routes.CUSTOMER_DEBT_DETAIL -> "customer_debt_detail"
         Routes.RECORD_PAYMENT -> "record_payment"
@@ -148,6 +157,7 @@ fun NavGraph(
         "checkout" -> Routes.CHECKOUT
         "new_debt" -> Routes.NEW_DEBT; "restock" -> Routes.RESTOCK
         "reports" -> Routes.REPORTS
+        "expenses" -> Routes.EXPENSES
         // Arg'd pages have no fixed route id — fall back to their parent list page
         // when launched from Help/Settings (launching from the page itself stays put).
         "product_detail" -> Routes.INVENTORY
@@ -293,7 +303,11 @@ fun NavGraph(
             }
 
             // ── Three Moments ────────────────────────────────────
-            composable(Routes.MORNING) {
+            composable(
+                route = Routes.MORNING,
+                // V2.70: notification deep links (sarisarismart://morning)
+                deepLinks = listOf(navDeepLink { uriPattern = NotificationDeepLinks.MORNING })
+            ) {
                 LaunchedEffect(Unit) {
                     // Tutorial auto-starts only on fresh app launch (not every navigation to MORNING)
                     // Session guard: tutorialLaunchedThisSession prevents re-trigger on nav back to MORNING
@@ -309,6 +323,20 @@ fun NavGraph(
                 val lang = LocalLanguage.current.value
                 val ownerName = appSettings.ownerName
                 val greetingText = "pageMorning".t(lang)
+                // V2.70: contextual notification primer + permission request, shown
+                // once at the high-intent moment of the first "Start the Day" tap.
+                var showNotifPrimer by remember { mutableStateOf(false) }
+                val notifPermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission()
+                ) { }
+                fun startDayFlow() {
+                    appViewModel.archiveDaySales()
+                    appViewModel.openDay()
+                    navController.navigate(Routes.DAY) {
+                        popUpTo(Routes.MORNING) { saveState = true }
+                        launchSingleTop = true
+                    }
+                }
                 MainScaffold(
                     navController = navController,
                     currentRoute = Routes.MORNING,
@@ -324,11 +352,11 @@ fun NavGraph(
                         viewModel = appViewModel,
                         ownerName = ownerName,
                         onStartDay = {
-                            appViewModel.archiveDaySales()
-                            appViewModel.openDay()
-                            navController.navigate(Routes.DAY) {
-                                popUpTo(Routes.MORNING) { saveState = true }
-                                launchSingleTop = true
+                            if (Build.VERSION.SDK_INT >= 33 && !appSettings.notifPrimerShown && appSettings.notificationsEnabled) {
+                                appSettings.notifPrimerShown = true
+                                showNotifPrimer = true
+                            } else {
+                                startDayFlow()
                             }
                         },
                         onNavigateToClosing = {
@@ -342,6 +370,8 @@ fun NavGraph(
                             // Close the previous (stale) day, show the confirmation
                             // toast, then enter Day Mode (web: toast + 900ms delay).
                             appViewModel.closeStaleDayAndStartToday()
+                            // V2.70: resolving the overdue day cancels its notification.
+                            NotificationCenter.cancel(context, NotificationCenter.ID_OVERDUE)
                             snackbarScope.launch {
                                 snackbarHost.showSnackbar("overdueArchivedToast".t(lang))
                                 delay(900)
@@ -356,6 +386,19 @@ fun NavGraph(
                         onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
                         onNavigateToRestock = { navController.navigate(Routes.RESTOCK) },
                         onLaunchTutorial = { startPageTutorial("home") }
+                    )
+                }
+                if (showNotifPrimer) {
+                    NotificationPrimerDialog(
+                        onAllow = {
+                            showNotifPrimer = false
+                            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            startDayFlow()
+                        },
+                        onNotNow = {
+                            showNotifPrimer = false
+                            startDayFlow()
+                        }
                     )
                 }
             }
@@ -404,6 +447,7 @@ fun NavGraph(
                             }
                         },
                         onNavigateToInventory = { navController.navigate(Routes.INVENTORY) },
+                        onNavigateToExpenses = { navController.navigate(Routes.EXPENSES) },
                         onOpenSaleSheet = openSaleSheet,
                         onLaunchTutorial = { startPageTutorial("sales") }
                     )
@@ -431,7 +475,11 @@ fun NavGraph(
                 )
             }
 
-            composable(Routes.CLOSING) {
+            composable(
+                route = Routes.CLOSING,
+                // V2.70: closing-reminder deep link (sarisarismart://closing)
+                deepLinks = listOf(navDeepLink { uriPattern = NotificationDeepLinks.CLOSING })
+            ) {
                 val lang = LocalLanguage.current.value
                 val greetingText = "pageClosing".t(lang)
                 // Re-key the entry guard on the observable date (midnight rollover).
@@ -475,8 +523,16 @@ fun NavGraph(
             }
 
             // ── Support screens ──────────────────────────────────
-            composable(Routes.INVENTORY) {
+            composable(
+                route = Routes.INVENTORY,
+                // V2.70: stock-alert deep link (sarisarismart://inventory)
+                deepLinks = listOf(navDeepLink { uriPattern = NotificationDeepLinks.INVENTORY })
+            ) {
                 val lang = LocalLanguage.current.value
+                // V2.70: opening Inventory acknowledges (cancels) stock alerts for now.
+                LaunchedEffect(Unit) {
+                    NotificationCenter.cancel(context, NotificationCenter.ID_STOCK)
+                }
                 SupportScaffold(
                     navController = navController,
                     currentRoute = Routes.INVENTORY,
@@ -510,8 +566,16 @@ fun NavGraph(
                 )
             }
 
-            composable(Routes.DEBTS) {
+            composable(
+                route = Routes.DEBTS,
+                // V2.70: weekly-digest deep link (sarisarismart://debts)
+                deepLinks = listOf(navDeepLink { uriPattern = NotificationDeepLinks.DEBTS })
+            ) {
                 val lang = LocalLanguage.current.value
+                // V2.70: opening Debts acknowledges (cancels) the weekly digest.
+                LaunchedEffect(Unit) {
+                    NotificationCenter.cancel(context, NotificationCenter.ID_DIGEST)
+                }
                 SupportScaffold(
                     navController = navController,
                     currentRoute = Routes.DEBTS,
@@ -609,17 +673,29 @@ fun NavGraph(
                 )
             }
 
+            // ── Expense Log Screen (web V2.71 parity — sub-page with back button) ──
+            composable(Routes.EXPENSES) {
+                ExpensesScreen(
+                    viewModel = appViewModel,
+                    onBack = { navController.popBackStack() },
+                    onTutorialClick = { startPageTutorial("expenses") }
+                )
+            }
+
             // ── Restock Screen ────────────────────────────────────
             composable(Routes.RESTOCK) {
                 RestockScreen(
                     viewModel = appViewModel,
                     onBack = { navController.popBackStack() },
                     onComplete = {
+                        // V2.70: restocking resolves the stock-alert notification.
+                        NotificationCenter.cancel(context, NotificationCenter.ID_STOCK)
                         navController.navigate(Routes.INVENTORY) {
                             popUpTo(Routes.INVENTORY) { inclusive = true }
                         }
                     },
                     onNavigateToInventory = {
+                        NotificationCenter.cancel(context, NotificationCenter.ID_STOCK)
                         navController.navigate(Routes.INVENTORY) {
                             popUpTo(Routes.INVENTORY) { inclusive = true }
                         }

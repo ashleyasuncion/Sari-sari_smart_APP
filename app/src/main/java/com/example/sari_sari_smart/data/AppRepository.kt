@@ -17,7 +17,8 @@ class AppRepository(
     private val endOfDayDao: EndOfDayDao,
     private val restockLogDao: RestockLogDao,
     private val debtPaymentDao: DebtPaymentDao,
-    private val debtTransactionDao: DebtTransactionDao
+    private val debtTransactionDao: DebtTransactionDao,
+    private val expenseDao: ExpenseDao
 ) {
     // ── Products ────────────────────────────────────────────────────────
     fun getAllProducts(): Flow<List<Product>> =
@@ -148,6 +149,20 @@ class AppRepository(
 
     suspend fun deleteAllRestockLogs() = restockLogDao.deleteAll()
 
+    // ── Expenses (web V2.71 parity) ─────────────────────────────────────
+    fun getAllExpenses(): Flow<List<Expense>> =
+        expenseDao.getAllExpenses().map { entities -> entities.map { it.toDomainModel() } }
+
+    suspend fun saveExpense(expense: Expense) =
+        expenseDao.insert(ExpenseEntity.fromDomainModel(expense))
+
+    suspend fun saveExpenses(expenses: List<Expense>) =
+        expenses.forEach { expenseDao.insert(ExpenseEntity.fromDomainModel(it)) }
+
+    suspend fun deleteExpense(id: Int) = expenseDao.deleteById(id)
+
+    suspend fun deleteAllExpenses() = expenseDao.deleteAll()
+
     // ── Batch operations ────────────────────────────────────────────────
     suspend fun deleteAll() {
         deleteAllProducts()
@@ -158,5 +173,6 @@ class AppRepository(
         dailyEntryDao.deleteAll()
         endOfDayDao.deleteAll()
         deleteAllRestockLogs()
+        deleteAllExpenses()
     }
 }

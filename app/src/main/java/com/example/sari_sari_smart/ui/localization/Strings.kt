@@ -180,6 +180,8 @@ object Strings {
         // Reports
         "totalSales" to "Total Sales",
         "reportsProfit" to "Gross Profit",
+        "reportsExpenses" to "Expenses",
+        "reportsNetProfit" to "Net Profit",
         "weeklyTrend" to "Weekly Sales Trend",
         "transactions" to "Transactions",
         "noData" to "No data available.",
@@ -333,6 +335,89 @@ object Strings {
         "debtToday" to "Credit Sales Today",
         "dayTransactionsLabel" to "Today's Transactions",
 
+        // ── Expense Log (web V2.71 parity) ──
+        "expensesTitle" to "Store Expenses",
+        "expensesSubtitle" to "Record store expenses — rent, utilities, transport, wages, and more.",
+        "expensesTodayTotal" to "Total Today",
+        "expenseAddTitle" to "Add Expense",
+        "expenseAmount" to "Amount (₱)",
+        "expenseCategory" to "Category",
+        "expenseCategoryPlaceholder" to "Select category...",
+        "expenseDate" to "Date",
+        "expenseNote" to "Note (optional)",
+        "expenseNotePlaceholder" to "e.g. electric bill",
+        "expenseSave" to "Save Expense",
+        "expenseDelete" to "Delete",
+        "expenseEmpty" to "No expenses recorded yet.",
+        "expenseAdded" to "Expense added.",
+        "expenseDeleted" to "Expense deleted.",
+        "expenseAmountRequired" to "Enter an amount greater than 0.",
+        "expenseCategoryRequired" to "Choose a category.",
+        "expenseListTitle" to "All Expenses",
+        "dayExpensesBtn" to "Store Expenses Today",
+        // Expense categories (Filipino-first per the ExpenseTracking analysis §10.2)
+        "expUtilities" to "Utilities",
+        "expRent" to "Rent",
+        "expTransport" to "Transport",
+        "expPermits" to "Permits & Fees",
+        "expLabor" to "Labor",
+        "expSupplies" to "Supplies",
+        "expMaintenance" to "Maintenance",
+        "expOther" to "Other",
+        // Expense Log tutorial
+        "tutExpenses" to "Store Expenses Tutorial",
+        "expensesTutorial1" to "The Store Expenses page records money spent on the store itself — rent, electricity, transport, wages, and other operating costs.",
+        "expensesTutorial2" to "Fill in the amount and pick a category. The date defaults to today, and a note is optional.",
+        "expensesTutorial3" to "Expenses are subtracted from your profit to show Net Profit on the Closing and Reports pages.",
+
+        // ── Notifications (V2.70) ──
+        "notificationsSection" to "Notifications",
+        "notificationsEnabled" to "Enable notifications",
+        "notifyDescMaster" to "Important store alerts — overdue days, out-of-stock items, and closing reminders. You can turn each off below.",
+        "notifyOverdue" to "Store left open",
+        "notifyDescOverdue" to "Alert when the store wasn't closed and yesterday's records need review.",
+        "notifyStock" to "Out-of-stock & restock",
+        "notifyDescStock" to "Alert when items run out of stock or a restock is overdue.",
+        "notifyClosing" to "Closing reminder",
+        "notifyDescClosing" to "Remind you to finish the day's closing in the evening.",
+        "notifyDigest" to "Weekly debt digest",
+        "notifyDescDigest" to "A weekly summary of money still owed to you (opt-in).",
+        "closingReminderHour" to "Closing reminder hour",
+        "openSystemSettings" to "Open system settings",
+        "notifPermissionDeniedHint" to "Notifications are turned off for this app in system settings.",
+        "notifTest" to "Send test notification",
+        "notifRunCheck" to "Run notification check now",
+        "notifPrimerTitle" to "Stay informed about your store",
+        "notifPrimerBody" to "We'll notify you when the store wasn't closed, stock runs out, or a day isn't finished — only for important things. You can turn these off anytime in Settings.",
+        "notifAllow" to "Allow",
+        "notifNotNow" to "Not now",
+        "notifTestBody" to "This is a test notification from Sari-Sari Smart.",
+        // Channel names + descriptions
+        "notifChannelOverdue" to "Overdue store",
+        "notifChannelOverdueDesc" to "High-priority alerts when the store was left open.",
+        "notifChannelStock" to "Stock alerts",
+        "notifChannelStockDesc" to "Out-of-stock items and restock reminders.",
+        "notifChannelClosing" to "Closing reminder",
+        "notifChannelClosingDesc" to "Reminds you to finish the day's closing.",
+        "notifChannelDigest" to "Weekly debt digest",
+        "notifChannelDigestDesc" to "Weekly summary of money owed to you.",
+        // Notification copy (consequence + action, per analysis §9)
+        "notifOverdueTitle" to "Store wasn't closed",
+        "notifOverdueText" to "Yesterday's records need review. Tap to view.",
+        "notifStockTitle" to "Out of stock: {n} items",
+        "notifStockOneTitle" to "Out of stock",
+        "notifStockText" to "Items need restocking. Tap to review.",
+        "notifRestockTitle" to "Restock overdue",
+        "notifRestockText" to "It's been a while since your last restock. Tap to review.",
+        "notifRestockLine" to "Restock overdue ({n} days)",
+        "notifClosingTitle" to "Don't forget to close the day",
+        "notifClosingText" to "Your day is still open — finish the closing to save today's records.",
+        "notifDigestTitle" to "Weekly debt summary",
+        "notifDigestText" to "Your weekly receivables summary. Tap to view.",
+        "notifDigestOutstanding" to "Outstanding: {amount}",
+        "notifDigestOverLimit" to "Over-limit debtors: {n}",
+        "notifDigestAging" to "60+ day debts: {n}",
+
         // ── Closing Screen ──
         "closingTitle" to "Close the Store",
         "closingSubtitle" to "Finish this day",
@@ -357,6 +442,9 @@ object Strings {
         "closingSalesDiff" to "Cash Difference",
         "closingProfitLabel" to "Profit from Items Sold",
         "closingProfitHint" to "Selling price of items sold minus their cost.",
+        "closingExpensesToday" to "Store Expenses Today",
+        "closingNetProfit" to "Net Profit",
+        "closingNetProfitHint" to "Net Profit = profit from items sold - store expenses.",
         "completeDayBtn" to "Day Complete ✓",
         "backToDayBtn" to "Back to Day",
         "dayCompleteTitle" to "Day Complete!",
@@ -845,6 +933,8 @@ object Strings {
         // Reports
         "totalSales" to "Kabuuang Benta",
         "reportsProfit" to "Kabuuang Tubo",
+        "reportsExpenses" to "Mga Gastos",
+        "reportsNetProfit" to "Tunay na Kita",
         "weeklyTrend" to "Lingguhang Benta",
         "transactions" to "Transaksyon",
         "noData" to "Walang datos.",
@@ -998,6 +1088,89 @@ object Strings {
         "debtToday" to "Utang Ngayon",
         "dayTransactionsLabel" to "Mga Transaksyon Ngayon",
 
+        // ── Expense Log (web V2.71 parity) ──
+        "expensesTitle" to "Mga Gastos sa Tindahan",
+        "expensesSubtitle" to "Itala ang mga gastos ng tindahan — upa, kuryente, pamasahe, sahod, at iba pa.",
+        "expensesTodayTotal" to "Kabuuang Ngayon",
+        "expenseAddTitle" to "Magdagdag ng Gastos",
+        "expenseAmount" to "Halaga (₱)",
+        "expenseCategory" to "Kategorya",
+        "expenseCategoryPlaceholder" to "Pumili ng kategorya...",
+        "expenseDate" to "Petsa",
+        "expenseNote" to "Tandaan (opsyonal)",
+        "expenseNotePlaceholder" to "hal. bill ng kuryente",
+        "expenseSave" to "I-save ang Gastos",
+        "expenseDelete" to "Burahin",
+        "expenseEmpty" to "Wala pang naitalang gastos.",
+        "expenseAdded" to "Naidagdag ang gastos.",
+        "expenseDeleted" to "Nabura ang gastos.",
+        "expenseAmountRequired" to "Maglagay ng halagang mas malaki sa 0.",
+        "expenseCategoryRequired" to "Pumili ng kategorya.",
+        "expenseListTitle" to "Lahat ng Gastos",
+        "dayExpensesBtn" to "Mga Gastos sa Tindahan Ngayon",
+        // Expense categories (Filipino-first per the ExpenseTracking analysis §10.2)
+        "expUtilities" to "Kuryente at Tubig",
+        "expRent" to "Upa",
+        "expTransport" to "Pamasahe / Deliveries",
+        "expPermits" to "Lisensya / Bayarin",
+        "expLabor" to "Sahod",
+        "expSupplies" to "Mga Gamit",
+        "expMaintenance" to "Pagkukumpuni",
+        "expOther" to "Iba pa",
+        // Expense Log tutorial
+        "tutExpenses" to "Tutorial ng Mga Gastos",
+        "expensesTutorial1" to "Ang pahina ng Mga Gastos ay nagtatala ng perang ginastos sa tindahan mismo — upa, kuryente, pamasahe, sahod, at iba pang gastusin.",
+        "expensesTutorial2" to "Ilagay ang halaga at pumili ng kategorya. Ang petsa ay awtomatikong ngayon, at ang tala ay opsyonal.",
+        "expensesTutorial3" to "Ibawas ang mga gastos sa iyong tubo para makita ang Tunay na Kita sa Closing at Reports pages.",
+
+        // ── Notifications (V2.70) ──
+        "notificationsSection" to "Mga Notipikasyon",
+        "notificationsEnabled" to "Paganahin ang mga notipikasyon",
+        "notifyDescMaster" to "Mahahalagang alerto ng tindahan — hindi pa isinara, walang stock, at paalala sa pagsasara. Maaari mong i-off ang bawat isa sa ibaba.",
+        "notifyOverdue" to "Hindi pa isinara ang tindahan",
+        "notifyDescOverdue" to "Alerto kapag hindi pa isinara ang tindahan at kailangang suriin ang mga tala kahapon.",
+        "notifyStock" to "Walang stock at restock",
+        "notifyDescStock" to "Alerto kapag naubos ang mga item o kailangan nang mag-restock.",
+        "notifyClosing" to "Paalala sa pagsasara",
+        "notifyDescClosing" to "Paalalahanan kang tapusin ang pagsasara ng araw sa gabi.",
+        "notifyDigest" to "Lingguhang buod ng utang",
+        "notifyDescDigest" to "Lingguhang buod ng perang utang pa sa iyo (opsyonal).",
+        "closingReminderHour" to "Oras ng paalala sa pagsasara",
+        "openSystemSettings" to "Buksan ang system settings",
+        "notifPermissionDeniedHint" to "Naka-off ang mga notipikasyon para sa app na ito sa system settings.",
+        "notifTest" to "Magpadala ng test notification",
+        "notifRunCheck" to "Patakbuhin ang notification check ngayon",
+        "notifPrimerTitle" to "Manatiling updated sa iyong tindahan",
+        "notifPrimerBody" to "Ipapaalam namin sa iyo kapag hindi pa isinara ang tindahan, naubos ang stock, o hindi pa tapos ang araw — para lang sa mahahalagang bagay. Maaari mong i-off ito anumang oras sa Settings.",
+        "notifAllow" to "Payagan",
+        "notifNotNow" to "Sa ibang pagkakataon",
+        "notifTestBody" to "Ito ay test notification mula sa Sari-Sari Smart.",
+        // Channel names + descriptions
+        "notifChannelOverdue" to "Hindi pa isinara ang tindahan",
+        "notifChannelOverdueDesc" to "Mga high-priority na alerto kapag naiwang bukas ang tindahan.",
+        "notifChannelStock" to "Mga alerto sa stock",
+        "notifChannelStockDesc" to "Mga item na walang stock at paalala sa restock.",
+        "notifChannelClosing" to "Paalala sa pagsasara",
+        "notifChannelClosingDesc" to "Paalalahanan kang tapusin ang pagsasara ng araw.",
+        "notifChannelDigest" to "Lingguhang buod ng utang",
+        "notifChannelDigestDesc" to "Lingguhang buod ng perang utang sa iyo.",
+        // Notification copy (consequence + action, per analysis §9)
+        "notifOverdueTitle" to "Hindi pa isinara ang tindahan",
+        "notifOverdueText" to "Kailangang suriin ang mga tala kahapon. I-tap para tingnan.",
+        "notifStockTitle" to "Walang stock: {n} item",
+        "notifStockOneTitle" to "Walang stock",
+        "notifStockText" to "Kailangan nang mag-restock ang mga item. I-tap para tingnan.",
+        "notifRestockTitle" to "Kailangan nang mag-restock",
+        "notifRestockText" to "Matagal na simula noong huling restock. I-tap para tingnan.",
+        "notifRestockLine" to "Kailangan nang mag-restock ({n} araw)",
+        "notifClosingTitle" to "Huwag kalimutang isara ang araw",
+        "notifClosingText" to "Bukas pa ang iyong araw — tapusin ang pagsasara para ma-save ang mga tala ngayong araw.",
+        "notifDigestTitle" to "Lingguhang buod ng utang",
+        "notifDigestText" to "Ang iyong lingguhang buod ng mga natitirang bayad. I-tap para tingnan.",
+        "notifDigestOutstanding" to "Natitira: {amount}",
+        "notifDigestOverLimit" to "May lampas sa limit: {n}",
+        "notifDigestAging" to "Utang na 60+ araw: {n}",
+
         // ── Closing Screen ──
         "closingTitle" to "Isara ang Tindahan",
         "closingSubtitle" to "Tapusin na ang araw na ito",
@@ -1022,6 +1195,9 @@ object Strings {
         "closingSalesDiff" to "Pagkakaiba ng Pera",
         "closingProfitLabel" to "Tubo mula sa mga Naibenta",
         "closingProfitHint" to "Benta ng mga naibenta minus ang halaga ng paninda.",
+        "closingExpensesToday" to "Mga Gastos sa Tindahan Ngayon",
+        "closingNetProfit" to "Tunay na Kita",
+        "closingNetProfitHint" to "Tunay na Kita = tubo mula sa mga naibenta - mga gastos ng tindahan.",
         "completeDayBtn" to "Tapos Na ang Araw ✓",
         "backToDayBtn" to "Bumalik sa Araw",
         "dayCompleteTitle" to "Tapos Na ang Araw!",
@@ -1337,6 +1513,23 @@ object Strings {
             "dry_goods" -> "catDryGoods"
             "other" -> "catOther"
             else -> "catOther"
+        }
+        return i18nKey.t(lang)
+    }
+
+    /** Localized label for an expense-category key (web expenseCategoryLabel
+     *  parity — ExpenseTracking analysis §10.2). Unknown keys resolve to "Other". */
+    fun expenseCategoryLabel(key: String, lang: String): String {
+        val i18nKey = when (key) {
+            "utilities" -> "expUtilities"
+            "rent" -> "expRent"
+            "transport" -> "expTransport"
+            "permits" -> "expPermits"
+            "labor" -> "expLabor"
+            "supplies" -> "expSupplies"
+            "maintenance" -> "expMaintenance"
+            "other" -> "expOther"
+            else -> "expOther"
         }
         return i18nKey.t(lang)
     }

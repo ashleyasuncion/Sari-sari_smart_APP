@@ -67,6 +67,9 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
+    // WorkManager (V2.70 — local notifications)
+    implementation(libs.work.runtime.ktx)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

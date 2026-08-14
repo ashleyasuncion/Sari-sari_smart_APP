@@ -4506,3 +4506,240 @@ Validation: n/a (analysis only). Implementation of either feature is pending
 user direction.
 Cross-ref: same V2.69 analysis logged in git/Sari-sari_smart/progress.txt.
 ================================================================================
+
+================================================================================
+V2.70 — IMPLEMENTATION PLAN: NOTIFICATION MANAGEMENT (MOBILE) — PLAN ONLY
+Date: Aug 11, 2026
+Status: PLAN COMPLETE — no code changes in this version
+
+Implementation plan for the notification system added to the main-dir report
+NotificationManagement.txt (Section 11). Mobile is the PRIMARY notification
+platform; web stays in-app-alert-only (no device notifications).
+
+Plan summary (Android, V2.70 target — local notifications ONLY, no FCM):
+1. DEPENDENCIES & MANIFEST — WorkManager (work-runtime-ktx) in
+   libs.versions.toml + app/build.gradle.kts; POST_NOTIFICATIONS permission
+   in AndroidManifest.xml.
+2. CHANNELS — NotificationChannels.kt (4 channels: overdue_store HIGH,
+   stock_alerts DEFAULT, closing_reminder DEFAULT, weekly_digest DEFAULT),
+   created in SariSariApp.onCreate().
+3. SETTINGS & THROTTLE — AppSettings.kt prefs (master + 4 category toggles +
+   closing hour); NotificationThrottle.kt cooldown store (once/item/day for
+   stock; once/day overdue + closing; once/week digest).
+4. RULES ENGINE — NotificationRules.kt pure functions (isStaleOpenDay
+   parity, out-of-stock, restock >= 2 days, closing-not-done, aging digest,
+   quiet hours 6:00-21:00).
+5. CENTER & DEEP LINKS — NotificationCenter.kt (NotificationCompat, grouped
+   InboxStyle, VISIBILITY_PRIVATE); deep links sarisarismart://morning,
+   /inventory, /closing, /debts via Routes.kt + NavGraph.kt navDeepLink.
+6. WORKER — DailyCheckWorker.kt (PeriodicWorkRequest 1 day, inexact);
+   foreground suppression (AppForegroundTracker); cancel-on-resolution
+   (completeEndOfDay, completeRestock, closeStaleDayAndStartToday).
+7. SETTINGS UI — Notifications section in SettingsScreen (toggles + hour +
+   open-system-settings); NotificationPrimerDialog contextual
+   POST_NOTIFICATIONS request (not first launch).
+8. TESTS — NotificationRulesTest + NotificationThrottleTest (JVM);
+   NotificationChannelsTest (instrumented); validation via
+   ./gradlew :app:compileDebugKotlin / :app:testDebugUnitTest.
+
+Defaults: overdue/stock/closing ON; weekly digest OFF. All text EN + FIL
+localized. Implementation of V2.70 is pending user direction.
+
+Validation: n/a (plan only — Section 11 of NotificationManagement.txt).
+Cross-ref: same V2.70 plan logged in git/Sari-sari_smart/progress.txt.
+================================================================================
+
+================================================================================
+V2.71 — FEATURE: EXPENSE LOG + NET PROFIT (MOBILE) — DONE
+Date: Aug 14, 2026
+Status: IMPLEMENTED + VERIFIED — mobile parity of the web V2.71 build, following
+       the V2.69 ExpenseTracking.txt analysis §12 (mobile-specific notes).
+
+WHAT CHANGED (user-facing):
+- NEW Expenses screen (expenses route, sub-page with centered header + Back
+  button per the V2.68 rule): Total Today card + Add form (Amount required,
+  Category dropdown with 8 fixed categories, Date defaulting to today but
+  editable for backfilling, Note optional) + full expense list with per-row
+  delete. Reached from a new "Store Expenses Today" button on the Day page that
+  shows today's expense total.
+- Closing (EveningClosingScreen) now shows THREE figures under Sales:
+     Profit from Items Sold (gross, unchanged)
+     Store Expenses Today   (NEW, red)
+     Net Profit / Tunay na Kita (NEW, bold; red when negative)
+  with hint "Net Profit = profit from items sold - store expenses." The
+  day-complete overlay adds the same expenses + Net Profit rows (Net Profit is
+  the bold headline).
+- Reports: new Expenses + Net Profit KPI tiles for Day/Week/Month (Net Profit
+  carries a vs-previous badge; negative shows red); CSV report gains
+  Expenses, Net Profit, and a per-expense detail section; the full data CSV
+  gains an EXPENSES section.
+- EN + FIL for every new label + category (Utilities/Kuryente at Tubig, Rent/
+  Upa, Transport/Pamasahe, Permits & Fees/Lisensya, Labor/Sahod, Supplies/Mga
+  Gamit, Maintenance/Pagkukumpuni, Other/Iba pa). Terminology per analysis
+  §10.7/§13: operating expenses use "Store Expenses Today"/"Mga Gastos sa
+  Tindahan Ngayon" — the COGS label "Gastos sa Paninda" is untouched.
+- Expenses page tutorial (3 steps) registered in pageTutorials (Settings/Help
+  lists + header "?" button).
+
+DATA MODEL (matches analysis §10.1):
+- Expense = { id, date (YYYY-MM-DD), category, amount, note, timestamp }
+- Room: new `expenses` table (ExpenseEntity + ExpenseDao), DB v8 → v9 with
+  non-destructive MIGRATION_8_9 (creates expenses table + adds `expenses` and
+  `netProfit` columns to end_of_day_data with DEFAULT 0).
+- AppViewModel: expenses StateFlow + auto-save/load via AppRepository; today/
+  date/period expense totals; todayNetProfit; addExpense (validates amount>0 +
+  category) / deleteExpense (recompute, no memory decrement).
+- completeEndOfDay stores today's expenses + netProfit snapshot (gross profit
+  unchanged). computeReportStats gains expenses/netProfit/prevNetProfit;
+  exportReportCsv + exportCsv gain expense lines; raw-state JSON export/import,
+  resetAllData, clearSelectedData ("expenses"), and the dev date-override
+  snapshot all handle the expense log.
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — clean.
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL; 67/67 tests pass (was 55),
+  including 12 new expense cases (totals, validation, date filtering, period
+  totals, negative net profit, delete recalc, EOD snapshot, report stats,
+  category labels).
+- New ExpenseDaoTest (instrumented) added; androidTest compile of that file is
+  clean. NOTE: the androidTest source set already fails to compile at baseline
+  in UNRELATED pre-existing files (SpecificSaleDaoTest.kt, MorningCheckScreenTest.kt);
+  untouched by this version.
+================================================================================
+V2.72 — FEATURE: LOCAL NOTIFICATIONS (MOBILE) — DONE
+Status: IMPLEMENTED + VERIFIED — the V2.70 plan (§5) built end-to-end on Android.
+Scope: Android ONLY (per plan §5.1 — web keeps its in-app alerts). WorkManager +
+NotificationCompat; no FCM.
+
+WHAT WAS BUILT (per the V2.70 8-step plan):
+1) Deps: androidx.work:work-runtime-ktx 2.10.1; POST_NOTIFICATIONS runtime
+   permission declared (API 33+) + deep-link intent filter on MainActivity.
+2) NotificationChannels.kt — 4 channels: OVERDUE (High, store left open),
+   STOCK (Default, out-of-stock + restock), CLOSING (Default, closing reminder),
+   DIGEST (Low, weekly utang digest). Created in SariSariApp.onCreate.
+3) AppSettings: notificationsEnabled / notifyOverdue / notifyStock / notifyClosing /
+   notifyDigest / closingReminderHour (default 18) / notifiedKeys (StringSet) /
+   primerDismissed.
+4) NotificationThrottle.kt (pure) — epoch-day cooldowns (once/item/day stock,
+   once/day overdue+closing, once/week digest), Monday-anchored week key, and
+   "key=epochDay" StringSet persistence round-trip. UTC-pinned day math so
+   boundaries are identical on every device.
+5) NotificationRules.kt (pure) — every rule mirrors an EXISTING in-app threshold:
+   dueOverdue=isStaleOpenDay, dueRestock=daysSinceLastRestock>=2, dueClosing=
+   dayOpen && !isEodComplete, outOfStockItems=qty<=0, quietHours=6..21, plus the
+   digest summary (outstanding total, over-limit debtor count, 60+ day aging).
+6) NotificationCenter.kt — small-icon (ic_stat_sari), title/text/extra-lines,
+   per-channel IDs, group summary (stock/digest group into one banner),
+   onlyAlertOnce, deep links (sarisarismart://morning|inventory|closing|debts), App task
+   Intent flag. AppForegroundTracker.kt suppresses all pushes while the app is
+   open (never interrupt a sale).
+7) DailyCheckWorker.kt — scheduled twice daily from SariSariApp: ~06:30 morning
+   check (overdue, stock group, weekly digest) and ~18:00 closing reminder
+   (gated on closingReminderHour). Reads Room via AppRepository, applies rules +
+   cooldowns, persists the throttle map, always returns success. Rescheduling
+   happens on app start; resolution cancels nothing (once-per-day cooldown
+   naturally stops repeats).
+8) UI: Settings screen new "Notifications" section — master toggle + 4 per-type
+   toggles + closing-hour picker, EN/FIL; NotificationPrimerDialog shown once
+   after the first "Start Day" (asks for POST_NOTIFICATIONS when needed) —
+   dismissible, respected by worker.
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — clean.
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL; 89/89 tests pass (was 67),
+  including 22 new cases: NotificationRulesTest (12: overdue/out-of-stock/
+  restock/closing/quiet-hours/credit-limit/digest) + NotificationThrottleTest
+  (10: epoch-day math incl. UTC pin, daily/weekly cooldowns, Monday week key,
+  StringSet round-trip, malformed-entry skipping).
+- Known limitation: notifications themselves need a device/emulator to observe;
+  rules + cooldowns are fully unit-tested, the worker compiles and is scheduled.
+================================================================================
+V2.73 — DEV TOOL: TEST NOTIFICATIONS (MOBILE, dev panel) — DONE
+Status: IMPLEMENTED + VERIFIED — a dev-only trigger for the V2.72 notification
+system, per the tooling report (Tier 2 #4): removes the 06:30/18:00 wait so the
+banners, channels, and deep links can be verified on demand, in and out of the
+app, on any device/emulator.
+
+WHAT WAS BUILT:
+- DailyCheckWorker refactor: the scheduled worker's core logic is extracted into
+  a top-level suspend function runNotificationCheck(app, check, force) that
+  returns the number of notifications actually posted. The worker calls it with
+  force = false (keeps foreground suppression + master-toggle gate — a scheduled
+  run must never interrupt a sale). The Dev Panel calls it with force = true.
+- NotificationCenter.postSampleNotifications(context, lang): posts one sample
+  notification per channel (overdue/stock/closing/digest) with localized text,
+  bypassing rules + cooldowns — pure appearance/deep-link verification.
+- Developer Panel: new "Test Notifications" section with three actions:
+   1. Run Notification Check Now — runs BOTH the morning and closing rule sets
+      against current real data (stock, debts, day state, cooldowns) and reports
+      how many notifications posted (or why nothing was due).
+   2. Post Sample Notifications — one per channel, no setup needed.
+   3. Clear All Notifications — dismisses everything the app posted.
+  Plus a tip line explaining foreground suppression to the tester.
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — clean.
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL; 89/89 tests pass (unchanged —
+  the refactor is behavior-preserving; existing NotificationRules/Throttle tests
+  still green).
+- How to use: open the app → double-tap Help (dev panel) → Test Notifications →
+  "Post Sample Notifications" (or set up conditions and "Run Notification Check
+  Now") → pull the shade → tap each banner to confirm the deep link lands on the
+  right screen. For the real scheduled worker timing, set the emulator clock
+  (adb root; settings put global auto_time 0; date -s ...) and background the app.
+================================================================================
+V2.73b — FIX: "NO NOTIFICATION" — silent permission drop + honest dev tooling
+Status: FIXED + VERIFIED. Root cause found: NotificationCenter.post() returned
+silently (no-op) when the POST_NOTIFICATIONS runtime permission was missing on
+Android 13+, and the V2.73 dev panel counted POST ATTEMPTS, not actual posts —
+so it toasted "4 sample notification(s) posted" while nothing ever reached the
+shade. The primer only requests permission once on the first "Start the Day"
+tap; if it was dismissed (or the app was updated onto a device where it never
+showed), every notification was silently swallowed with zero diagnostics.
+
+FIXES:
+- NotificationCenter.post() now returns Boolean (true only when the notification
+  was actually handed to the system; false on missing permission, blocked
+  channel, or SecurityException). Added canPost(context) and resetChannels().
+- postSampleNotifications() counts ACTUAL posts (4/4, or "X/4 — some channels
+  may be disabled").
+- runNotificationCheck() returns NotificationCheckResult(posted, masterToggleOff,
+  noPermission) so callers can say WHY nothing posted, not just how many.
+- Worker marks the throttle key only when the post actually succeeded (a failed
+  post must not suppress the retry later in the day).
+- Dev Panel "Test Notifications" section now:
+    * requests POST_NOTIFICATIONS on demand (permission launcher) if missing,
+      with a follow-up toast telling the tester to post again;
+    * "Run Notification Check Now" reports the real reason for zero posts
+      ("Notifications are OFF…", "permission missing…", or "nothing due…");
+    * NEW "Reset Notification Channels" action — recreates the 4 channels to
+      undo a channel disabled in system settings (a disabled channel silently
+      swallows posts).
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — clean.
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL; 89/89 tests pass (unchanged).
+- Tester flow that now works: Dev Panel → Post Sample Notifications → if the
+  permission dialog appears, allow → tap Post Sample Notifications again →
+  4/4 posted → pull the shade → banners visible; tap each → correct deep link.
+================================================================================
+V2.74 — FIX: SAMPLE NOTIFICATION SHOWED RAW "{n} items" PLACEHOLDER
+Status: FIXED + VERIFIED. The Dev Panel "Post Sample Notifications" helper
+posted the parameterized stock string "Out of stock: {n} items" (FIL: "Walang
+stock: {n} item") WITHOUT substituting the count, because the sample bypasses
+the worker's .replace("{n}", ...) calls. The real scheduled notification was
+always correct (DailyCheckWorker substitutes dueItems.size); only the dev-tool
+sample leaked the raw placeholder.
+
+FIX (NotificationCenter.postSampleNotifications):
+- Every sample title/text now runs a safety substitution before posting:
+  "{n}" -> "3" and "{amount}" -> "₱1,000.00", so no parameterized key can ever
+  reach a banner as a raw placeholder (future-proof for new keys).
+- Stock sample now reads "Out of stock: 3 items" / "Walang stock: 3 item".
+- Overdue/closing/digest samples are unaffected (their title/text have no
+  placeholders).
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — clean.
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL; 89/89 tests pass (unchanged).
+================================================================================

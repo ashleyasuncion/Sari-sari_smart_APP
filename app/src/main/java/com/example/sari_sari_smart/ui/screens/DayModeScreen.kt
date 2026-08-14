@@ -42,6 +42,7 @@ fun DayModeScreen(
     viewModel: AppViewModel,
     onCloseStore: () -> Unit,
     onNavigateToInventory: () -> Unit,
+    onNavigateToExpenses: () -> Unit = {},
     onOpenSaleSheet: () -> Unit,
     onLaunchTutorial: () -> Unit
 ) {
@@ -52,6 +53,7 @@ fun DayModeScreen(
 
     val specificSales by viewModel.specificSales.collectAsState()
     val debts by viewModel.debts.collectAsState()
+    val expenses by viewModel.expenses.collectAsState()
     // Observable current date — recomposes this screen on midnight rollover / resume
     // so the header date and today-based stats stay correct in real time.
     val currentDate by viewModel.currentDate.collectAsState()
@@ -254,6 +256,33 @@ fun DayModeScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        // ── Store Expenses entry point (web V2.71 parity) ──
+        OutlinedButton(
+            onClick = onNavigateToExpenses,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Green600)
+        ) {
+            Text(
+                "dayExpensesBtn".t(lang),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center
+            )
+            val todayExpensesTotal = expenses.filter { it.date == today }.sumOf { it.amount }
+            Text(
+                "₱${String.format("%,.2f", todayExpensesTotal)}",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Red600
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // ── Close Store button ──
         OutlinedButton(

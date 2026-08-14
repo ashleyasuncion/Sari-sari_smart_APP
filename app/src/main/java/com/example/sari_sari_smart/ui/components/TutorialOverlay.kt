@@ -84,7 +84,10 @@ val pageTutorials = listOf(
     PageTutorial("customerDebtDetail", "tutCustomerDebtDetail", "customerDebtDetailTutorial", 5, "customer_debt_detail",
         highlights = listOf(null, "cddBalanceCard", "cddLedger", "cddRecordPaymentBtn", null)),
     PageTutorial("recordPayment", "tutRecordPayment", "recordPaymentTutorial", 4, "record_payment",
-        highlights = listOf("rpAmountField", "rpRemainingPreview", "rpNoteField", "rpPayBtn"))
+        highlights = listOf("rpAmountField", "rpRemainingPreview", "rpNoteField", "rpPayBtn")),
+    // Web V2.71 parity: Store Expenses tutorial (Expense Log).
+    PageTutorial("expenses", "tutExpenses", "expensesTutorial", 3, "expenses",
+        highlights = listOf(null, "expenseCategoryField", "expenseList"))
 )
 
 /**

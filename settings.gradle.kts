@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Sari-sari_smart"
+rootProject.name = "TindaGo"
 include(":app")

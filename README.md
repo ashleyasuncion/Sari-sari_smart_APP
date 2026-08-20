@@ -1,8 +1,8 @@
-# Sari-Sari Smart 📱
+# TindaGo 📱
 
 **A daily business companion for sari-sari store owners**
 
-Sari-Sari Smart is a native Android application built with Kotlin and Jetpack Compose that helps traditional sari-sari (convenience) store owners track their daily sales, manage inventory, and monitor customer debts — all through a simple, mobile-first interface.
+TindaGo is a native Android application built with Kotlin and Jetpack Compose that helps traditional sari-sari (convenience) store owners track their daily sales, manage inventory, and monitor customer debts — all through a simple, mobile-first interface.
 
 ---
 
@@ -130,7 +130,7 @@ Sari-Sari Smart is a native Android application built with Kotlin and Jetpack Co
 
 ### Setup
 1. Clone the repository
-2. Open the `Sari-sari_smart/` directory in Android Studio
+2. Open the `TindaGo_APP/` directory in Android Studio
 3. Sync Gradle (File → Sync Project with Gradle Files)
 4. Run on emulator or device (min SDK 24)
 
@@ -157,7 +157,7 @@ Sari-Sari Smart is a native Android application built with Kotlin and Jetpack Co
 ## 📁 Project Structure
 
 ```
-app/src/main/java/com/example/sari_sari_smart/
+app/src/main/java/com/example/tindago/
 ├── data/
 │   ├── Models.kt                  # Domain models
 │   ├── AppRepository.kt           # Data access layer
@@ -177,7 +177,7 @@ app/src/main/java/com/example/sari_sari_smart/
 │   ├── components/                # Tutorial, SaleSheet, DeveloperPanel
 │   └── screens/                   # 20 screens
 ├── MainActivity.kt                # Single activity
-└── SariSariApp.kt                 # Application class
+└── TindaGoApp.kt                  # Application class
 ```
 
 ---

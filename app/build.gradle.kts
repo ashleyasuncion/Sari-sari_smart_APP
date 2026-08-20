@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sari_sari_smart"
+    namespace = "com.example.tindago"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.sari_sari_smart"
+        applicationId = "com.example.tindago"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

@@ -19,7 +19,10 @@ import androidx.compose.ui.unit.sp
 import com.example.tindago.data.CustomerDebt
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.example.tindago.ui.components.LocalScreenLazyListState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.theme.*
 import java.text.NumberFormat
@@ -55,8 +58,13 @@ fun DebtsScreen(
     var showPaymentSheet by remember { mutableStateOf(false) }
     var selectedDebtId by remember { mutableIntStateOf(-1) }
     var paymentAmount by remember { mutableStateOf("") }
+    val debtListState = rememberLazyListState()
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(debtListState) { scrollStateHolder.updateLazyListState(debtListState) }
 
+    CompositionLocalProvider(LocalScreenLazyListState provides debtListState) {
     LazyColumn(
+        state = debtListState,
         modifier = Modifier
             .fillMaxSize()
             .padding(start = 16.dp, end = 16.dp, top = 16.dp)
@@ -190,6 +198,7 @@ fun DebtsScreen(
         }
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
+    }
     }
 
     // ── Payment Bottom Sheet ──

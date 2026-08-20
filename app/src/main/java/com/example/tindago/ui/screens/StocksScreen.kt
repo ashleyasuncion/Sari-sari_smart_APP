@@ -28,7 +28,9 @@ import com.example.tindago.ui.localization.t
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.ui.theme.*
 import com.example.tindago.ui.theme.TindaGoTheme
+import com.example.tindago.ui.components.LocalScreenLazyListState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.tutorialHighlight
 import java.text.NumberFormat
 import java.util.*
@@ -44,8 +46,7 @@ fun StocksScreen(
     onAddStock: () -> Unit,
     onProductClick: (Int) -> Unit = {},
     onLaunchTutorial: (() -> Unit)? = null,
-    onStartRestockDay: (() -> Unit)? = null,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    onStartRestockDay: (() -> Unit)? = null
 ) {
     val langState = LocalLanguage.current
     val lang = langState.value
@@ -75,12 +76,15 @@ fun StocksScreen(
     }
 
     val listState = rememberLazyListState()
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(listState) { scrollStateHolder.updateLazyListState(listState) }
     val coroutineScope = rememberCoroutineScope()
     // Show back-to-top when scrolled past ~3 items (search + cat chips + add button).
     val showBackToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 2 }
     }
 
+    CompositionLocalProvider(LocalScreenLazyListState provides listState) {
     Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         state = listState,
@@ -88,9 +92,7 @@ fun StocksScreen(
             .fillMaxSize()
             .padding(start = 16.dp, end = 16.dp, top = 16.dp)
             .tutorialHighlight("inventoryList", highlightState),
-        contentPadding = PaddingValues(
-            bottom = contentPadding.calculateBottomPadding() + 80.dp
-        ),
+
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         // ── Search bar ──────────────────────────────────────────────────
@@ -278,6 +280,7 @@ fun StocksScreen(
         }
     }
     } // Box
+    } // CompositionLocalProvider
 }
 
 @Composable

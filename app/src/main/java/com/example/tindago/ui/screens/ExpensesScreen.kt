@@ -21,7 +21,9 @@ import com.example.tindago.data.Expense
 import com.example.tindago.data.ExpenseCatalog
 import com.example.tindago.data.LocalSnackbarHost
 import com.example.tindago.data.LocalSnackbarScope
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -103,6 +105,9 @@ fun ExpensesScreen(
             )
         }
     ) { padding ->
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(scrollState) { scrollStateHolder.updateScrollState(scrollState) }
+    CompositionLocalProvider(LocalScreenScrollState provides scrollState) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -326,6 +331,7 @@ fun ExpensesScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
     }
 }
 

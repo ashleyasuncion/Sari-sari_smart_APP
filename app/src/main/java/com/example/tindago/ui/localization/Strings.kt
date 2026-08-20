@@ -249,11 +249,17 @@ object Strings {
         "large" to "Large",
         "extraLarge" to "Extra Large",
         "storeInformation" to "Store Information",
+        "settingsSectionProfile" to "Store Profile",
+        "settingsSectionDisplay" to "Display",
+        "settingsSectionDefaults" to "Inventory Defaults",
+        "settingsSectionSupport" to "Support",
         "storeName" to "Store Name",
         "ownerName" to "Owner Name",
         "language" to "Language",
         "dataManagement" to "Data Management",
+        "settingsSectionData" to "Data",
         "exportData" to "Export Data",
+        "resetDataBtn" to "Reset All Data",
         "importData" to "Import Data",
         "saveSettings" to "Save Settings",
         "settingsSaved" to "Settings saved.",
@@ -563,6 +569,7 @@ object Strings {
         "tutSelector" to "Select a tutorial...",
         "tutSelectToast" to "Please select a tutorial from the dropdown before launching.",
         "tutLaunch" to "Launch",
+        "tutorialReplayHint" to "You can always tap the ? button to replay this tutorial.",
 
         // Extended Tutorial
         // Renamed from "tutorial9" (v3.0 tutorial fix): the old key collided with
@@ -722,9 +729,9 @@ object Strings {
         "restockTutorial3" to "Enter the real count you see on your shelf next to what the app thinks.",
         "restockTutorial4" to "Green check = count matches. Red = unrecorded sales were found.",
         "restockTutorial5" to "After checking, tap Continue to Purchases to record what you bought.",
-        "restockTutorial6" to "Step 2: Search for a product, enter cost per unit and quantity, tap Add Item.",
+        "restockTutorial6" to "Step 2: Search for a product, enter cost per unit and quantity, tap Add Item. Use the Back button to return to Step 1 if needed.",
         "restockTutorial7" to "Review your purchases. Total cost is shown at the bottom.",
-        "restockTutorial8" to "Tap Done to save. Your inventory is updated. Find the reminder on Morning page.",
+        "restockTutorial8" to "Tap Done to save. Your inventory is updated. You can also go Back to make changes before finishing.",
         "tutProductDetail" to "Product Detail Tutorial",
         "productDetailTutorial1" to "This page shows everything about a product: name, unit, stock quantity, cost price, selling price, and profit margin.",
         "productDetailTutorial2" to "A color-coded alert appears when stock is running low or out of stock.",
@@ -841,7 +848,7 @@ object Strings {
         "endOfDayDesc" to "Isara ang iyong tindahan para sa araw na ito",
         "profit" to "Tubo",
         "viewReports" to "Tingnan ang Ulat",
-        "moreSection" to "Higit Pa",
+        "moreSection" to "Iba Pa",
         "reportsTitle" to "Ulat",
         "noSalesYet" to "Wala pang benta",
         "allStockedUp" to "Lahat ay may stock",
@@ -1019,11 +1026,17 @@ object Strings {
         "large" to "Malaki",
         "extraLarge" to "Pinakamalaki",
         "storeInformation" to "Impormasyon ng Tindahan",
+        "settingsSectionProfile" to "Profile ng Tindahan",
+        "settingsSectionDisplay" to "Display",
+        "settingsSectionDefaults" to "Default ng Inventory",
+        "settingsSectionSupport" to "Suporta",
         "storeName" to "Pangalan ng Tindahan",
         "ownerName" to "Pangalan ng May-ari",
         "language" to "Wika",
         "dataManagement" to "Pamamahala ng Datos",
+        "settingsSectionData" to "Data",
         "exportData" to "I-export ang Datos",
+        "resetDataBtn" to "I-reset ang Lahat ng Data",
         "importData" to "I-import ang Datos",
         "saveSettings" to "I-save ang Settings",
         "settingsSaved" to "Na-save ang settings.",
@@ -1250,7 +1263,7 @@ object Strings {
 
         // Profit Margin & Pricing
         "profitMargin" to "Markup",
-        "eachLabel" to "bawat",
+        "eachLabel" to "bawat isa",
 
         // Sales Insights
         "insightLoss" to "⚠ Ang iyong gastos ay mas mataas kaysa sa iyong kita. Ikaw ay nalulugi. Subukan mong taasan ang presyo o humanap ng mas murang supplier.",
@@ -1333,6 +1346,7 @@ object Strings {
         "tutSelector" to "Pumili ng tutorial...",
         "tutSelectToast" to "Mangyaring pumili ng tutorial mula sa dropdown bago ilunsad.",
         "tutLaunch" to "Simulan",
+        "tutorialReplayHint" to "Maaari mong i-tap ang ? button kahit kailan para i-replay ang tutorial na ito.",
 
         // Extended Tutorial
         "tutorial9Extended" to "Kailangan mo ng mas detalyadong gabay? Maaari kang pumunta sa Help section para sa step-by-step na tutorial ng bawat page — pumunta lang sa Help at piliin ang tutorial na gusto mo. O hanapin ang (?) Help button sa itaas ng kahit anong page — i-tap ito para simulan ang tutorial para sa page na iyon!",

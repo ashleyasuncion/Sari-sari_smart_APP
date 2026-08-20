@@ -5,6 +5,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,6 +15,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -51,6 +54,9 @@ fun RecordPaymentScreen(
     val isOverpayment = amount > (debt?.remainingBalance ?: 0.0)
     val canSave = amount > 0 && !isOverpayment
 
+    val rpScrollState = rememberScrollState()
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(rpScrollState) { scrollStateHolder.updateScrollState(rpScrollState) }
     Scaffold(
         topBar = {
             // V2.68: subpage rule — Back button present → centered title.
@@ -80,7 +86,7 @@ fun RecordPaymentScreen(
         }
 
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rpScrollState)
         ) {
             // ── Current Balance ─────────────────────────────────────────
             Card(

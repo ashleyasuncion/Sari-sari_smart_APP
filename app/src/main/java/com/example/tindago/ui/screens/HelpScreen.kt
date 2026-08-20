@@ -17,7 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.PageTutorial
 import com.example.tindago.ui.components.TutorialHighlightState
 import com.example.tindago.ui.components.TutorialIconButton
@@ -94,10 +96,14 @@ fun HelpScreen(
                 if (onTutorialClick != null) TutorialIconButton(onClick = onTutorialClick)
             }
         }
+        val helpScrollState = rememberScrollState()
+        val scrollStateHolder = LocalTutorialScrollStateHolder.current
+        LaunchedEffect(helpScrollState) { scrollStateHolder.updateScrollState(helpScrollState) }
+        CompositionLocalProvider(LocalScreenScrollState provides helpScrollState) {
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(helpScrollState)
                 .padding(16.dp)
         ) {
         HelpMenuItem(
@@ -199,6 +205,7 @@ fun HelpScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+        }
         }
     }
 

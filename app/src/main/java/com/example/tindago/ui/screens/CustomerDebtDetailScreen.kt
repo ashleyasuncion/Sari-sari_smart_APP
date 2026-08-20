@@ -22,7 +22,9 @@ import com.example.tindago.data.DebtPayment
 import com.example.tindago.data.LocalSnackbarHost
 import com.example.tindago.data.LocalSnackbarScope
 import com.example.tindago.data.SpecificSale
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -152,8 +154,12 @@ fun CustomerDebtDetailScreen(
         // Sort by date ascending
         transactions.sortBy { it.date }
 
+        val cddScrollState = rememberScrollState()
+        val scrollStateHolder = LocalTutorialScrollStateHolder.current
+        LaunchedEffect(cddScrollState) { scrollStateHolder.updateScrollState(cddScrollState) }
+        CompositionLocalProvider(LocalScreenScrollState provides cddScrollState) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(cddScrollState)
         ) {
             // ── Balance Card ────────────────────────────────────────────
             Card(
@@ -407,6 +413,7 @@ fun CustomerDebtDetailScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
     }
 }
 

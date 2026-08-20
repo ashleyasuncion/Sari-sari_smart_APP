@@ -1,7 +1,7 @@
 ================================================================================
 TINDAGO — KOTLIN ANDROID APP PROGRESS
 ================================================================================
-Date: Aug 18, 2026
+Date: Aug 18–20, 2026
 Project: TindaGo Android App (formerly Sari-sari_smart)
 ================================================================================
 
@@ -317,5 +317,465 @@ FILES AFFECTED:
 VERIFICATION:
 - ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
 - ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
+
+================================================================================
+V2.0g — BUG FIX: REMOVE INVENTORY BOTTOM GAP + DOUBLE PADDING (MOBILE)
+Date: Aug 19, 2026
+Status: IMPLEMENTED
+
+PROBLEM:
+- StocksScreen had an 80.dp bottom padding (V2.0f) incorrectly matching
+  the web app's broken padding-bottom:80px
+- The bottom nav is a flex sibling in the web app but sits outside the
+  content area in the mobile app (Scaffold handles it), so no extra
+  padding was needed
+- Additionally, SupportScaffold applies Modifier.padding(paddingValues)
+  on a Box wrapping the content, AND passed paddingValues to
+  StocksScreen's contentPadding — causing DOUBLE padding (top + bottom)
+
+SOLUTION:
+- Removed the 80.dp extra bottom padding from StocksScreen LazyColumn
+- Removed the contentPadding parameter entirely from StocksScreen
+  (unused — Scaffold's Box already handles all padding)
+- Removed contentPadding = paddingValues from NavGraph.kt StocksScreen call
+
+WHAT CHANGED (code):
+- StocksScreen.kt: removed contentPadding parameter and contentPadding
+  line from LazyColumn (padding now handled by SupportScaffold's Box)
+- NavGraph.kt: removed contentPadding = paddingValues from StocksScreen call
+
+FILES AFFECTED:
+  ui/screens/StocksScreen.kt
+  ui/navigation/NavGraph.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
+
+================================================================================
+
+V2.0h — TUTORIAL AUTO-SCROLL RESTORATION (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+PROBLEM:
+- Tutorial auto-scroll-to-highlight was broken in the mobile app
+- The code existed in TutorialOverlay.kt but could never execute
+- Root cause: TutorialOverlay is composed OUTSIDE the scope where screens
+  provide LocalScreenScrollState / LocalScreenLazyListState
+- The overlay always read null for both scroll states
+- 3 screens (StocksScreen, RecordPaymentScreen, NewDebtScreen) also lacked
+  scroll state providers entirely
+
+SOLUTION:
+- Created TutorialScrollStateHolder (shared mutable state holder) that bridges
+  scroll state between screen composables and the TutorialOverlay
+- Screens update the holder via LaunchedEffect when they compose
+- TutorialOverlay reads from the holder instead of CompositionLocals
+- Holder provided at NavGraph level via CompositionLocalProvider
+- Added missing scroll state providers to 3 screens
+
+BUILD FIX #1 — Smart cast impossible on delegated properties:
+- Using `by rememberUpdatedState(...)` creates Kotlin delegated properties
+- Kotlin cannot smart-cast delegated properties (compiler can't prove
+  value hasn't changed between null-check and usage)
+- Fix: read scrollHolder.scrollState / scrollHolder.lazyListState into
+  local vals inside the LaunchedEffect block before null-checking
+
+BUILD FIX #2 — JVM signature clash on TutorialScrollStateHolder:
+- `var scrollState by mutableStateOf(...)` auto-generates setScrollState()
+  on JVM, which clashed with the explicit `fun setScrollState()`
+- Same for lazyListState / setLazyListState
+- Fix: changed to backing fields (_scrollState, _lazyListState) with public
+  val getters; renamed setters to updateScrollState() / updateLazyListState()
+- Updated all 16 screen files that call the renamed methods
+
+COVERAGE — tutorials with steps requiring auto-scroll:
+  Main tutorial: steps 3 (startDayBtn), 9 (completeDayBtn)
+  Sales/Day: step 7 (dayTxFeed)
+  EOD/Closing: step 5 (completeDayBtn)
+  Report: steps 4-5 (reportBestSellers, reportLowStock)
+  Add Product: step 4 (addStockSaveBtn)
+  Checkout: steps 3-4 (checkoutPayCredit, checkoutComplete)
+  New Debt: step 3 (newDebtSaveBtn)
+  Help: steps 3-4 (helpContact, helpAbout)
+  Restock: steps 4, 6-7 (restockContinueBtn, restockPurchaseList, restockDoneBtn)
+  Product Detail: step 3 (pdDeleteBtn)
+  Customer Debt Detail: step 3 (cddRecordPaymentBtn)
+  Record Payment: steps 2-3 (rpNoteField, rpPayBtn)
+  Expenses: step 2 (expenseList)
+  (16 of 18 tutorials have at least one step where scroll may be needed)
+
+FILES AFFECTED:
+  ui/components/TutorialScrollStateHolder.kt (NEW)
+  ui/components/TutorialOverlay.kt
+  ui/navigation/NavGraph.kt
+  ui/screens/MorningCheckScreen.kt, DayModeScreen.kt, EveningClosingScreen.kt
+  ui/screens/AddStockScreen.kt, CheckoutScreen.kt, HelpScreen.kt
+  ui/screens/ExpensesScreen.kt, CustomerDebtDetailScreen.kt
+  ui/screens/ReportsScreen.kt, SettingsScreen.kt, ProductDetailScreen.kt
+  ui/screens/DebtsScreen.kt, RestockScreen.kt
+  ui/screens/StocksScreen.kt, RecordPaymentScreen.kt, NewDebtScreen.kt
+
+VERIFICATION:
+- ./gradlew assembleDebug — BUILD SUCCESSFUL
+- ./gradlew testDebugUnitTest — BUILD SUCCESSFUL
+
+================================================================================
+V2.0i — RESTOCK STICKY BARS + BACK-TO-TOP + TUTORIAL FIX (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+V2.0i-a — Sticky bottom action bars (both steps)
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- On Step 1, the "Continue to Purchases →" button was at the bottom of the
+  LazyColumn product list, requiring users to scroll all the way down.
+- On Step 2, the "Done ✓" button had the same issue.
+
+SOLUTION:
+- Both steps now have a sticky bottom action bar using Box +
+  AnimatedVisibility + Alignment.BottomCenter.
+- Content has bottom padding (80.dp) so last items clear the bar.
+
+Step 1 sticky bar: [Cancel] [Continue to Purchases →]
+Step 2 sticky bar: [← Back] [Done ✓]
+
+WHAT CHANGED (code):
+- RestockScreen.kt: restructured from Column-only to Box layout for
+  overlay positioning.
+- Added AnimatedVisibility for Step 1 bar (visible when restockTemp.step == 1)
+  with Cancel (OutlinedButton) + Continue (Button with tutorialHighlight).
+- Added AnimatedVisibility for Step 2 bar (visible when restockTemp.step == 2)
+  with Back (OutlinedButton) + Done (Button with tutorialHighlight).
+- LazyColumn contentPadding increased to 80.dp for sticky bar clearance.
+- Back button calls viewModel.setRestockStep(1).
+- Continue calls viewModel.applyCorrectionsToProducts() + setRestockStep(2).
+- Done calls viewModel.completeRestock() + onComplete().
+
+FILES AFFECTED:
+  ui/screens/RestockScreen.kt
+
+V2.0i-b — Back-to-top FAB (Step 1 only)
+─────────────────────────────────────────────────────────────────────────────
+WHAT CHANGED (user-facing):
+- Floating circle button appears at bottom-right of restock Step 1
+- Appears when firstVisibleItemIndex > 0 on the step 1 LazyColumn
+- Tap scrolls back to item 0
+- Hidden on Step 2
+
+WHAT CHANGED (code):
+- RestockScreen.kt: added showBackToTop derivedStateOf (step == 1 &&
+  firstVisibleItemIndex > 0)
+- AnimatedVisibility + FloatingActionButton with upward arrow, positioned
+  at Alignment.BottomEnd with 80.dp bottom padding (above sticky bar)
+- onClick: scope.launch { step1ListState.animateScrollToItem(0) }
+
+FILES AFFECTED:
+  ui/screens/RestockScreen.kt
+
+V2.0i-c — Tutorial step transition fix
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- The restock page tutorial has 8 steps, all pinned to the "restock" page.
+  When advancing from step 5 (restockContinueBtn) to step 6
+  (restockStep2Section), the screen still shows Step 1 — Step 2's UI
+  elements don't exist, so the tutorial highlight frame has nothing to
+  attach to.
+
+SOLUTION:
+- Added restock step-transition triggers in NavGraph.kt:
+  - advanceTutorial(): when pageTutorial?.id == "restock" and next >= 5,
+    call appViewModel.setRestockStep(2) so Step 2 renders before the
+    overlay tries to highlight restockStep2Section.
+  - previousTutorial(): when pageTutorial?.id == "restock" and prev <= 4,
+    call appViewModel.setRestockStep(1) so Step 1 renders before the
+    overlay tries to highlight restockStep1Section.
+
+WHAT CHANGED (code):
+- NavGraph.kt: added restock step-transition check in advanceTutorial()
+  after incrementing tutorialStep.
+- NavGraph.kt: added restock step-transition check in previousTutorial()
+  after decrementing tutorialStep.
+
+FILES AFFECTED:
+  ui/navigation/NavGraph.kt
+
+V2.0i-d — Restock tutorial text updated
+─────────────────────────────────────────────────────────────────────────────
+WHAT CHANGED (user-facing):
+- restockTutorial6: Added "Use the Back button to return to Step 1 if needed."
+- restockTutorial8: Changed "Find the reminder on Morning page." →
+  "You can also go Back to make changes before finishing."
+
+WHAT CHANGED (code):
+- Strings.kt: updated EN i18n strings for restockTutorial6 and
+  restockTutorial8
+
+FILES AFFECTED:
+  ui/localization/Strings.kt
+
+ALL FILES AFFECTED (V2.0i):
+  ui/screens/RestockScreen.kt
+  ui/navigation/NavGraph.kt
+  ui/localization/Strings.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+
+================================================================================
+V2.0j — CHECKOUT CART LINE COLORS + i18n FIXES (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+V2.0j-a — eachLabel FIL translation fix
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- Mobile eachLabel FIL was "bawat" (missing "isa").
+- Web eachLabel FIL is "bawat isa" (correct).
+- The label appears next to the selling price in cart lines (e.g. "₱5.00").
+
+SOLUTION:
+- Changed FIL string from "bawat" to "bawat isa" to match web.
+
+WHAT CHANGED (code):
+- Strings.kt: eachLabel FIL: "bawat" → "bawat isa"
+
+V2.0j-b — Settings "More" section FIL translation fix
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- Settings page "More" section title was translated as "Higit Pa".
+- "Higit" means "greater than / exceeding" — unnatural as a section heading.
+
+SOLUTION:
+- Changed FIL translation from "Higit Pa" to "Iba Pa" ("Others" /
+  "Additional"). Standard Filipino UI pattern for catch-all grouping.
+
+WHAT CHANGED (code):
+- Strings.kt: moreSection FIL: "Higit Pa" → "Iba Pa"
+
+V2.0j-c — Checkout CartLine colors synced to web
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- CartLine colors diverged from web CSS values:
+    Sub-line: Green700 (mobile) vs --text-muted #94a3b8 (web)
+    Price: Gray400 (mobile) vs --text-secondary #64748b (web)
+    Subtotal: Gray800 (mobile) vs --primary #16a34a (web)
+
+SOLUTION:
+- Updated CartLine composable colors to match web CSS variables:
+    Sub-line: Green700 → Gray400 (#94A3B8 = --text-muted)
+    Price: Gray400 → Gray500 (#64748B = --text-secondary)
+    Subtotal: Gray800 → Green600 (#16A34A = --primary)
+
+WHAT CHANGED (code):
+- CheckoutScreen.kt: CartLine subline color Green700 → Gray400
+- CheckoutScreen.kt: CartLine price color Gray400 → Gray500
+- CheckoutScreen.kt: CartLine subtotal color Gray800 → Green600
+
+ALL FILES AFFECTED (V2.0j):
+  ui/localization/Strings.kt
+  ui/screens/CheckoutScreen.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+
+================================================================================
+V2.0k — CLOSING REMINDER HOUR DEVICE-AWARE TIME FORMAT (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+PROBLEM:
+- Closing Reminder Hour setting displayed time in fixed 24-hour format
+  (e.g. "18:00") regardless of the user's device time format preference.
+- Changing the device from 24-hour to 12-hour format had no effect on the
+  app's time display.
+- The raw integer field with ":00" suffix was never designed for locale-aware
+  formatting.
+
+SOLUTION:
+- Added android.text.format.DateFormat.is24HourFormat(context) detection
+  to adapt the display/input to the device's preferred time format.
+
+  24-hour mode: [ 18 ] :00  (unchanged behavior)
+  12-hour mode: [ 6 ] :00 [PM]  (12-hour value + AM/PM toggle button)
+
+- The stored closingReminderHour Int (6-21) and DailyCheckWorker
+  notification logic remain unchanged — only the display/input format
+  adapts.
+
+WHAT CHANGED (code):
+- SettingsScreen.kt: added import android.text.format.DateFormat
+- SettingsScreen.kt: closing reminder hour section now branches on
+  is24HourFormat(context):
+    24h: existing OutlinedTextField with :00 suffix
+    12h: OutlinedTextField (1-12) + FilledTonalButton AM/PM toggle;
+         hour conversion between 12h display and 24h storage on both
+         input and toggle tap
+
+FILES AFFECTED:
+  ui/screens/SettingsScreen.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+
+================================================================================
+V2.0l — SETTINGS PAGE REORGANIZATION (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+PROBLEM:
+- Settings page was a flat, ungrouped list of10 sections with no logical
+  hierarchy. Each inventory default (Markup, Threshold, Credit Limit) had
+  its own section title + spacer. Language was separate from Store Info.
+  Tutorials and More (Reports/Help) were navigation shortcuts mixed in
+  with actual settings. Dev test buttons (Test Notification, Run Check Now)
+  were visible to end users. No Reset Data option.
+
+SOLUTION:
+- Reorganized into 6 logical groups:
+    Store Profile: Store Name + Owner Name + Language
+    Display: Text Size
+    Inventory Defaults: Markup + Threshold + Credit Limit (one group)
+    Notifications: Master toggle + toggles + reminder hour (dev buttons removed)
+    Support: Tutorials selector + Help + Reports
+    Data: Export + Import + Reset (red, destructive)
+- Removed dev test buttons (Test Notification, Run Check Now) from
+  Notifications section — these belong in Developer Panel only.
+- Added Reset All Data button (red, calls viewModel.resetAllData())
+- All tutorial highlight target IDs preserved (settingsLanguage,
+  settingsTextSize, settingsStoreName, settingsOwnerName,
+  settingsDefaultMarkup, settingsLowStockThreshold,
+  settingsDefaultCreditLimit)
+
+WHAT CHANGED (code):
+- SettingsScreen.kt: restructured Column content into6 grouped sections;
+  merged Language into Store Profile; merged 3 inventory defaults into
+  one section; removed dev test buttons; added Reset All Data button
+  (Red600 background); renamed More to Support (Tutorials + Help + Reports)
+- Strings.kt: added6 new i18n keys (EN + FIL): settingsSectionProfile,
+  settingsSectionDisplay, settingsSectionDefaults, settingsSectionSupport,
+  settingsSectionData, resetDataBtn
+
+FILES AFFECTED:
+  ui/screens/SettingsScreen.kt
+  ui/localization/Strings.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+
+================================================================================
+V2.0m — CLOSING PAGE COLLAPSIBLE SECTIONS + LOW STOCK FILTER FIX (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+V2.0m-a — Collapsible sold items, low stock, debts sections
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- Closing page sections (Mga Nabenta, Mga Kulang sa Stock, Utang Hindi Pa
+  Bayad) were always expanded, requiring scrolling through all content.
+
+SOLUTION:
+- Made all3 sections collapsible with AnimatedVisibility.
+- Section title is clickable Row with up/down arrow icon.
+- All3 default to expanded (expanded = true).
+
+WHAT CHANGED (code):
+- EveningClosingScreen.kt: added3 collapse state variables
+  (soldItemsExpanded, lowStockExpanded, debtsExpanded)
+- Each section title changed from static Text to clickable Row
+  with Icons.Default.KeyboardArrowUp/Down
+- Each section content wrapped in AnimatedVisibility(visible = expanded)
+- Added imports: AnimatedVisibility, clickable, Icons,
+  KeyboardArrowUp, KeyboardArrowDown
+
+V2.0m-b — Low stock filter: prioritize low stock over out-of-stock
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- Filter was products.filter { it.status != StockStatus.PLENTY }
+  sorted by quantity. With take(5), all5 slots were filled by
+  out-of-stock items (qty=0 sorts first), hiding low stock items.
+- 13 out-of-stock items in seed data meant low stock items were
+  completely invisible in the closing page.
+
+SOLUTION:
+- Split into two separate filters:
+    LOW items first (sorted by quantity ascending)
+    OUT_OF_STOCK items next (sorted by name)
+  Concatenated and take(5).
+- Low stock items now appear first, giving shopkeepers actionable
+  alerts before the out-of-stock items.
+
+WHAT CHANGED (code):
+- EveningClosingScreen.kt: replaced single filter with two filters
+  (LOW + OUT_OF_STOCK), concatenated as displayItems = (lowItems +
+  outItems).take(5)
+
+FILES AFFECTED (V2.0m):
+  ui/screens/EveningClosingScreen.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
+
+================================================================================
+V2.0n — RESTOCK DATE FIX + TUTORIAL REPLAY HINT (MOBILE) — DONE
+Date: Aug 20, 2026
+Status: IMPLEMENTED + VERIFIED
+
+V2.0n-a — Corrupted restock date auto-clear
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- daysSinceLastRestock getter had no date validation. Corrupted or
+  invalid dates in Room restockLog could produce unexpected values.
+
+SOLUTION:
+- Added 4 guards in daysSinceLastRestock:
+    Date is null → returns -1 (unchanged)
+    Parse fails → clears _lastRestockDate, returns -1
+    Days < 0 → clears _lastRestockDate, returns -1
+    Days > 365 → clears _lastRestockDate, returns -1
+
+WHAT CHANGED (code):
+- AppViewModel.kt: daysSinceLastRestock — added try/catch around
+  SimpleDateFormat.parse(), added days < 0 and days > 365 guards
+  with _lastRestockDate.value = null fallback
+
+FILES AFFECTED:
+  ui/screens/AppViewModel.kt
+
+V2.0n-b — Tutorial replay hint (? button highlight)
+─────────────────────────────────────────────────────────────────────────────
+PROBLEM:
+- The header ? button (TutorialIconButton) was never highlighted in any
+  tutorial. Users had no in-tutorial cue that they could replay tutorials.
+
+SOLUTION:
+- Added replayHintKey parameter to PageTutorial data class.
+- When set, a final step is appended to the tutorial that highlights the
+  header ? button with text: "You can always tap the ? button to replay
+  this tutorial."
+- All 19 PageTutorial definitions updated with replayHintKey.
+
+WHAT CHANGED (code):
+- TutorialOverlay.kt: added replayHintKey: String? = null to PageTutorial;
+  added ReplayHintStep data class; added appendReplayHintStep() function;
+  added .replayHint() modifier extension for highlight target
+- NavGraph.kt: getCurrentTutorialSteps() now appends replay hint step
+  when tutorial.replayHintKey is set
+- Strings.kt: added tutorialReplayHint i18n key (EN + FIL)
+
+FILES AFFECTED:
+  ui/components/TutorialOverlay.kt
+  ui/navigation/NavGraph.kt
+  ui/localization/Strings.kt
+
+ALL FILES AFFECTED (V2.0n):
+  ui/screens/AppViewModel.kt
+  ui/components/TutorialOverlay.kt
+  ui/navigation/NavGraph.kt
+  ui/localization/Strings.kt
+
+VERIFICATION:
+- ./gradlew compileDebugKotlin — BUILD SUCCESSFUL
 
 ================================================================================

@@ -27,8 +27,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.data.StockStatus
 import com.example.tindago.data.formatTimeAgo
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
@@ -52,6 +54,8 @@ fun ReportsScreen(
     val lang = langState.value
     val scrollState = rememberScrollState()
     val highlightState = LocalTutorialHighlightState.current
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(scrollState) { scrollStateHolder.updateScrollState(scrollState) }
     val context = LocalContext.current
 
     val specificSales by viewModel.specificSales.collectAsState()
@@ -136,6 +140,7 @@ fun ReportsScreen(
             )
         }
     ) { padding ->
+    CompositionLocalProvider(LocalScreenScrollState provides scrollState) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -589,6 +594,7 @@ fun ReportsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
     }
 }
 

@@ -114,16 +114,27 @@ fun NavGraph(
 
     // Tutorial highlight state — tracks bounds of elements for highlight frames
     val highlightState = remember { TutorialHighlightState() }
+    // Shared scroll state holder for tutorial auto-scroll.
+    // Screens update this when they compose; the TutorialOverlay reads from it.
+    val scrollStateHolder = remember { TutorialScrollStateHolder() }
 
     fun getCurrentTutorialSteps(): List<TutorialStep> {
         return pageTutorial?.let { pt ->
-            (1..pt.stepCount).map { i ->
+            val steps = (1..pt.stepCount).map { i ->
                 TutorialStep(
                     i18nKey = "${pt.stepsKeyPrefix}$i",
                     page = pt.page,
                     highlightTarget = pt.highlights.getOrNull(i - 1)
                 )
             }
+            // Append replay hint step if configured
+            if (pt.replayHintKey != null) {
+                steps + TutorialStep(
+                    i18nKey = pt.replayHintKey,
+                    page = pt.page,
+                    highlightTarget = "headerTutorialBtn"
+                )
+            } else steps
         } ?: tutorialSteps
     }
 
@@ -196,6 +207,11 @@ fun NavGraph(
         } else {
             tutorialStep = next
         }
+        // Restock tutorial: trigger step 1→2 transition when advancing to step 6+
+        // (index 5+), so the Step 2 UI is rendered before the highlight frame appears.
+        if (pageTutorial?.id == "restock" && next >= 5) {
+            appViewModel.setRestockStep(2)
+        }
     }
 
     fun previousTutorial() {
@@ -215,6 +231,11 @@ fun NavGraph(
         } else {
             tutorialStep = prev
         }
+        // Restock tutorial: trigger step 2→1 transition when going back to step 5 or earlier
+        // (index 4 or below), so the Step 1 UI is rendered before the highlight frame appears.
+        if (pageTutorial?.id == "restock" && prev <= 4) {
+            appViewModel.setRestockStep(1)
+        }
     }
 
     fun startTutorial(replay: Boolean = false) {
@@ -223,6 +244,7 @@ fun NavGraph(
         // auto-launch guard can't re-trigger when we navigate back to Morning afterwards.
         tutorialLaunchedThisSession = true
         highlightState.clear()
+        scrollStateHolder.clear()
     }
 
     fun endTutorial(returnToMorning: Boolean = false) {
@@ -230,6 +252,7 @@ fun NavGraph(
         tutorialActive = false; tutorialReplay = false; pageTutorial = null
         appSettings.hasCompletedTutorial = true
         highlightState.clear()
+        scrollStateHolder.clear()
         // Web v2.40 parity: finishing the main tutorial returns to Morning.
         // Skip stays in place; page tutorials finish in place.
         if (returnToMorning && wasMainTutorial) {
@@ -274,8 +297,11 @@ fun NavGraph(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Provide highlight state to all screen composables
-        CompositionLocalProvider(LocalTutorialHighlightState provides highlightState) {
+        // Provide highlight state and scroll state holder to all screen composables
+        CompositionLocalProvider(
+            LocalTutorialHighlightState provides highlightState,
+            LocalTutorialScrollStateHolder provides scrollStateHolder
+        ) {
             NavHost(navController = navController, startDestination = Routes.SPLASH) {
             // ── App flow ──────────────────────────────────────────
             composable(Routes.SPLASH) {
@@ -548,8 +574,7 @@ fun NavGraph(
                         onAddStock = { navController.navigate(Routes.addStock()) },
                         onProductClick = { id -> navController.navigate(Routes.productDetail(id)) },
                         onLaunchTutorial = { startPageTutorial("stock") },
-                        onStartRestockDay = { navController.navigate(Routes.RESTOCK) },
-                        contentPadding = paddingValues
+                        onStartRestockDay = { navController.navigate(Routes.RESTOCK) }
                     )
                 }
             }
@@ -707,21 +732,23 @@ fun NavGraph(
         }
         } // end CompositionLocalProvider
     }        // Tutorial overlay on top — with highlight frame support
-        val currentSteps = getCurrentTutorialSteps()
-        if (tutorialActive && tutorialStep < currentSteps.size) {
-            val step = currentSteps[tutorialStep]
-            TutorialOverlay(
-                isActive = tutorialActive,
-                currentStep = tutorialStep,
-                totalSteps = currentSteps.size,
-                isReplay = tutorialReplay,
-                step = step,
-                highlightState = highlightState,
-                onNext = { advanceTutorial() },
-                onPrev = { previousTutorial() },
-                onSkip = { endTutorial() },
-                onFinish = { endTutorial(returnToMorning = true) }
-            )
+        CompositionLocalProvider(LocalTutorialScrollStateHolder provides scrollStateHolder) {
+            val currentSteps = getCurrentTutorialSteps()
+            if (tutorialActive && tutorialStep < currentSteps.size) {
+                val step = currentSteps[tutorialStep]
+                TutorialOverlay(
+                    isActive = tutorialActive,
+                    currentStep = tutorialStep,
+                    totalSteps = currentSteps.size,
+                    isReplay = tutorialReplay,
+                    step = step,
+                    highlightState = highlightState,
+                    onNext = { advanceTutorial() },
+                    onPrev = { previousTutorial() },
+                    onSkip = { endTutorial() },
+                    onFinish = { endTutorial(returnToMorning = true) }
+                )
+            }
         }
 
     // Developer Panel

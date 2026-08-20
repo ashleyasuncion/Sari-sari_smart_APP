@@ -29,6 +29,7 @@ import com.example.tindago.data.LocalSnackbarScope
 import com.example.tindago.data.Product
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.SupportAppHeader
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -62,6 +63,8 @@ fun CheckoutScreen(
     val lang = langState.value
     val scrollState = rememberScrollState()
     val highlightState = LocalTutorialHighlightState.current
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(scrollState) { scrollStateHolder.updateScrollState(scrollState) }
 
     val products by viewModel.products.collectAsState()
     val debts by viewModel.debts.collectAsState()
@@ -760,13 +763,13 @@ private fun CartLineRow(
                     subline,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = Green700
+                    color = Gray400
                 )
             }
             Text(
                 "\u20B1${String.format("%,.2f", line.sellingPrice)} ${"eachLabel".t(lang)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Gray400
+                color = Gray500
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -789,7 +792,7 @@ private fun CartLineRow(
             "\u20B1${String.format("%,.2f", line.subtotal)}",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = Gray800
+            color = Green600
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(

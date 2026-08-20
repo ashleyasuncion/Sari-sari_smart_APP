@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.data.StockStatus
 import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
@@ -102,6 +103,8 @@ fun MorningCheckScreen(
     }
 
     // Provide scroll state for tutorial auto-scroll
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(scrollState) { scrollStateHolder.updateScrollState(scrollState) }
     CompositionLocalProvider(LocalScreenScrollState provides scrollState) {
     Column(
         modifier = Modifier

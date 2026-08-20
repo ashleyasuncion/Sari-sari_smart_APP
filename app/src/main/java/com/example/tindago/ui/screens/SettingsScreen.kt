@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import android.text.format.DateFormat as AndroidDateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -35,7 +36,9 @@ import com.example.tindago.ui.localization.AppSettings
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.LocalTextScale
 import com.example.tindago.ui.localization.t
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.PageTutorial
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.pageTutorials
@@ -130,15 +133,43 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
+    val settingsScrollState = rememberScrollState()
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(settingsScrollState) { scrollStateHolder.updateScrollState(settingsScrollState) }
+    CompositionLocalProvider(LocalScreenScrollState provides settingsScrollState) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(settingsScrollState)
         ) {
-            // ── Language (applies immediately) ──
-            SettingsSectionTitle("language".t(settings.language))
+            // ═══════════════════════════════════════════════════════
+            // ── Store Profile ──
+            // ═══════════════════════════════════════════════════════
+            SettingsSectionTitle("settingsSectionProfile".t(settings.language))
+            OutlinedTextField(
+                value = storeName,
+                onValueChange = {
+                    storeName = it
+                    settings.storeName = it
+                },
+                label = { Text("storeName".t(settings.language)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsStoreName", highlightState)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = ownerName,
+                onValueChange = {
+                    ownerName = it
+                    settings.ownerName = it
+                },
+                label = { Text("ownerName".t(settings.language)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsOwnerName", highlightState)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.tutorialHighlight("settingsLanguage", highlightState)) {
                 FilterChip(
                     selected = language == "en",
@@ -165,8 +196,10 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Text Size (applies immediately) ──
-            SettingsSectionTitle("textSize".t(settings.language))
+            // ═══════════════════════════════════════════════════════
+            // ── Display ──
+            // ═══════════════════════════════════════════════════════
+            SettingsSectionTitle("settingsSectionDisplay".t(settings.language))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.tutorialHighlight("settingsTextSize", highlightState)) {
                 listOf("standard" to "standard".t(settings.language), "large" to "large".t(settings.language), "extra-large" to "extraLarge".t(settings.language)).forEach { (value, label) ->
                     FilterChip(
@@ -184,34 +217,10 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Store Information (saves on change) ──
-            SettingsSectionTitle("storeInformation".t(settings.language))
-            OutlinedTextField(
-                value = storeName,
-                onValueChange = {
-                    storeName = it
-                    settings.storeName = it
-                },
-                label = { Text("storeName".t(settings.language)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsStoreName", highlightState)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = ownerName,
-                onValueChange = {
-                    ownerName = it
-                    settings.ownerName = it
-                },
-                label = { Text("ownerName".t(settings.language)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().tutorialHighlight("settingsOwnerName", highlightState)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── Default Markup (applies to new products) ──
-            SettingsSectionTitle("defaultMarkupLabel".t(settings.language))
+            // ═══════════════════════════════════════════════════════
+            // ── Inventory Defaults ──
+            // ═══════════════════════════════════════════════════════
+            SettingsSectionTitle("settingsSectionDefaults".t(settings.language))
             OutlinedTextField(
                 value = defaultMarkupText,
                 onValueChange = {
@@ -231,11 +240,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = Gray400
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── Low Stock Threshold (global default for new products) ──
-            SettingsSectionTitle("alertThreshold".t(settings.language))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = lowStockThresholdText,
                 onValueChange = {
@@ -255,18 +260,11 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = Gray400
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── Default Credit Limit (web v2.56 parity) ──
-            SettingsSectionTitle("defaultCreditLimitLabel".t(settings.language))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = defaultCreditLimitText,
                 onValueChange = {
                     defaultCreditLimitText = it.filter { c -> c.isDigit() }
-                    // Only persist a valid number; empty/invalid keeps the last
-                    // valid value so backspacing can't silently turn "no limit"
-                    // (web saveSettings parity: NaN keeps the previous value).
                     defaultCreditLimitText.toIntOrNull()?.let { parsed ->
                         val coerced = parsed.coerceIn(0, 10000)
                         settings.defaultCreditLimit = coerced
@@ -287,7 +285,9 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Notifications (V2.70) ──
+            // ═══════════════════════════════════════════════════════
+            // ── Notifications ──
+            // ═══════════════════════════════════════════════════════
             SettingsSectionTitle("notificationsSection".t(settings.language))
             val contextForNotif = context
             var notifEnabled by remember { mutableStateOf(settings.notificationsEnabled) }
@@ -342,25 +342,84 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Closing reminder hour (6-21)
-                var closingHourText by remember { mutableStateOf(settings.closingReminderHour.toString()) }
-                OutlinedTextField(
-                    value = closingHourText,
-                    onValueChange = {
-                        closingHourText = it.filter { c -> c.isDigit() }
-                        closingHourText.toIntOrNull()?.let { v ->
-                            val coerced = v.coerceIn(6, 21)
-                            settings.closingReminderHour = coerced
-                        }
-                    },
-                    label = { Text("closingReminderHour".t(settings.language)) },
-                    suffix = { Text(":00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Closing reminder hour (6-21) — device-aware time format
+                val is24h = AndroidDateFormat.is24HourFormat(context)
+                val storedHour = settings.closingReminderHour
 
-                // Permission denied → open system settings (no nagging)
+                if (is24h) {
+                    var closingHourText by remember(storedHour) { mutableStateOf(storedHour.toString()) }
+                    OutlinedTextField(
+                        value = closingHourText,
+                        onValueChange = {
+                            closingHourText = it.filter { c -> c.isDigit() }
+                            closingHourText.toIntOrNull()?.let { v ->
+                                settings.closingReminderHour = v.coerceIn(6, 21)
+                            }
+                        },
+                        label = { Text("closingReminderHour".t(settings.language)) },
+                        suffix = { Text(":00") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    val isPm = storedHour >= 12
+                    val display12 = when {
+                        storedHour == 0 -> 12
+                        storedHour > 12 -> storedHour - 12
+                        else -> storedHour
+                    }
+                    var hour12Text by remember(storedHour) { mutableStateOf(display12.toString()) }
+                    var pmState by remember(storedHour) { mutableStateOf(isPm) }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = hour12Text,
+                            onValueChange = {
+                                hour12Text = it.filter { c -> c.isDigit() }
+                                hour12Text.toIntOrNull()?.let { h12 ->
+                                    val h12Coerced = h12.coerceIn(1, 12)
+                                    val h24 = when {
+                                        pmState && h12Coerced < 12 -> h12Coerced + 12
+                                        !pmState && h12Coerced == 12 -> 0
+                                        else -> h12Coerced
+                                    }
+                                    settings.closingReminderHour = h24.coerceIn(6, 21)
+                                }
+                            },
+                            label = { Text("closingReminderHour".t(settings.language)) },
+                            suffix = { Text(":00") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilledTonalButton(
+                            onClick = {
+                                pmState = !pmState
+                                hour12Text.toIntOrNull()?.let { h12 ->
+                                    val h24 = when {
+                                        pmState && h12 < 12 -> h12 + 12
+                                        !pmState && h12 == 12 -> 0
+                                        else -> h12
+                                    }
+                                    settings.closingReminderHour = h24.coerceIn(6, 21)
+                                }
+                            },
+                            modifier = Modifier.height(56.dp)
+                        ) {
+                            Text(
+                                if (pmState) "PM" else "AM",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Permission denied → open system settings
                 val hasNotifPermission = Build.VERSION.SDK_INT < 33 ||
                     ContextCompat.checkSelfPermission(contextForNotif, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
                 if (!hasNotifPermission) {
@@ -381,37 +440,15 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("openSystemSettings".t(settings.language)) }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Dev convenience: test notification + run the daily check now
-                OutlinedButton(
-                    onClick = {
-                        NotificationCenter.post(
-                            contextForNotif, NotificationChannels.CLOSING, 2999,
-                            "notifTest".t(settings.language), "notifTestBody".t(settings.language),
-                            NotificationDeepLinks.MORNING
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("notifTest".t(settings.language)) }
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = {
-                        WorkManager.getInstance(contextForNotif).enqueueUniqueWork(
-                            "notification_check_now",
-                            ExistingWorkPolicy.REPLACE,
-                            OneTimeWorkRequestBuilder<DailyCheckWorker>().build()
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("notifRunCheck".t(settings.language)) }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Tutorial Selector ──
-            SettingsSectionTitle("tutorials".t(settings.language))
+            // ═══════════════════════════════════════════════════════
+            // ── Support ──
+            // ═══════════════════════════════════════════════════════
+            SettingsSectionTitle("settingsSectionSupport".t(settings.language))
+            // Tutorial selector
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Green50),
@@ -419,7 +456,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        "tutSelector".t(settings.language),
+                        "tutorials".t(settings.language),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Green800
@@ -477,23 +514,8 @@ fun SettingsScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ── More (Reports / Help) — web v2.45 parity: the web Settings
-            // page gained a "More" section linking Reports and Help; the
-            // mobile screens existed but had no entry points, so these two
-            // buttons make them reachable.
-            SettingsSectionTitle("moreSection".t(settings.language))
-            OutlinedButton(
-                onClick = onOpenReports,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("reportsTitle".t(settings.language))
-            }
             Spacer(modifier = Modifier.height(8.dp))
+            // Help + Reports
             OutlinedButton(
                 onClick = onOpenHelp,
                 modifier = Modifier.fillMaxWidth()
@@ -502,11 +524,22 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("help".t(settings.language))
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onOpenReports,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("reportsTitle".t(settings.language))
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Data Management ──
-            SettingsSectionTitle("dataManagement".t(settings.language))
+            // ═══════════════════════════════════════════════════════
+            // ── Data ──
+            // ═══════════════════════════════════════════════════════
+            SettingsSectionTitle("settingsSectionData".t(settings.language))
             OutlinedButton(
                 onClick = {
                     if (viewModel != null) {
@@ -524,7 +557,20 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("importData".t(settings.language)) }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    if (viewModel != null) {
+                        // TODO: add confirmation dialog
+                        viewModel.resetAllData()
+                        scope.launch { snackbarHostState.showSnackbar("Data has been reset.") }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Red600)
+            ) { Text("resetDataBtn".t(settings.language), color = MaterialTheme.colorScheme.onPrimary) }
         }
+    }
     }
 }
 

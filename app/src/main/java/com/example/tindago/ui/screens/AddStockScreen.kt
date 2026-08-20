@@ -14,7 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -134,12 +136,16 @@ fun AddStockScreen(
             )
         }
     ) { padding ->
+    val addStockScrollState = rememberScrollState()
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(addStockScrollState) { scrollStateHolder.updateScrollState(addStockScrollState) }
+    CompositionLocalProvider(LocalScreenScrollState provides addStockScrollState) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(addStockScrollState)
         ) {
             // Current stock info (if editing)
             if (isEditing) {
@@ -511,6 +517,7 @@ fun AddStockScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
     }
 }
 

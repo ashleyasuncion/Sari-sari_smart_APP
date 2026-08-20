@@ -47,47 +47,66 @@ data class PageTutorial(
     val page: String,
     // Per-step highlight target ids (null = no highlight). Must match ids
     // registered via Modifier.tutorialHighlight(id, state) in the screens.
-    val highlights: List<String?> = emptyList()
+    val highlights: List<String?> = emptyList(),
+    // Optional final step that highlights the ? button with a replay hint.
+    val replayHintKey: String? = null
 )
 
 val pageTutorials = listOf(
     PageTutorial("main", "tutMain", "tutorial", 14, "morning"),
     PageTutorial("home", "tutHome", "homeTutorial", 10, "morning",
-        highlights = listOf(null, null, "morningStockCard", "morningDebtCard", null, null, null, null, null, null)),
+        highlights = listOf(null, null, "morningStockCard", "morningDebtCard", null, null, null, null, null, null),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("stock", "tutStock", "stockTutorial", 10, "inventory",
-        highlights = listOf(null, "stockSearchBar", "addStockBtn", null, "inventoryList", null, null, null, null, null)),
+        highlights = listOf(null, "stockSearchBar", "addStockBtn", null, "inventoryList", null, null, null, null, null),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("sales", "tutSales", "salesTutorial", 10, "day",
-        highlights = listOf(null, null, null, "dayStatsGrid", null, "dayStatsGrid", "sellFab", "dayTxFeed", null, null)),
+        highlights = listOf(null, null, null, "dayStatsGrid", null, "dayStatsGrid", "sellFab", "dayTxFeed", null, null),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("debt", "tutDebt", "debtTutorial", 10, "debts",
-        highlights = listOf(null, "totalDebtCard", "newDebtBtn", "debtList", "debtList", null, null, null, null, null)),
+        highlights = listOf(null, "totalDebtCard", "newDebtBtn", "debtList", "debtList", null, null, null, null, null),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("eod", "tutEOD", "eodTutorial", 6, "closing",
-        highlights = listOf(null, "closingEarnings", "closingUtang", null, null, "completeDayBtn")),
+        highlights = listOf(null, "closingEarnings", "closingUtang", null, null, "completeDayBtn"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("report", "tutReport", "reportTutorial", 6, "reports",
-        highlights = listOf(null, "reportPeriodToggle", "reportSummaryCards", "reportRecentTx", "reportBestSellers", "reportLowStock")),
+        highlights = listOf(null, "reportPeriodToggle", "reportSummaryCards", "reportRecentTx", "reportBestSellers", "reportLowStock"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("settings", "tutSettings", "settingsTutorial", 5, "settings",
-        highlights = listOf(null, "settingsLanguage", "settingsTextSize", "settingsStoreName", "settingsOwnerName")),
+        highlights = listOf(null, "settingsLanguage", "settingsTextSize", "settingsStoreName", "settingsOwnerName"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("addProduct", "tutAddProduct", "addProductTutorial", 5, "add_stock",
-        highlights = listOf(null, "addStockNameField", "addStockMarkup", "addStockQtyField", "addStockSaveBtn")),
+        highlights = listOf(null, "addStockNameField", "addStockMarkup", "addStockQtyField", "addStockSaveBtn"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("newSale", "tutNewSale", "newSaleTutorial", 5, "day",
-        highlights = listOf("sellFab", null, null, null, null)),
+        highlights = listOf("sellFab", null, null, null, null),
+        replayHintKey = "tutorialReplayHint"),
     // Web v2.64 parity: standalone checkout page tutorial.
     PageTutorial("checkout", "tutCheckout", "checkoutTutorial", 5, "checkout",
-        highlights = listOf("checkoutSearch", "checkoutAddCart", "checkoutCart", "checkoutPayCredit", "checkoutComplete")),
+        highlights = listOf("checkoutSearch", "checkoutAddCart", "checkoutCart", "checkoutPayCredit", "checkoutComplete"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("newDebt", "tutNewDebt", "newDebtTutorial", 4, "new_debt",
-        highlights = listOf(null, "newDebtNameField", "newDebtAmountField", "newDebtSaveBtn")),
+        highlights = listOf(null, "newDebtNameField", "newDebtAmountField", "newDebtSaveBtn"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("help", "tutHelp", "helpTutorial", 6, "help",
-        highlights = listOf(null, "helpTutSelector", "helpHowTo", "helpContact", "helpAbout", null)),
+        highlights = listOf(null, "helpTutSelector", "helpHowTo", "helpContact", "helpAbout", null),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("restock", "tutRestock", "restockTutorial", 8, "restock",
-        highlights = listOf(null, "restockStep1Section", "restockSearchField", "restockProductList", "restockContinueBtn", "restockStep2Section", "restockPurchaseList", "restockDoneBtn")),
+        highlights = listOf(null, "restockStep1Section", "restockSearchField", "restockProductList", "restockContinueBtn", "restockStep2Section", "restockPurchaseList", "restockDoneBtn"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("productDetail", "tutProductDetail", "productDetailTutorial", 4, "product_detail",
-        highlights = listOf(null, "pdStockAlert", "pdActions", "pdDeleteBtn")),
+        highlights = listOf(null, "pdStockAlert", "pdActions", "pdDeleteBtn"),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("customerDebtDetail", "tutCustomerDebtDetail", "customerDebtDetailTutorial", 5, "customer_debt_detail",
-        highlights = listOf(null, "cddBalanceCard", "cddLedger", "cddRecordPaymentBtn", null)),
+        highlights = listOf(null, "cddBalanceCard", "cddLedger", "cddRecordPaymentBtn", null),
+        replayHintKey = "tutorialReplayHint"),
     PageTutorial("recordPayment", "tutRecordPayment", "recordPaymentTutorial", 4, "record_payment",
-        highlights = listOf("rpAmountField", "rpRemainingPreview", "rpNoteField", "rpPayBtn")),
+        highlights = listOf("rpAmountField", "rpRemainingPreview", "rpNoteField", "rpPayBtn"),
+        replayHintKey = "tutorialReplayHint"),
     // Web V2.71 parity: Store Expenses tutorial (Expense Log).
     PageTutorial("expenses", "tutExpenses", "expensesTutorial", 3, "expenses",
-        highlights = listOf(null, "expenseCategoryField", "expenseList"))
+        highlights = listOf(null, "expenseCategoryField", "expenseList"),
+        replayHintKey = "tutorialReplayHint")
 )
 
 /**
@@ -117,8 +136,12 @@ fun TutorialOverlay(
     val lang = langState.value
     val isLastStep = currentStep >= totalSteps - 1
 
-    // Read screen scroll state for auto-scroll
-    val screenScrollState = LocalScreenScrollState.current
+    // Read screen scroll state for auto-scroll.
+    // Uses the shared holder provided at NavGraph level, which screens update
+    // when they compose. The old approach of reading LocalScreenScrollState/
+    // LocalScreenLazyListState directly didn't work because the overlay is
+    // composed outside those providers' scope.
+    val scrollHolder = LocalTutorialScrollStateHolder.current
     val density = LocalDensity.current
 
     // Track the overlay's own bounds for viewport height calculation
@@ -136,21 +159,38 @@ fun TutorialOverlay(
     // ── Auto-scroll: when step changes with a highlight target that's off-screen, scroll to make it visible ──
     // Matches web app's behavior in renderTutorialStep() using scrollContainer.scrollTop adjustments
     LaunchedEffect(currentStep, step.highlightTarget, targetBounds, overlayHeight) {
-        if (targetBounds != null && !targetBounds.isEmpty && screenScrollState != null && overlayHeight > 0f) {
+        if (targetBounds != null && !targetBounds.isEmpty && overlayHeight > 0f) {
             val bufferPx = with(density) { 160.dp.toPx() } // leave room for header pill + tutorial card
             val viewportBottom = overlayHeight
             val targetTop = targetBounds.top
             val targetBottom = targetBounds.bottom
+            val needsScrollDown = targetBottom > viewportBottom - bufferPx
+            val needsScrollUp = targetTop < 100f
 
-            // If target is below the visible viewport area, scroll down
-            if (targetBottom > viewportBottom - bufferPx) {
-                val scrollDelta = (targetBottom - (viewportBottom - bufferPx)).toInt()
-                screenScrollState.animateScrollTo(screenScrollState.value + scrollDelta)
-            }
-            // If target is above the visible viewport area (behind header), scroll up
-            else if (targetTop < 100f) {
-                val scrollDelta = (100f - targetTop + 30f).toInt()
-                screenScrollState.animateScrollTo((screenScrollState.value - scrollDelta).coerceAtLeast(0))
+            if (needsScrollDown || needsScrollUp) {
+                // Read into local vals so Kotlin can smart-cast (delegated properties can't be smart-cast)
+                val currentScrollState = scrollHolder.scrollState
+                val currentLazyListState = scrollHolder.lazyListState
+                if (currentScrollState != null) {
+                    // Regular ScrollState screens (verticalScroll)
+                    if (needsScrollDown) {
+                        val scrollDelta = (targetBottom - (viewportBottom - bufferPx)).toInt()
+                        currentScrollState.animateScrollTo(currentScrollState.value + scrollDelta)
+                    } else if (needsScrollUp) {
+                        val scrollDelta = (100f - targetTop + 30f).toInt()
+                        currentScrollState.animateScrollTo((currentScrollState.value - scrollDelta).coerceAtLeast(0))
+                    }
+                } else if (currentLazyListState != null) {
+                    // LazyColumn screens: use animateScrollToItem with approximate index
+                    val itemHeightPx = with(density) { 80.dp.toPx() }
+                    if (needsScrollDown) {
+                        val targetIndex = ((targetBottom - viewportBottom + bufferPx) / itemHeightPx + currentLazyListState.firstVisibleItemIndex).toInt().coerceAtLeast(0)
+                        currentLazyListState.animateScrollToItem(targetIndex)
+                    } else if (needsScrollUp) {
+                        val targetIndex = (currentLazyListState.firstVisibleItemIndex - 2).coerceAtLeast(0)
+                        currentLazyListState.animateScrollToItem(targetIndex)
+                    }
+                }
             }
         }
     }

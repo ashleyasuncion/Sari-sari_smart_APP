@@ -16,7 +16,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.tindago.data.Product
 import com.example.tindago.data.StockStatus
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -104,12 +106,16 @@ fun ProductDetailScreen(
             StockStatus.OUT_OF_STOCK -> Red600
         }
 
+        val pdScrollState = rememberScrollState()
+        val scrollStateHolder = LocalTutorialScrollStateHolder.current
+        LaunchedEffect(pdScrollState) { scrollStateHolder.updateScrollState(pdScrollState) }
+        CompositionLocalProvider(LocalScreenScrollState provides pdScrollState) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(pdScrollState)
         ) {
             // ── Out-of-stock banner ──────────────────────────────────────
             if (product.status == StockStatus.OUT_OF_STOCK) {
@@ -321,6 +327,10 @@ fun ProductDetailScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+    }
+
+
+
 
     // ── Delete Confirmation Dialog (Stage 5) ─────────────────────────
     if (showDeleteConfirm && product != null) {

@@ -380,8 +380,10 @@ class AppViewModel : ViewModel() {
         return try {
             val then = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date) ?: return -1
             val diff = System.currentTimeMillis() - then.time
-            (diff / (1000L * 60 * 60 * 24)).toInt()
-        } catch (_: Exception) { -1 }
+            val days = (diff / (1000L * 60 * 60 * 24)).toInt()
+            if (days < 0 || days > 365) { _lastRestockDate.value = null; -1 }
+            else days
+        } catch (_: Exception) { _lastRestockDate.value = null; -1 }
     }
 
     fun clearRestockData() {

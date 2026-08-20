@@ -2,6 +2,8 @@ package com.example.tindago.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,6 +21,7 @@ import com.example.tindago.data.LocalSnackbarHost
 import com.example.tindago.data.LocalSnackbarScope
 import com.example.tindago.data.SpecificSale
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
@@ -152,6 +155,9 @@ fun NewDebtScreen(
         onBack()
     }
 
+    val ndScrollState = rememberScrollState()
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(ndScrollState) { scrollStateHolder.updateScrollState(ndScrollState) }
     Scaffold(
         topBar = {
             // V2.68: subpage rule — Back button present → centered title.
@@ -174,7 +180,7 @@ fun NewDebtScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(ndScrollState)
         ) {
             // ── Customer Name ───────────────────────────────────────────
             Text("customer".t(lang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)

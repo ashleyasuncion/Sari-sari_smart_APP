@@ -1,10 +1,15 @@
 package com.example.tindago.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,7 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.tindago.data.StockStatus
+import com.example.tindago.ui.components.LocalScreenScrollState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.localization.LocalLanguage
 import com.example.tindago.ui.localization.t
@@ -48,6 +55,11 @@ fun EveningClosingScreen(
     val debts by viewModel.debts.collectAsState()
     val lastRestockDate by viewModel.lastRestockDate.collectAsState()
     val expenses by viewModel.expenses.collectAsState()
+
+    // Collapsible section states (default: expanded)
+    var soldItemsExpanded by remember { mutableStateOf(true) }
+    var lowStockExpanded by remember { mutableStateOf(true) }
+    var debtsExpanded by remember { mutableStateOf(true) }
 
     val today = viewModel.today
     val todaySales = specificSales.filter { it.date == today }
@@ -115,6 +127,9 @@ fun EveningClosingScreen(
         return
     }
 
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(scrollState) { scrollStateHolder.updateScrollState(scrollState) }
+    CompositionLocalProvider(LocalScreenScrollState provides scrollState) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -241,7 +256,7 @@ fun EveningClosingScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "closingProfitHint".t(lang),
                         style = MaterialTheme.typography.bodySmall,
@@ -270,6 +285,8 @@ fun EveningClosingScreen(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // Net Profit (gross profit - store expenses); red when negative
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -290,6 +307,7 @@ fun EveningClosingScreen(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "closingNetProfitHint".t(lang),
                         style = MaterialTheme.typography.bodySmall,
@@ -323,41 +341,59 @@ fun EveningClosingScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "closingSectionSold".t(lang),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Gray700,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                if (todaySales.isEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { soldItemsExpanded = !soldItemsExpanded }
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        "noSales".t(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Gray400,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        "closingSectionSold".t(lang),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Gray700
                     )
-                } else {
-                    todaySales.take(10).forEach { sale ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(sale.description, style = MaterialTheme.typography.bodyMedium, color = Gray800)
-                                if (sale.quantity > 1) {
-                                    Text("x${sale.quantity}", style = MaterialTheme.typography.bodySmall, color = Gray400)
+                    Icon(
+                        if (soldItemsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Gray400,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                AnimatedVisibility(visible = soldItemsExpanded) {
+                    Column {
+                        if (todaySales.isEmpty()) {
+                            Text(
+                                "noSales".t(lang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Gray400,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        } else {
+                            todaySales.take(10).forEach { sale ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(sale.description, style = MaterialTheme.typography.bodyMedium, color = Gray800)
+                                        if (sale.quantity > 1) {
+                                            Text("x${sale.quantity}", style = MaterialTheme.typography.bodySmall, color = Gray400)
+                                        }
+                                    }
+                                    Text(
+                                        "\u20B1${String.format("%,.2f", sale.amount)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Gray800
+                                    )
+                                }
+                                if (todaySales.last() != sale) {
+                                    HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 2.dp))
                                 }
                             }
-                            Text(
-                                "\u20B1${String.format("%,.2f", sale.amount)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Gray800
-                            )
-                        }
-                        if (todaySales.last() != sale) {
-                            HorizontalDivider(color = Gray100, modifier = Modifier.padding(vertical = 2.dp))
                         }
                     }
                 }
@@ -374,34 +410,54 @@ fun EveningClosingScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "closingSectionLowStock".t(lang),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Gray700,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                val lowItems = products.filter { it.status != StockStatus.PLENTY }.sortedBy { it.quantity }
-                if (lowItems.isEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { lowStockExpanded = !lowStockExpanded }
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        "closingLowStockOk".t(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Green600,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        "closingSectionLowStock".t(lang),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Gray700
                     )
-                } else {
-                    lowItems.take(5).forEach { p ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(p.name, style = MaterialTheme.typography.bodyMedium, color = Gray800)
+                    Icon(
+                        if (lowStockExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Gray400,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                AnimatedVisibility(visible = lowStockExpanded) {
+                    Column {
+                        val lowItems = products.filter { it.status == StockStatus.LOW }.sortedBy { it.quantity }
+                        val outItems = products.filter { it.status == StockStatus.OUT_OF_STOCK }.sortedBy { it.name }
+                        val displayItems = (lowItems + outItems).take(5)
+                        if (displayItems.isEmpty()) {
                             Text(
-                                "${p.quantity} left",
+                                "closingLowStockOk".t(lang),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (p.quantity <= 0) Red500 else Amber700,
-                                fontWeight = FontWeight.Medium
+                                color = Green600,
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
+                        } else {
+                            displayItems.forEach { p ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(p.name, style = MaterialTheme.typography.bodyMedium, color = Gray800)
+                                    Text(
+                                        "${p.quantity} left",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (p.quantity <= 0) Red500 else Amber700,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -420,34 +476,52 @@ fun EveningClosingScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "closingSectionDebts".t(lang),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Gray700,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                val activeDebts = debts.filter { it.remainingBalance > 0 }
-                if (activeDebts.isEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { debtsExpanded = !debtsExpanded }
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        "closingNoDebts".t(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Green600,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        "closingSectionDebts".t(lang),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Gray700
                     )
-                } else {
-                    activeDebts.take(5).forEach { d ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(d.customerName, style = MaterialTheme.typography.bodyMedium, color = Gray800)
+                    Icon(
+                        if (debtsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = Gray400,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                AnimatedVisibility(visible = debtsExpanded) {
+                    Column {
+                        val activeDebts = debts.filter { it.remainingBalance > 0 }
+                        if (activeDebts.isEmpty()) {
                             Text(
-                                "\u20B1${String.format("%,.2f", d.remainingBalance)}",
+                                "closingNoDebts".t(lang),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Red500,
-                                fontWeight = FontWeight.Medium
+                                color = Green600,
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
+                        } else {
+                            activeDebts.take(5).forEach { d ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(d.customerName, style = MaterialTheme.typography.bodyMedium, color = Gray800)
+                                    Text(
+                                        "\u20B1${String.format("%,.2f", d.remainingBalance)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Red500,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -535,6 +609,7 @@ fun EveningClosingScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
     }
 }
 

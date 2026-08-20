@@ -1,11 +1,15 @@
 package com.example.tindago.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,13 +19,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tindago.data.*
+import com.example.tindago.ui.components.LocalScreenLazyListState
 import com.example.tindago.ui.components.LocalTutorialHighlightState
+import com.example.tindago.ui.components.LocalTutorialScrollStateHolder
 import com.example.tindago.ui.components.TutorialIconButton
 import com.example.tindago.ui.components.tutorialHighlight
 import com.example.tindago.ui.theme.*
@@ -30,6 +37,9 @@ import kotlinx.coroutines.launch
 /**
  * Restock Day Screen — 2-step guided workflow for physical count correction
  * (Step 1) and purchase recording (Step 2).
+ *
+ * Both steps use a sticky bottom action bar so the primary action is always
+ * visible without scrolling. Step 1 also has a back-to-top FAB.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +61,18 @@ fun RestockScreen(
     var purchaseCost by remember { mutableStateOf("") }
     var purchaseQty by remember { mutableStateOf("1") }
     var selectedProductId by remember { mutableStateOf<Int?>(null) }
+    val step1ListState = rememberLazyListState()
+    val step2ListState = rememberLazyListState()
+    val activeRestockListState = if (restockTemp.step == 1) step1ListState else step2ListState
+    val scrollStateHolder = LocalTutorialScrollStateHolder.current
+    LaunchedEffect(activeRestockListState) { scrollStateHolder.updateLazyListState(activeRestockListState) }
+
+    // Back-to-top visibility: show when first visible item > 0 on Step 1
+    val showBackToTop by remember {
+        derivedStateOf {
+            restockTemp.step == 1 && step1ListState.firstVisibleItemIndex > 0
+        }
+    }
 
     val filteredProducts = remember(products, searchQuery) {
         if (searchQuery.isBlank()) products.sortedBy { it.name }
@@ -62,10 +84,11 @@ fun RestockScreen(
         else products.filter { it.name.contains(purchaseSearch, ignoreCase = true) }.take(6)
     }
 
+    val purchases = restockTemp.purchases
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            // V2.68: subpage rule — Back button present → centered title.
             CenterAlignedTopAppBar(
                 title = { Text("Restock Day 🚚", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
@@ -82,313 +105,380 @@ fun RestockScreen(
             )
         }
     ) { padding ->
-        Column(
+    CompositionLocalProvider(LocalScreenLazyListState provides activeRestockListState) {
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
         ) {
-            // Step indicator
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            // Main content column
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
             ) {
-                StepDot(active = restockTemp.step == 1, label = "1")
-                Spacer(modifier = Modifier.width(8.dp))
-                HorizontalDivider(modifier = Modifier.width(60.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                StepDot(active = restockTemp.step == 2, label = "2")
-            }
-
-            if (restockTemp.step == 1) {
-                // ═══════════════════════════════════════════════
-                // STEP 1: Physical Count Correction
-                // ═══════════════════════════════════════════════
-                Text(
-                    text = "Step 1: Check Shelves",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp).tutorialHighlight("restockStep1Section", highlightState)
-                )
-                Text(
-                    text = "Enter the actual count you see on your shelf for each product.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                // Search
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search product...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().tutorialHighlight("restockSearchField", highlightState),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Correction count badge
-                val correctionCount = restockTemp.corrections.count { it.oldQty != it.newQty }
-                Text(
-                    text = "$correctionCount/${products.size} items checked",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                // Product list
-                LazyColumn(
-                    modifier = Modifier.weight(1f).tutorialHighlight("restockProductList", highlightState),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // Step indicator
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (filteredProducts.isEmpty()) {
-                        item {
-                            Text(
-                                "No products to check.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 24.dp)
-                            )
-                        }
-                    }
-                    items(filteredProducts, key = { it.id }) { product ->
-                        CorrectionItem(
-                            product = product,
-                            initialActual = restockTemp.corrections
-                                .find { it.productEntityId == product.id }
-                                ?.newQty ?: product.quantity,
-                            onActualChange = { newQty ->
-                                viewModel.applyCorrection(
-                                    Correction(
-                                        productId = product.id.toString(),
-                                        productEntityId = product.id,
-                                        oldQty = product.quantity,
-                                        newQty = newQty
-                                    )
+                    StepDot(active = restockTemp.step == 1, label = "1")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    HorizontalDivider(modifier = Modifier.width(60.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    StepDot(active = restockTemp.step == 2, label = "2")
+                }
+
+                if (restockTemp.step == 1) {
+                    // ═══════════════════════════════════════════════
+                    // STEP 1: Physical Count Correction
+                    // ═══════════════════════════════════════════════
+                    Text(
+                        text = "Step 1: Check Shelves",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 4.dp).tutorialHighlight("restockStep1Section", highlightState)
+                    )
+                    Text(
+                        text = "Enter the actual count you see on your shelf for each product.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    // Search
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search product...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().tutorialHighlight("restockSearchField", highlightState),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Correction count badge
+                    val correctionCount = restockTemp.corrections.count { it.oldQty != it.newQty }
+                    Text(
+                        text = "$correctionCount/${products.size} items checked",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Product list (bottom padding for sticky bar)
+                    LazyColumn(
+                        state = step1ListState,
+                        modifier = Modifier.weight(1f).tutorialHighlight("restockProductList", highlightState),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        if (filteredProducts.isEmpty()) {
+                            item {
+                                Text(
+                                    "No products to check.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 24.dp)
                                 )
                             }
-                        )
+                        }
+                        items(filteredProducts, key = { it.id }) { product ->
+                            CorrectionItem(
+                                product = product,
+                                initialActual = restockTemp.corrections
+                                    .find { it.productEntityId == product.id }
+                                    ?.newQty ?: product.quantity,
+                                onActualChange = { newQty ->
+                                    viewModel.applyCorrection(
+                                        Correction(
+                                            productId = product.id.toString(),
+                                            productEntityId = product.id,
+                                            oldQty = product.quantity,
+                                            newQty = newQty
+                                        )
+                                    )
+                                }
+                            )
+                        }
                     }
-                }
 
-                // Continue button
-                Button(
-                    onClick = {
-                        viewModel.applyCorrectionsToProducts()
-                        viewModel.setRestockStep(2)
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).tutorialHighlight("restockContinueBtn", highlightState),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = true
-                ) {
-                    Text("Continue to Purchases →")
-                }
+                } else {
+                    // ═══════════════════════════════════════════════
+                    // STEP 2: Record Purchases
+                    // ═══════════════════════════════════════════════
+                    Text(
+                        text = "Step 2: Record Purchases",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 4.dp).tutorialHighlight("restockStep2Section", highlightState)
+                    )
+                    Text(
+                        text = "Search for a product, enter cost per unit and quantity.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
 
-                // Cancel button
-                TextButton(
-                    onClick = {
-                        viewModel.cancelRestock()
-                        onBack()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel Restock", color = MaterialTheme.colorScheme.error)
-                }
+                    // Product search + cost/qty form
+                    OutlinedTextField(
+                        value = purchaseSearch,
+                        onValueChange = { purchaseSearch = it },
+                        placeholder = { Text("Search product...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
 
-            } else {
-                // ═══════════════════════════════════════════════
-                // STEP 2: Record Purchases
-                // ═══════════════════════════════════════════════
-                Text(
-                    text = "Step 2: Record Purchases",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp).tutorialHighlight("restockStep2Section", highlightState)
-                )
-                Text(
-                    text = "Search for a product, enter cost per unit and quantity.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                    // Suggestions dropdown
+                    if (filteredPurchaseProducts.isNotEmpty() && purchaseSearch.isNotBlank()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column {
+                                filteredPurchaseProducts.forEach { product ->
+                                    Surface(
+                                        onClick = {
+                                            purchaseSearch = product.name
+                                            selectedProductId = product.id
+                                            purchaseCost = product.costPrice.toString()
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "${product.name} — ₱${String.format("%,.2f", product.costPrice)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
 
-                // Product search + cost/qty form
-                OutlinedTextField(
-                    value = purchaseSearch,
-                    onValueChange = { purchaseSearch = it },
-                    placeholder = { Text("Search product...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Suggestions dropdown
-                if (filteredPurchaseProducts.isNotEmpty() && purchaseSearch.isNotBlank()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    // Cost + Qty row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
-                            filteredPurchaseProducts.forEach { product ->
-                                Surface(
-                                    onClick = {
-                                        purchaseSearch = product.name
-                                        selectedProductId = product.id
-                                        purchaseCost = product.costPrice.toString()
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
+                        OutlinedTextField(
+                            value = purchaseCost,
+                            onValueChange = { purchaseCost = it },
+                            label = { Text("Cost/unit (₱)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = purchaseQty,
+                            onValueChange = { purchaseQty = it },
+                            label = { Text("Qty") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+
+                    // Add Item button
+                    Button(
+                        onClick = {
+                            val name = purchaseSearch.trim()
+                            val cost = purchaseCost.toDoubleOrNull() ?: 0.0
+                            val qty = purchaseQty.toIntOrNull() ?: 1
+                            if (name.isBlank() || cost <= 0 || qty <= 0) {
+                                scope.launch { snackbarHostState.showSnackbar("Please fill in all fields correctly.") }
+                                return@Button
+                            }
+                            viewModel.addPurchaseToTemp(
+                                PurchaseEntry(
+                                    productId = selectedProductId?.toString(),
+                                    productEntityId = selectedProductId ?: 0,
+                                    productName = name,
+                                    costPerUnit = cost,
+                                    qtyAdded = qty,
+                                    totalCost = cost * qty
+                                )
+                            )
+                            purchaseSearch = ""
+                            purchaseCost = ""
+                            purchaseQty = "1"
+                            selectedProductId = null
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Add Item")
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    // Purchase list (bottom padding for sticky bar)
+                    LazyColumn(
+                        state = step2ListState,
+                        modifier = Modifier.weight(1f).tutorialHighlight("restockPurchaseList", highlightState),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        if (purchases.isEmpty()) {
+                            item {
+                                Text(
+                                    "No items added yet.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 24.dp)
+                                )
+                            }
+                        }
+                        itemsIndexed(purchases) { index, item ->
+                            PurchaseItem(
+                                entry = item,
+                                onRemove = { viewModel.removePurchaseFromTemp(index) }
+                            )
+                        }
+
+                        // Total row
+                        if (purchases.isNotEmpty()) {
+                            item {
+                                val total = purchases.sumOf { it.totalCost }
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Green50)
                                 ) {
-                                    Text(
-                                        text = "${product.name} — ₱${String.format("%,.2f", product.costPrice)}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Total Spent", style = MaterialTheme.typography.titleMedium)
+                                        Text(
+                                            "₱${String.format("%,.2f", total)}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Green700
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            // ── Back-to-top FAB (Step 1 only) ──
+            AnimatedVisibility(
+                visible = showBackToTop,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 80.dp),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        scope.launch { step1ListState.animateScrollToItem(0) }
+                    },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Back to top")
+                }
+            }
 
-                // Cost + Qty row
-                Row(
+            // ── Sticky action bar: Step 1 ──
+            AnimatedVisibility(
+                visible = restockTemp.step == 1,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    shadowElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
                 ) {
-                    OutlinedTextField(
-                        value = purchaseCost,
-                        onValueChange = { purchaseCost = it },
-                        label = { Text("Cost/unit (₱)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    OutlinedTextField(
-                        value = purchaseQty,
-                        onValueChange = { purchaseQty = it },
-                        label = { Text("Qty") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-
-                // Add Item button
-                Button(
-                    onClick = {
-                        val name = purchaseSearch.trim()
-                        val cost = purchaseCost.toDoubleOrNull() ?: 0.0
-                        val qty = purchaseQty.toIntOrNull() ?: 1
-                        if (name.isBlank() || cost <= 0 || qty <= 0) {
-                            scope.launch { snackbarHostState.showSnackbar("Please fill in all fields correctly.") }
-                            return@Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.cancelRestock()
+                                onBack()
+                            },
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Text("Cancel")
                         }
-                        viewModel.addPurchaseToTemp(
-                            PurchaseEntry(
-                                productId = selectedProductId?.toString(),
-                                productEntityId = selectedProductId ?: 0,
-                                productName = name,
-                                costPerUnit = cost,
-                                qtyAdded = qty,
-                                totalCost = cost * qty
-                            )
-                        )
-                        purchaseSearch = ""
-                        purchaseCost = ""
-                        purchaseQty = "1"
-                        selectedProductId = null
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add Item")
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                // Purchase list
-                val purchases = restockTemp.purchases
-                LazyColumn(
-                    modifier = Modifier.weight(1f).tutorialHighlight("restockPurchaseList", highlightState),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (purchases.isEmpty()) {
-                        item {
-                            Text(
-                                "No items added yet.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 24.dp)
-                            )
-                        }
-                    }
-                    itemsIndexed(purchases) { index, item ->
-                        PurchaseItem(
-                            entry = item,
-                            onRemove = { viewModel.removePurchaseFromTemp(index) }
-                        )
-                    }
-
-                    // Total row
-                    if (purchases.isNotEmpty()) {
-                        item {
-                            val total = purchases.sumOf { it.totalCost }
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Green50)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Total Spent", style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        "₱${String.format("%,.2f", total)}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Green700
-                                    )
-                                }
-                            }
+                        Button(
+                            onClick = {
+                                viewModel.applyCorrectionsToProducts()
+                                viewModel.setRestockStep(2)
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp).tutorialHighlight("restockContinueBtn", highlightState),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Continue to Purchases →")
                         }
                     }
                 }
+            }
 
-                // Done + Cancel buttons
-                Button(
-                    onClick = {
-                        viewModel.completeRestock()
-                        scope.launch { snackbarHostState.showSnackbar("Restock saved! Inventory updated.") }
-                        onComplete()
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).tutorialHighlight("restockDoneBtn", highlightState),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = purchases.isNotEmpty()
+            // ── Sticky action bar: Step 2 ──
+            AnimatedVisibility(
+                visible = restockTemp.step == 2,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Done ✓")
-                }
-
-                TextButton(
-                    onClick = {
-                        viewModel.cancelRestock()
-                        onBack()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel Restock", color = MaterialTheme.colorScheme.error)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.setRestockStep(1)
+                            },
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Back")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.completeRestock()
+                                scope.launch { snackbarHostState.showSnackbar("Restock saved! Inventory updated.") }
+                                onComplete()
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp).tutorialHighlight("restockDoneBtn", highlightState),
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = purchases.isNotEmpty()
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Done ✓")
+                        }
+                    }
                 }
             }
         }
+    }
     }
 }
 

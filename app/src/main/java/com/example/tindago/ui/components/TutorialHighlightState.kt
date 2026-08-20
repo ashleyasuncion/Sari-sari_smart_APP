@@ -1,8 +1,10 @@
 package com.example.tindago.ui.components
 
 import androidx.compose.foundation.ScrollState
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -61,6 +63,13 @@ val LocalTutorialHighlightState = compositionLocalOf { TutorialHighlightState() 
  * can auto-scroll to bring highlighted elements into view.
  */
 val LocalScreenScrollState = compositionLocalOf<ScrollState?> { null }
+
+/**
+ * CompositionLocal for screens using [LazyColumn] with [LazyListState].
+ * The tutorial overlay checks this when [LocalScreenScrollState] is null
+ * and uses [LazyListState.animateScrollToItem] for auto-scroll.
+ */
+val LocalScreenLazyListState = compositionLocalOf<LazyListState?> { null }
 
 /**
  * Modifier extension that registers this composable as a tutorial highlight target.
